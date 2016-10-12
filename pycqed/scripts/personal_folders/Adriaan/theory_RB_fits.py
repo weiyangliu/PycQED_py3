@@ -76,7 +76,7 @@ def make_std_plot(x_vec, j1, j2):
     y_vec2 = sfunc(x_vec, pg_vec[j2], pr_fixed, sg_fixed, sr_fixed)
 
     # Take difference,  return
-    return [np.sqrt(y1**2+y2**2) for y1, y2 in zip(y_vec1, y_vec2)]
+    return [(y1+y2)/2 for y1, y2 in zip(y_vec1, y_vec2)]
 
 
 # Fit coefficients obtained from fitting pfunc/sfunc to the experimental data,
