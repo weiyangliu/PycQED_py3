@@ -1,9 +1,14 @@
 import logging
 import numpy as np
 
-from qcodes.instrument.base import Instrument
-from qcodes.utils import validators as vals
-from qcodes.instrument.parameter import ManualParameter
+# This try except statement exists to allow testing without qcodes installed.
+# this try except loop should be removed when qcodes is publicly released
+try:
+    from qcodes.instrument.base import Instrument
+    from qcodes.utils import validators as vals
+    from qcodes.instrument.parameter import ManualParameter
+except ImportError:
+    pass
 
 from pycqed.measurement.kernel_functions import kernel_generic, htilde_bounce, \
     htilde_skineffect, save_kernel, step_bounce, step_skineffect
