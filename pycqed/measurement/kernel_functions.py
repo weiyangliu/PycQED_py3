@@ -1,12 +1,6 @@
-import sys
 import numpy as np
-import csv
-from scipy import optimize
-from scipy import interpolate
-from scipy import constants
 from scipy import special
-import lmfit
-from analysis import fitting_models as fit_mods
+
 
 # heaviside function
 heaviside = lambda t: t >= 0
