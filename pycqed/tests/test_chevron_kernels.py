@@ -2,7 +2,7 @@ import numpy as np
 from unittest import TestCase
 
 from pycqed.simulations import chevron_sim as chs
-from pycqed.instrument_drivers.meta_instrument.kernel_object import (
+from pycqed.measurement.kernel_functions import (
     bounce_kernel, decay_kernel, skin_kernel, poly_kernel)
 
 
