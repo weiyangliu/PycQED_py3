@@ -14,6 +14,7 @@ from pycqed.measurement.waveform_control import pulse_library as pl
 from pycqed.measurement.waveform_control import pulsar
 from pycqed.measurement.waveform_control import element
 from pycqed.measurement.waveform_control import sequence
+from pycqed.simulations import chevron_sim as chev_lib
 
 
 class Detector_Function(object):
@@ -954,135 +955,6 @@ class CBox_digitizing_shots_det(CBox_integration_logging_det):
         # can cut that.
         return (d > self.threshold).astype(int)
 
-
-
-# class QuTechCBox_AlternatingShots_Logging_Detector_Touch_N_Go(Hard_Detector):
-#     def __init__(self, NoSamples=10000, AWG='AWG', **kw):
-#         super(QuTechCBox_AlternatingShots_Logging_Detector_Touch_N_Go, self).__init__()
-#         self.CBox = qt.instruments['CBox']
-#         self.name = 'CBox_Streaming_data'
-#         self.value_names = ['I_0', 'Q_0', 'I_1', 'Q_1']
-#         self.value_units = ['a.u.', 'a.u.', 'a.u.', 'a.u.']
-#         self.NoSamples = NoSamples
-#         if AWG is not None:
-#             self.AWG = qt.instruments[AWG]
-
-#     def get_values(self):
-#         exception_mode = True
-#         if exception_mode:
-#             success = False
-#             i = 0
-#             while not success and i < 10:
-#                 try:
-#                     d = self._get_values()
-#                     success = True
-#                 except Exception as e:
-#                     print()
-#                     print('Timeout exception caught, retaking data points')
-#                     print(str(e))
-#                     i += 1
-#                     self.CBox.set_run_mode(0)
-#                     self.CBox.set('acquisition_mode', 0)
-#                     self.CBox.restart_awg_tape(0)
-#                     self.CBox.restart_awg_tape(1)
-#                     self.CBox.restart_awg_tape(2)
-#                     self.prepare()
-#         else:
-#             d = self._get_values()
-#         return d
-
-#     def _get_values(self):
-#         raw_data = self.CBox.get_integration_log_results()
-#         I_data_0, I_data_1 = a_tools.zigzag(raw_data[0])
-#         Q_data_0, Q_data_1 = a_tools.zigzag(raw_data[1])
-#         data = [I_data_0, Q_data_0, I_data_1, Q_data_1]
-#         print(np.shape(data))
-#         return data
-
-#     def prepare(self, **kw):
-#         if self.AWG is not None:
-#             self.AWG.stop()
-#         self.CBox.set('acquisition_mode', 6)
-#         self.CBox.set_run_mode(1)
-
-#     def finish(self):
-#         counters = np.array(self.CBox.get_sequencer_counters())
-#         triggerfraction = float(counters[1])/float(counters[0])
-#         print("trigger fraction", triggerfraction)
-#         self.CBox.set('acquisition_mode', 0)
-#         self.CBox.set_run_mode(0)
-#         if self.AWG is not None:
-#             self.AWG.stop()
-
-
-# class QuTechCBox_Shots_Logging_Detector_Touch_N_Go(Hard_Detector):
-#     def __init__(self, digitize=True,  timeout=2, **kw):
-#         super(QuTechCBox_Shots_Logging_Detector_Touch_N_Go,
-#               self).__init__()
-#         self.CBox = qt.instruments['CBox']
-#         self.name = 'CBox_shots_data'
-#         self.digitize = digitize
-#         self.timeout = timeout
-#         if self.digitize:
-#             self.value_names = ['digitized values']
-#             self.value_units = ['a.u.']
-#             self.threshold_weight0 = self.CBox.get_signal_threshold_line0()
-#         else:
-#             self.value_names = ['integration result']
-#             self.value_units = ['a.u.']
-
-#     def prepare(self, **kw):
-#         self.old_timeout = self.CBox.get_measurement_timeout()
-#         self.CBox.set_measurement_timeout(self.timeout)
-#         # ensures quick detection of the CBox crash
-
-#     def get_values(self):
-#         exception_mode = True
-#         if exception_mode:
-#             success = False
-#             i = 0
-#             while not success and i < 10:
-#                 try:
-#                     d = self._get_values()
-#                     success = True
-#                 except Exception as e:
-#                     print()
-#                     print('Timeout exception caught, retaking data points')
-#                     print(str(e))
-#                     i += 1
-#                     time.sleep(.1)
-#                     self.CBox.set_run_mode(0)
-#                     self.CBox.set('acquisition_mode', 0)
-#                     self.CBox.restart_awg_tape(0)
-#                     self.CBox.restart_awg_tape(1)
-#                     self.CBox.restart_awg_tape(2)
-#             # mode = raw_input('Press any key to continue')
-#         else:
-#             d = self._get_values()
-#         return d
-
-#     def _get_values(self):
-#         '''
-#         private version of the acquisition command used for the workaround
-#         '''
-#         self.CBox.set('acquisition_mode', 6)
-#         self.CBox.set_run_mode(1)
-
-#         raw_data = self.CBox.get_integration_log_results()
-#         weight0_data = raw_data[0]
-#         if self.digitize:
-#             data_0 = [1 if d < self.threshold_weight0 else -1
-#                       for d in weight0_data]
-#         else:
-#             data_0 = weight0_data
-#         self.CBox.set_run_mode(0)
-#         self.CBox.set('acquisition_mode', 0)
-
-#         return data_0
-
-#     def finish(self, **kw):
-#         self.CBox.set_measurement_timeout(self.old_timeout)
-
 ##############################################################################
 ##############################################################################
 ####################     Software Controlled Detectors     ###################
@@ -1119,6 +991,7 @@ class Source_frequency_detector(Soft_Detector):
 
     def acquire_data_point(self, **kw):
         return self.S.get('frequency')
+
 
 class Function_Detector(Soft_Detector):
     def __init__(self, sweep_function, result_keys, value_names=None,
@@ -1162,6 +1035,7 @@ class Detect_simulated_hanger_Soft(Soft_Detector):
         IQ = fn.disp_hanger_S21_complex(*(f, f0, Q, Qe, A, theta))
         return IQ.real+Inoise, IQ.imag+Qnoise
 
+
 class Heterodyne_probe(Soft_Detector):
     def __init__(self, HS, threshold=1.75, trigger_separation=20e-6, demod_int=0, **kw):
         super().__init__(**kw)
@@ -1199,7 +1073,6 @@ class Heterodyne_probe(Soft_Detector):
         self.first = False
         self.last = abs(S21)
         return abs(S21), np.angle(S21)/(2*np.pi)*360,# S21.real, S21.imag
-
 
 
 class Heterodyne_probe_soft_avg(Soft_Detector):
@@ -1248,7 +1121,6 @@ class Heterodyne_probe_soft_avg(Soft_Detector):
         self.first = False
         self.last = abs(S21)
         return S21.real, S21.imag
-
 
 
 class PulsedSpectroscopyDetector(Soft_Detector):
@@ -1409,9 +1281,11 @@ class SH_mixer_skewness_det(Soft_Detector):
 
     def finish(self, **kw):
         self.SH.abort()
+
 #---------------------------------------------------------------------------
 # CBox v3 detectors
 #---------------------------------------------------------------------------
+
 class CBox_v3_integrated_average_detector(Hard_Detector):
     def __init__(self, CBox, seg_per_point=1, **kw):
         '''
@@ -1457,6 +1331,7 @@ class CBox_v3_integrated_average_detector(Hard_Detector):
 
     def finish(self):
         self.CBox.set('acquisition_mode', 0)
+
 
 class CBox_v3_single_integration_average_det(Soft_Detector):
     '''
@@ -1512,6 +1387,7 @@ class CBox_v3_single_integration_average_det(Soft_Detector):
 
     def finish(self):
         self.CBox.set('acquisition_mode', 0)
+
 
 class CBox_v3_single_int_avg_with_LutReload(CBox_v3_single_integration_average_det):
     '''
@@ -1599,6 +1475,7 @@ class UHFQC_input_average_detector(Hard_Detector):
         if self.AWG is not None:
             self.AWG.stop()
 
+
 class UHFQC_integrated_average_detector(Hard_Detector):
     '''
     Detector used for integrated average results with the UHFQC
@@ -1681,6 +1558,7 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         if self.AWG is not None:
             self.AWG.stop()
 
+
 class UHFQC_integration_logging_det(Hard_Detector):
     '''
     Detector used for integrated average results with the UHFQC
@@ -1739,3 +1617,33 @@ class UHFQC_integration_logging_det(Hard_Detector):
     def finish(self):
         if self.AWG is not None:
             self.AWG.stop()
+
+
+# --------------------------------------------
+# Fake detectors
+# --------------------------------------------
+
+
+class Chevron_sim(Hard_Detector):
+    """
+    Returns a simulated chevron as if it was measured.
+    """
+    def __init__(self, simulation_dict, **kw):
+        super(Chevron_sim, self).__init__(**kw)
+        self.simulation_dict = simulation_dict
+        self.name = 'Simulated Chevron'
+        self.value_names = []
+        self.value_units = []
+
+    def prepare(self, sweep_points):
+        self.sweep_points = sweep_points
+        self.t_start = self.sweep_points[0]
+        self.dt = self.sweep_points[1] - self.sweep_points[0]
+
+    def get_values(self):
+        return chev_lib.chevron_slice(self.simulation_dict['detuning'],
+                                      self.simulation_dict['dist_step'],
+                                      self.simulation_dict['g'],
+                                      self.t_start,
+                                      self.dt,
+                                      self.simulation_dict['dist_step'])
