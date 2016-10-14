@@ -86,8 +86,12 @@ square = lambda t, width=1: heaviside(t)-heaviside(t-width)
 # a known step function
 htilde = lambda fun, t, params, width=1: fun(t, params)-fun(t-width, params)
 
-filter_matrix_generic = lambda fun, t, *params: np.sum(np.array(map(lambda ii:
-                                                                    np.diag(fun(t[ii], *params)*np.ones(len(t)-ii), k=-ii), range(len(t)))), 0)
+
+def filter_matrix_generic(fun, t, *params):
+    return np.sum(np.array(map(lambda ii:
+        np.diag(fun(t[ii], *params)*np.ones(len(t)-ii), k=-ii),
+        range(len(t)))), 0)
+
 kernel_generic = lambda fun, t, * \
     params: np.linalg.inv(filter_matrix_generic(fun, t, *params))[:, 0]
 
