@@ -41,3 +41,8 @@ def chevron(e0, emin, emax, n, g, t, dt, sf):
         chevron_vec.append(
             qamp(rabisim(lambda t: energy_func(ee, t), g, t, dt)))
     return np.array(chevron_vec)
+
+
+def chevron_slice(e0, energy, n, g, t, dt, sf):
+    energy_func = lambda energy, t: e0*(1.-(energy*sf(t))**2)
+    return qamp(rabisim(lambda t: energy_func(energy, t), g, t, dt))
