@@ -26,6 +26,7 @@ try:
     print('Data directory set to:', datadir)
 except:
     mac = get_mac()
+    print(mac)
     try:
         setup_name = setup_dict.mac_dict[str(mac)]
         datadir = setup_dict.data_dir_dict[setup_name]

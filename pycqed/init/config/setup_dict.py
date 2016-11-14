@@ -14,9 +14,9 @@ mac_dict = {'203178706891063': 'CDickel_Desktop',
             '198690273946987': 'Bart_Laptop',
             '167746772205643': 'NuovaFerrari',
             '167746772714689' : 'Xiang_PC',
-            '109952948723616': 'Ramiro_Desktop',
             '180725258210527': 'Niels_macbook',
-            '109952948723616': 'Ramiro_Desktop',
+            # '109952948723616': 'Ramiro_Desktop',
+            '215977245834050': 'Ramiro_Desktop',
             '31054844829911': 'Sjoerd_laptop'
             }
 
@@ -38,8 +38,7 @@ data_dir_dict = {'tud276606_FPGA_PC': 'D:\Experiments/CBox_Testing/Data',
                 'La_Ducati_Jr': 'D:\Experiments/MixerCalibrations/data',
                  'Simulation_PC': 'D:\Experiments/testSingleShotFidelityAnalysis/Data',
                  'Ramiro_Desktop': r'\\131.180.82.81\\data',
-
+                 # 'Ramiro_Desktop': r'\\131.180.82.237\\1511_RabiSims2\\Data',
                  r'Nathans_Laptop': 'D:/nlangford\My Documents\Projects\Rabi Model\Experiment_1504\Data',
-                 'Ramiro_Desktop': r'\\131.180.82.81\\data',
                  'Bart_Laptop' : 'C:\Experiments/NumericalOptimization/Data'
                 }

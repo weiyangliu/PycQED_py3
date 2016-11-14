@@ -218,7 +218,7 @@ class Standard_MA(object):
         plot_cmap = pdict.get('cmap','YlGn')
 
         plot_xvals_step = plot_xvals[1]-plot_xvals[0]
-        plot_yvals_step = plot_yvals[1,0]-plot_yvals[0,0]
+        plot_yvals_step = plot_yvals[1][0]-plot_yvals[0][0]
 
         fig_clim = pdict['zrange']
         out = flex_color_plot_vs_x(ax=axs,cmap=plot_cmap,normalize=False,
