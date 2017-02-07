@@ -5868,56 +5868,67 @@ class Tomo_Multiplexed(object):
             3: |Psi_m> = |01> + |10>   (<XX>,<YY>,<ZZ>) = (+1,+1,-1)
         """
         def rotated_bell_state(dummy_x, angle_MSQ, angle_LSQ,
-                               contrast, target_bell=0):
-            # only works for target_bell=0 for now.
-            # to expand, need to figure out the signs in the elements.
-            # order is set by looping I,Z,X,Y
-            # 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15
-            # II IZ IX IY ZI ZZ ZX ZY XI XZ XX XY YI YZ YX YY
-            state = np.zeros(16)
-            state[0] = 1.
-            if target_bell == 0:
-                state[5] = np.cos(angle_MSQ)
-                state[6] = np.sin(angle_LSQ)*np.sin(angle_MSQ)
-                state[7] = np.cos(angle_LSQ)*np.sin(angle_MSQ)
-                state[10] = -np.cos(angle_LSQ)
-                state[11] = np.sin(angle_LSQ)
-                state[13] = -np.sin(angle_MSQ)
-                state[14] = np.cos(angle_MSQ)*np.sin(angle_LSQ)
-                state[15] = np.cos(angle_MSQ)*np.cos(angle_LSQ)
-            elif target_bell == 1:
-                state[5] = np.cos(angle_MSQ)
-                state[6] = -np.sin(angle_LSQ)*np.sin(angle_MSQ)
-                state[7] = -np.cos(angle_LSQ)*np.sin(angle_MSQ)
-                state[10] = np.cos(angle_LSQ)
-                state[11] = -np.sin(angle_LSQ)
-                state[13] = -np.sin(angle_MSQ)
-                state[14] = -np.cos(angle_MSQ)*np.sin(angle_LSQ)
-                state[15] = -np.cos(angle_MSQ)*np.cos(angle_LSQ)
-            elif target_bell == 2:
-                state[5] = -np.cos(angle_MSQ)
-                state[6] = -np.sin(angle_LSQ)*np.sin(angle_MSQ)
-                state[7] = -np.cos(angle_LSQ)*np.sin(angle_MSQ)
-                state[10] = -np.cos(angle_LSQ)
-                state[11] = np.sin(angle_LSQ)
-                state[13] = np.sin(angle_MSQ)
-                state[14] = -np.cos(angle_MSQ)*np.sin(angle_LSQ)
-                state[15] = -np.cos(angle_MSQ)*np.cos(angle_LSQ)
-            elif target_bell == 3:
-                state[5] = -np.cos(angle_MSQ)
-                state[6] = np.sin(angle_LSQ)*np.sin(angle_MSQ)
-                state[7] = np.cos(angle_LSQ)*np.sin(angle_MSQ)
-                state[10] = np.cos(angle_LSQ)
-                state[11] = -np.sin(angle_LSQ)
-                state[13] = np.sin(angle_MSQ)
-                state[14] = np.cos(angle_MSQ)*np.sin(angle_LSQ)
-                state[15] = np.cos(angle_MSQ)*np.cos(angle_LSQ)
-            return state
+            angle_2Q, target_bell):
+            final_state = phase_error_bell(angle_MSQ, angle_LSQ, angle_2Q, target_bell)
+            list = []
+            list.append(qtp.tensor(qtp.qeye(2), qtp.qeye(2)))
+            list.append(qtp.tensor(qtp.qeye(2), qtp.sigmaz()))
+            list.append(qtp.tensor(qtp.qeye(2), qtp.sigmax()))
+            list.append(qtp.tensor(qtp.qeye(2), qtp.sigmay()))
+            list.append(qtp.tensor(qtp.sigmaz(), qtp.qeye(2)))
+            list.append(qtp.tensor(qtp.sigmaz(), qtp.sigmaz()))
+            list.append(qtp.tensor(qtp.sigmaz(), qtp.sigmax()))
+            list.append(qtp.tensor(qtp.sigmaz(), qtp.sigmay()))
+            list.append(qtp.tensor(qtp.sigmax(), qtp.qeye(2)))
+            list.append(qtp.tensor(qtp.sigmax(),  qtp.sigmaz()))
+            list.append(qtp.tensor(qtp.sigmax(), qtp.sigmax()))
+            list.append(qtp.tensor(qtp.sigmax(), qtp.sigmay()))
+            list.append(qtp.tensor(qtp.sigmay(), qtp.qeye(2)))
+            list.append(qtp.tensor(qtp.sigmay(), qtp.sigmaz()))
+            list.append(qtp.tensor(qtp.sigmay(), qtp.sigmax()))
+            list.append(qtp.tensor(qtp.sigmay(), qtp.sigmay()))
+
+            expect = []
+            for x in range(16):
+                O =  list[x]
+                expect.append(qtp.expect(O, final_state))
+            expect = np.array(expect)
+            return expect
+        def phase_error_bell(angle_MSQ, angle_LSQ,
+            angle_2Q, target_bell):
+            #create gates
+            x = np.array([[1., 0., 0., 0.],[0., np.exp(angle_MSQ*1j), 0., 0.],[0., 0., np.exp(angle_LSQ*1j),  0.],[0.,  0.,  0.,  np.exp(angle_2Q*1j)]])
+            cphase = qtp.Qobj(x,dims=[[2,2],[2,2]])
+            Y  = qtp.ry(np.pi/2,N=None, target=0)
+            mY = qtp.ry(-1*np.pi/2,N=None, target=0)
+            qS  = qtp.basis(2,0)
+            qCZ = qtp.basis (2,0)  
+            if target_bell == 0:  # |Phi_m>=|00>-|11>
+                gate1 = Y
+                gate2 = Y  
+                after_pulse = mY
+                final_state = qtp.tensor(qtp.qeye(2),after_pulse)*cphase*qtp.tensor(gate1*qS,gate2*qCZ)
+            elif target_bell == 1:  # |Phi_p>=|00>+|11>
+                gate1 = mY
+                gate2 = Y
+                after_pulse = mY
+                final_state = qtp.tensor(qtp.qeye(2),after_pulse)*cphase*qtp.tensor(gate1*qS,gate2*qCZ)
+            elif target_bell == 2:  # |Psi_m>=|01> - |10>
+                gate1 = Y 
+                gate2 = mY 
+                after_pulse = mY
+                final_state = qtp.tensor(qtp.qeye(2),after_pulse)*cphase*qtp.tensor(gate1*qS,gate2*qCZ)
+            elif target_bell == 3:  # |Psi_p>=|01> + |10>
+                gate1 = mY
+                gate2 = mY 
+                after_pulse = mY
+                final_state = qtp.tensor(qtp.qeye(2),after_pulse)*cphase*qtp.tensor(gate1*qS,gate2*qCZ)
+            return final_state
 
         fit_func_wrapper = lambda dummy_x, angle_MSQ,\
-            angle_LSQ, contrast: rotated_bell_state(dummy_x,
+            angle_LSQ, angle_2Q: rotated_bell_state(dummy_x,
                                                     angle_MSQ, angle_LSQ,
-                                                    contrast, self.target_bell)
+                                                    angle_2Q, self.target_bell)
         angles_model = lmfit.Model(fit_func_wrapper)
 
         angles_model.set_param_hint(
@@ -5925,7 +5936,7 @@ class Tomo_Multiplexed(object):
         angles_model.set_param_hint(
             'angle_LSQ', value=0., min=-np.pi, max=np.pi, vary=True)
         angles_model.set_param_hint(
-            'contrast', value=1., min=0., max=1., vary=False)
+            'angle_2Q', value=np.pi, min=-2*np.pi, max=2*np.pi, vary=False)
         params = angles_model.make_params()
 
         self.fit_res = angles_model.fit(data=self.operators_fit,
