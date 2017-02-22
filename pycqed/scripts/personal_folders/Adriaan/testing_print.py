@@ -48,7 +48,7 @@ params_dict = {'length': s_pars.pulse_length,
 # These are the params of the 5 qubit chip for swapping with the bus resonator
 s_pars.E_c(300e6)
 s_pars.J_2(np.sqrt(2)*50e6)
-s_pars.lambda_coeffs(np.array([1, 0, 0]))
+s_pars.lambda_coeffs(np.random.rand(20))
 s_pars.theta_f(np.pi/2)
 s_pars.f_interaction(4.8e9)
 s_pars.f_01_max(5.94e9)
