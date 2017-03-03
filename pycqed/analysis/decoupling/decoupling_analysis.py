@@ -49,7 +49,7 @@ class DecouplingAnalysis:
                                                    numeric_params=nparams)
 
     def plot_freq_vs_dac_raw(self):
-        fig, ax = plt.subplots(2, 2, figsize=(15, 15))
+        fig, ax = plt.subplots(self.N, self.N, figsize=(15, 15))
 
         for i in range(1, self.N+1):
             for q in range(self.N):
@@ -71,43 +71,46 @@ class DecouplingAnalysis:
                 this_ax.plot(dac_vector, pk_vec, 'o')
 
     def plot_fit_freq_vs_dac(self):
-        # Need to adapt the function to the class design
-        raise NotImplementedError
-        """
-        fig, ax = plt.subplots(2,2, figsize=(15,15))
+        fig, ax = plt.subplots(self.N, self.N, figsize=(15, 15))
 
         ylims = []
         xlims = []
-        fits = np.zeros((2,2,2))
-        for i in range(1,3):
-            for q in range(2):
+        fits = np.zeros((self.N, self.N, 2))
+        for i in range(1, self.N+1):
+            for q in range(self.N):
                 start_slice = self.num_points*(i-1)
                 stop_slice = self.num_points*i
-                dac_key = 'dac%d'%i
-                this_ax = ax[q,i-1]
-                filter_points = ~filter_mask_vector[i-1,q,:]
-                dac_vector = spec_scans[q].TD_dict[dac_key][start_slice:stop_slice]
-                freq_vector = spec_scans[q].TD_dict['frequencies'][start_slice:stop_slice]
-                
-                z_vector = spec_scans[q].TD_dict['phase'][start_slice:stop_slice]
+                dac_key = 'dac%d' % i
+                this_ax = ax[q, i-1]
+                filter_points = ~self.filter_mask_vector[i-1, q, :]
+                dac_vector = self.spec_scans[q].TD_dict[
+                    dac_key][start_slice:stop_slice]
+                freq_vector = self.spec_scans[q].TD_dict[
+                    'frequencies'][start_slice:stop_slice]
+
+                z_vector = self.spec_scans[q].TD_dict[
+                    'amp'][start_slice:stop_slice]
                 pk_vec = get_peaks(dac_vector,
                                    freq_vector,
                                    z_vector)
-                freqs = np.where(filter_points,pk_vec,False)
-                if i==(q+1):
-                    ylims.append([freqs[filter_points].min()*0.99,freqs[filter_points].max()*1.01])
-                    xlims.append([dac_vector.min(),dac_vector.max()])
-        #         plot_scan_flux(spec_scans[q], this_ax, dac_vector, freqs, z_vector, i)
-                this_ax.plot(dac_vector[filter_points],freqs[filter_points],'o')
-                fits[q,i-1,:] = np.polyfit(dac_vector[filter_points],freqs[filter_points],1).flatten()
-                this_ax.plot(dac_vector[filter_points],np.polyval(fits[q,i-1,:],dac_vector[filter_points]))
-        for i in range(2):
-            for q in range(2):
-        #         ax[i,q].set_ylim(ylims[i][0],ylims[i][1])
-        #         ax[i,q].set_xlim(xlims[i][0],xlims[i][1])
-                ax[i,q].ticklabel_format(useOffset=False)
-        # fits[:,:,0]
-        """
+                freqs = np.where(filter_points, pk_vec, False)
+                if i == (q+1):
+                    ylims.append(
+                        [freqs[filter_points].min()*0.99, freqs[filter_points].max()*1.01])
+                    xlims.append([dac_vector.min(), dac_vector.max()])
+        #         plot_scan_flux(self.spec_scans[q], this_ax, dac_vector, freqs, z_vector, i)
+                this_ax.plot(
+                    dac_vector[filter_points], freqs[filter_points], 'o')
+                fits[
+                    q, i-1, :] = np.polyfit(dac_vector[filter_points], freqs[filter_points], 1).flatten()
+                this_ax.plot(dac_vector[filter_points], np.polyval(
+                    fits[q, i-1, :], dac_vector[filter_points]))
+        for i in range(self.N):
+            for q in range(self.N):
+                #         ax[i,q].set_ylim(ylims[i][0],ylims[i][1])
+                #         ax[i,q].set_xlim(xlims[i][0],xlims[i][1])
+                ax[i, q].ticklabel_format(useOffset=False)
+        return fits[:, :, 0]
 
     def plot_fit_flux_vs_dac(self):
         # Need to adapt the function to the class design
