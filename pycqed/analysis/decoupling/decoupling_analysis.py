@@ -14,7 +14,7 @@ from scipy.optimize import fsolve
 """
 
 
-class DecouplingAnalysis():
+class DecouplingAnalysis:
 
     def __init__(self, N, scan_start, scan_stop, qubit_scan_labels,
                  dac_mapping, num_points):
