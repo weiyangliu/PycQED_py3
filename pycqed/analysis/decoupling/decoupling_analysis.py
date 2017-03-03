@@ -2,6 +2,7 @@ import numpy as np
 import pycqed.analysis.composite_analysis as RA
 import pycqed.analysis.analysis_toolbox as a_tools
 from scipy.optimize import fsolve
+from matplotlib import pyplot as plt
 
 """
     Inputs:
@@ -48,27 +49,26 @@ class DecouplingAnalysis:
                                                    numeric_params=nparams)
 
     def plot_freq_vs_dac_raw(self):
-        # Need to adapt the function to the class design
-        raise NotImplementedError
-        """
-        fig, ax = plt.subplots(2,2, figsize=(15,15))
+        fig, ax = plt.subplots(2, 2, figsize=(15, 15))
 
-        for i in range(1,3):
-            for q in range(2):
-                start_slice = num_points*(i-1)
-                stop_slice = num_points*i
-                dac_key = 'dac%d'%i
-                this_ax = ax[q,i-1]
-                dac_vector = spec_scans[q].TD_dict[dac_key][start_slice:stop_slice]
-                freq_vector = spec_scans[q].TD_dict['frequencies'][start_slice:stop_slice]
-                z_vector = spec_scans[q].TD_dict['phase'][start_slice:stop_slice]
+        for i in range(1, self.N+1):
+            for q in range(self.N):
+                start_slice = self.num_points*(i-1)
+                stop_slice = self.num_points*i
+                dac_key = 'dac%d' % i
+                this_ax = ax[q, i-1]
+                dac_vector = self.spec_scans[q].TD_dict[
+                    dac_key][start_slice:stop_slice]
+                freq_vector = self.spec_scans[q].TD_dict[
+                    'frequencies'][start_slice:stop_slice]
+                z_vector = self.spec_scans[q].TD_dict[
+                    'amp'][start_slice:stop_slice]
                 pk_vec = get_peaks(dac_vector,
                                    freq_vector,
                                    z_vector)
-                print(dac_vector,pk_vec)
-                plot_scan(spec_scans[q], this_ax, dac_vector, freq_vector, z_vector, i)
-                this_ax.plot(dac_vector,pk_vec,'o')
-        """
+                plot_scan(
+                    self.spec_scans[q], this_ax, dac_vector, freq_vector, z_vector, i)
+                this_ax.plot(dac_vector, pk_vec, 'o')
 
     def plot_fit_freq_vs_dac(self):
         # Need to adapt the function to the class design
@@ -81,8 +81,8 @@ class DecouplingAnalysis:
         fits = np.zeros((2,2,2))
         for i in range(1,3):
             for q in range(2):
-                start_slice = num_points*(i-1)
-                stop_slice = num_points*i
+                start_slice = self.num_points*(i-1)
+                stop_slice = self.num_points*i
                 dac_key = 'dac%d'%i
                 this_ax = ax[q,i-1]
                 filter_points = ~filter_mask_vector[i-1,q,:]
@@ -150,9 +150,6 @@ class DecouplingAnalysis:
 
 
 def plot_scan(spec_scan_obj, ax, xvals, yvals, zvals, idx_dac):
-    # Need to adapt the function to the module design
-    raise NotImplementedError
-    """
     #     print(spec_scan_obj)
     spec_scan_obj.plot_dicts['arches'] = {'plotfn': spec_scan_obj.plot_colorx,
                                           'xvals': xvals,
@@ -170,7 +167,6 @@ def plot_scan(spec_scan_obj, ax, xvals, yvals, zvals, idx_dac):
                                           }
     spec_scan_obj.axs['arches'] = ax
     spec_scan_obj.plot()
-    """
 
 
 def plot_scan_flux(spec_scan_obj, ax, xvals, yvals, zvals, idx_dac):
@@ -198,9 +194,6 @@ def plot_scan_flux(spec_scan_obj, ax, xvals, yvals, zvals, idx_dac):
 
 
 def get_peaks(dac_vector, f_vector, z_vector):
-    # Need to adapt the function to the module design
-    raise NotImplementedError
-    """
     plot_z = np.zeros(np.array(z_vector).shape)
     int_interval = np.arange(20)
     for i in range(len(dac_vector)):
@@ -214,7 +207,6 @@ def get_peaks(dac_vector, f_vector, z_vector):
         else:
             peaks[i] = p_dict['peak']
     return peaks
-    """
 
 
 def find_freq(freq, func, x0=0.2):
