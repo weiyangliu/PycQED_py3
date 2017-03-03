@@ -26,6 +26,10 @@ class DecouplingAnalysis:
         self.qubit_scan_labels = qubit_scan_labels
         self.dac_mapping = dac_mapping
         self.num_points = num_points
+        self.filter_mask_vector = np.zeros((self.N, self.N,
+                                            self.num_points),
+                                           dtype=np.bool)
+        self.filter_mask_vector[:, :, :] = False
 
     def extract_data(self):
         self.spec_scans = [None] * self.N
@@ -75,7 +79,7 @@ class DecouplingAnalysis:
 
         ylims = []
         xlims = []
-        fits = np.zeros((self.N, self.N, 2))
+        fits_freq = np.zeros((self.N, self.N, 2))
         for i in range(1, self.N+1):
             for q in range(self.N):
                 start_slice = self.num_points*(i-1)
@@ -101,16 +105,16 @@ class DecouplingAnalysis:
         #         plot_scan_flux(self.spec_scans[q], this_ax, dac_vector, freqs, z_vector, i)
                 this_ax.plot(
                     dac_vector[filter_points], freqs[filter_points], 'o')
-                fits[
+                fits_freq[
                     q, i-1, :] = np.polyfit(dac_vector[filter_points], freqs[filter_points], 1).flatten()
                 this_ax.plot(dac_vector[filter_points], np.polyval(
-                    fits[q, i-1, :], dac_vector[filter_points]))
+                    fits_freq[q, i-1, :], dac_vector[filter_points]))
         for i in range(self.N):
             for q in range(self.N):
                 #         ax[i,q].set_ylim(ylims[i][0],ylims[i][1])
                 #         ax[i,q].set_xlim(xlims[i][0],xlims[i][1])
                 ax[i, q].ticklabel_format(useOffset=False)
-        return fits[:, :, 0]
+        return fits_freq[:, :, 0]
 
     def plot_fit_flux_vs_dac(self):
         # Need to adapt the function to the class design
