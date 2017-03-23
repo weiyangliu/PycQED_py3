@@ -620,14 +620,14 @@ class QuTech_ControlBox(VisaInstrument):
 
         '''
 
-        if units == 'V':
+        if unit == 'V':
             lut = lut * 8192.  # dac_peak/V_peak
             # do conversion
             pass
-        elif units == 'dac':
+        elif unit == 'dac':
             pass
         else:
-            raise ValueError('units: "%s" not understood' % units)
+            raise ValueError('unit: "%s" not understood' % units)
 
         # Check out of bounds
         if awg_nr < 0 or awg_nr > 2:
