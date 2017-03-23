@@ -191,8 +191,10 @@ cal_elts.station = station
 
 t1 = time.time()
 
-#manually setting the clock, to be done automatically
+#manually setting the clock and reference, to be done automatically
 AWG.clock_freq(1e9)
+
+
 
 
 print('Ran initialization in %.2fs' % (t1-t0))

@@ -97,6 +97,19 @@ cw_source = rs.RohdeSchwarz_SGS100A(name='cw_source', address='TCPIP0::192.168.0
 station.add_component(cw_source)
 Qubit_LO = rs.RohdeSchwarz_SGS100A(name='Qubit_LO', address='TCPIP0::192.168.0.90', server_name=None)  #
 station.add_component(Qubit_LO)
+
+#Initializing CBox
+# from pycqed.instrument_drivers.physical_instruments import QuTech_ControlBoxdriver as qcb
+# CBox = qcb.QuTech_ControlBox('CBox', address='COM3', run_tests=False, server_name=None)
+# station.add_component(CBox)
+
+# import pycqed.instrument_drivers.meta_instrument.CBox_LookuptableManager as lm
+# LutMan = lm.QuTech_ControlBox_LookuptableManager('LutMan', CBox=CBox,
+#                                                  server_name=None)
+
+# station.add_component(LutMan)
+
+
 # TWPA_pump = rs.RohdeSchwarz_SGS100A(name='TWPA_pump', address='TCPIP0::192.168.0.11', server_name=None)  #
 # station.add_component(TWPA_pump)
 
@@ -330,8 +343,8 @@ t1 = time.time()
 
 #manually setting the clock, to be done automatically
 AWG.clock_freq(1e9)
-AWG.ref_clock_source('EXT')
-
+AWG.ref_clock_source('INT')
+AWG.write('SOUR:ROSC:SOUR EXT')
 print('Ran initialization in %.2fs' % (t1-t0))
 
 
