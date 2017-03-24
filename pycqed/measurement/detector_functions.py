@@ -1449,7 +1449,6 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         self.scaling_factor=1/(1.8e9*self.integration_length*self.nr_averages)
 
     def get_values(self):
-        self.AWG.stop()
         self.UHFQC.quex_rl_readout(1) # resets UHFQC internal readout counters
         self.UHFQC.acquisition_arm()
         # starting AWG
@@ -1549,7 +1548,6 @@ class UHFQC_integration_logging_det(Hard_Detector):
         self.scaling_factor=1/(1.8e9*integration_length)
 
     def get_values(self):
-        self.AWG.stop()
         self.UHFQC.quex_rl_readout(1) # resets UHFQC internal readout counters
         self.UHFQC.acquisition_arm()
         # starting AWG
