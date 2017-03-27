@@ -198,6 +198,17 @@ class HeterodyneInstrument(Instrument):
                      allocated_buffers=buffers_per_acquisition,
                      buffer_timeout=1000)
 
+            elif 'DDM' in self.acquisition_instr():
+
+                for i, channel in enumerate([1,2]):
+                    eval("self._acquisition_instr.ch_pair1_weight{}_wint_intlength({})".format(channel, RO_length*500e6))
+                self._acquisition_instr.ch_pair1_tvmode_naverages(self.nr_averages())
+                self._acquisition_instr.ch_pair1_tvmode_nsegments(1)
+                self.scale_factor=1/(500e6*RO_length)/127
+
+
+
+
 
         self.LO.on()
         # Changes are now incorporated in the awg seq
@@ -234,17 +245,25 @@ class HeterodyneInstrument(Instrument):
             t0 = time.time()
             #self._acquisition_instr.awgs_0_enable(1) #this was causing spikes
             # NH: Reduced timeout to prevent hangups
-
-
             dataset = self._acquisition_instr.acquisition_poll(samples=1, acquisition_time=0.001, timeout=10)
             dat = (self.scale_factor*dataset[0][0]+self.scale_factor*1j*dataset[1][0])
             t1 = time.time()
             # print("time for UHFQC polling", t1-t0)
         elif 'ATS' in self.acquisition_instr():
-            t0 = time.time()
+            # t0 = time.time()
             dat = self._acquisition_instr_controller.acquisition()
-            t1 = time.time()
+            # t1 = time.time()
             # print("time for ATS polling", t1-t0)
+
+        elif 'DDM' in self.acquisition_instr():
+            # t0 = time.time()
+            self._acquisition_instr.ch_pair1_tvmode_enable.set(1)
+            self._acquisition_instr.ch_pair1_run.set(1)
+            dataI = eval("self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(1))
+            dataQ = eval("self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(2))
+            dat = (self.scale_factor*dataI+self.scale_factor*1j*dataQ)
+            # t1 = time.time()
+            # print("time for DDM polling", t1-t0)
         return dat
 
     def finish(self):
