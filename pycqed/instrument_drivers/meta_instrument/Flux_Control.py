@@ -61,7 +61,7 @@ class Flux_Control(Instrument):
                 unit=r'$\Phi_0$',
                 get_cmd=self._gen_ch_get_func(self._get_flux, i),
                 set_cmd=self._gen_ch_set_func(self._set_flux, i),
-                vals=vals.Numbers(-10, 10.))
+                vals=vals.Numbers(-1000, 1000.))
 
     def _set_flux(self, id_flux, val):
         current_flux = self.flux_vector()

@@ -75,7 +75,7 @@ import qcodes.instrument.parameter as parameter
 import qcodes.instrument_drivers.AlazarTech.ATS9870 as ATSdriver
 import qcodes.instrument_drivers.AlazarTech.ATS_acquisition_controllers as ats_contr
 from pycqed.instrument_drivers.meta_instrument import Flux_Control as FluxCtrl
-
+import pycqed.instrument_drivers.physical_instruments.QuTech_DDM_module as ddm
 
 t0 = time.time()  # to print how long init takes
 ############################
@@ -128,6 +128,13 @@ station.add_component(UHFQC_2214)
 UHFQC_2209 = ZI_UHFQC.UHFQC('UHFQC_2209', device='dev2209', server_name=None)
 station.add_component(UHFQC_2209)
 
+
+use_DDM=False
+
+if use_DDM:
+    DDM=ddm.DDMq('DDM',address='192.168.0.13',port=5025,  server_name=None)
+    station.add_component(DDM, update_snapshot=False)
+
 #initializing AWG
 AWG = tek.Tektronix_AWG5014(name='AWG',  timeout=2,
                             address='GPIB0::8::INSTR', server_name=None)
@@ -137,8 +144,43 @@ AWG.timeout(180)  # timeout long for uploading wait.
 #IVVI
 IVVI = iv.IVVI('IVVI', address='COM10', numdacs=16, server_name=None)
 station.add_component(IVVI)
-Flux_Control = FluxCtrl.Flux_Control(name='FluxControl',IVVI=station.IVVI, num_channels=16)
+
+Flux_Control = FluxCtrl.Flux_Control(name='FluxControl',IVVI=station.IVVI, num_channels=6)
 station.add_component(Flux_Control)
+
+
+#6x6 flux decoupling
+transfer_matrix_dec = np.array([[ 1.   , -0.033,  0.082, -0.071,  0.013,  0.069],
+        [ 0.017,  1.   , -0.003,  0.051,  0.019,  0.014],
+        [-0.021, -0.05 ,  1.   , -0.034,  0.052,  0.088],
+        [-0.083,  0.036, -0.002,  1.   ,  0.032,  0.015],
+        [-0.081,  0.045,  0.034, -0.084,  1.   ,  0.   ],
+        [-0.067,  0.013,  0.025, -0.066, -0.033,  1.   ]])
+invA = np.array([[ 0.99762862,  0.02815798, -0.07956341,  0.06139562, -0.01341548,
+         -0.06314994],
+        [-0.02371831,  1.00243337,  0.00574548, -0.05489502, -0.01767865,
+         -0.01207968],
+        [ 0.01128584,  0.05351094,  1.00347006,  0.02145153, -0.05700543,
+         -0.09015501],
+        [ 0.07973196, -0.03188678, -0.0030086 ,  1.00310131, -0.03302808,
+         -0.01983685],
+        [ 0.08818901, -0.04732657, -0.04107389,  0.09097448,  0.99887271,
+         -0.00317258],
+        [ 0.07503986, -0.01614913, -0.0320462 ,  0.0734977 ,  0.03153907,
+          0.99676594]])
+Flux_Control.transfer_matrix(transfer_matrix_dec)
+Flux_Control.inv_transfer_matrix(invA)
+
+Flux_Control.dac_mapping([1, 2, 3, 5, 6, 7])
+
+
+# sweet_spots_mv = [-55.265, 49.643, -38.5, 13.037, 49.570]
+# sweet_spots_mv = [-31.5251, 54.1695, -0.3967, 4.9744, 60.3341]
+# offsets = np.dot(Flux_Control.transfer_matrix(), sweet_spots_mv)
+# Flux_Control.flux_offsets(-offsets)
+
+
+
 
 ATS=False
 if ATS:
@@ -404,20 +446,44 @@ list_qubits_L = [QL1, QL2, QL3]
 
 list_qubits_R = [QR1, QR2, QR3, QR4]
 
-for qubit in list_qubits_L:
-    switch_to_pulsed_RO_UHFQC_2214(qubit)
-    load_default_settings(qubit)
 
-for qubit in list_qubits_R:
-    switch_to_pulsed_RO_UHFQC_2209(qubit)
-    load_default_settings(qubit)
+def switch_to_pulsed_RO_DDM(qubit):
+    qubit.RO_pulse_type('Gated_MW_RO_pulse')
+    qubit.acquisition_instr('DDM')
+    qubit.RO_acq_marker_channel('ch3_marker2')
+    qubit.RO_acq_weight_function_I(1)
+    qubit.RO_acq_weight_function_Q(2)
 
 
-UHFQC_2214.awg_sequence_acquisition()
-UHFQC_2209.awg_sequence_acquisition()
+if use_DDM:
+    DDM.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
+    for qubit in list_qubits_L:
+        switch_to_pulsed_RO_DDM(qubit)
+        load_default_settings(qubit)
 
-UHFQC_2214.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
-UHFQC_2209.prepare_SSB_weight_and_rotation(QR1.f_RO_mod())
+    for qubit in list_qubits_R:
+        switch_to_pulsed_RO_DDM(qubit)
+        load_default_settings(qubit)
+else:
+    UHFQC_2214.awg_sequence_acquisition()
+    UHFQC_2209.awg_sequence_acquisition()
+    UHFQC_2214.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
+    UHFQC_2209.prepare_SSB_weight_and_rotation(QR1.f_RO_mod())
+    for qubit in list_qubits_L:
+        switch_to_pulsed_RO_UHFQC_2214(qubit)
+        load_default_settings(qubit)
+
+    for qubit in list_qubits_R:
+        switch_to_pulsed_RO_UHFQC_2209(qubit)
+        load_default_settings(qubit)
+
+
+
+
+
+
+
+
 
 
 #hardcoding the dacmapping as this is not loaded correcly from the qubit object
@@ -428,3 +494,8 @@ QR1.dac_channel(4)
 QR2.dac_channel(5)
 QR3.dac_channel(6)
 QR4.dac_channel(7)
+
+#DDM preparation, to be moved to driver
+#prepare the weigh functions
+
+
