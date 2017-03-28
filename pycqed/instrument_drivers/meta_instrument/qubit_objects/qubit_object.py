@@ -287,7 +287,8 @@ class Transmon(Qubit):
                        f_step=1e6,
                        verbose=True,
                        update=True,
-                       close_fig=True):
+                       close_fig=True,
+                       invert=False): #this inverts the magnitude for dip fitting... dirty hack
 
         if method.lower() == 'spectroscopy':
             if freqs is None:
@@ -338,7 +339,7 @@ class Transmon(Qubit):
             else:
                 label = 'spectroscopy'
             analysis_spec = ma.Qubit_Spectroscopy_Analysis(
-                label=label, close_fig=True)
+                label=label, close_fig=True, invert=invert)
 
             if update:
                 if use_max:

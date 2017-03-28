@@ -122,14 +122,16 @@ station.add_component(Qubit_LO)
 # station.add_component(VNA)
 
 # Initializing UHFQC
-UHFQC_2214 = ZI_UHFQC.UHFQC('UHFQC_2214', device='dev2214', server_name=None)
-station.add_component(UHFQC_2214)
+use_DDM=True
+if not use_DDM:
+    UHFQC_2214 = ZI_UHFQC.UHFQC('UHFQC_2214', device='dev2214', server_name=None)
+    station.add_component(UHFQC_2214)
 
-UHFQC_2209 = ZI_UHFQC.UHFQC('UHFQC_2209', device='dev2209', server_name=None)
-station.add_component(UHFQC_2209)
+    UHFQC_2209 = ZI_UHFQC.UHFQC('UHFQC_2209', device='dev2209', server_name=None)
+    station.add_component(UHFQC_2209)
 
 
-use_DDM=False
+
 
 if use_DDM:
     DDM=ddm.DDMq('DDM',address='192.168.0.13',port=5025,  server_name=None)
@@ -239,7 +241,13 @@ if ATS:
                      buffer_timeout=1000
     )
 
-HS = hd.HeterodyneInstrument('HS', LO=LO, RF=RF, AWG=AWG,
+if use_DDM:
+    HS = hd.HeterodyneInstrument('HS', LO=LO, RF=RF, AWG=AWG,
+                                     acquisition_instr=DDM.name,
+                                     acquisition_instr_controller=None,
+                                     server_name=None)
+else:
+    HS = hd.HeterodyneInstrument('HS', LO=LO, RF=RF, AWG=AWG,
                              acquisition_instr=UHFQC_2209.name,
                              acquisition_instr_controller=None,
                              server_name=None)
@@ -456,7 +464,7 @@ def switch_to_pulsed_RO_DDM(qubit):
 
 
 if use_DDM:
-    DDM.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
+    DDM.prepare_SSB_weight_and_rotation(-QL1.f_RO_mod())
     for qubit in list_qubits_L:
         switch_to_pulsed_RO_DDM(qubit)
         load_default_settings(qubit)
@@ -464,6 +472,8 @@ if use_DDM:
     for qubit in list_qubits_R:
         switch_to_pulsed_RO_DDM(qubit)
         load_default_settings(qubit)
+
+
 else:
     UHFQC_2214.awg_sequence_acquisition()
     UHFQC_2209.awg_sequence_acquisition()

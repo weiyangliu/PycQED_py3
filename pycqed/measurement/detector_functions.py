@@ -1742,13 +1742,14 @@ class DDM_input_average_detector(Hard_Detector):
         self.nr_averages = nr_averages
 
     def prepare(self, sweep_points):
-        if self.AWG is not None:
-            self.AWG.stop()
+
         self.DDM.ch_pair1_inavg_scansize.set(self.nr_samples)
         self.DDM.ch_pair1_inavg_Navg(self.nr_averages)
         self.nr_sweep_points = self.nr_samples
 
     def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
         #arming DDM trigger
         self.DDM.ch_pair1_inavg_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
@@ -1792,11 +1793,9 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.integration_length = integration_length
         self.rotate = rotate
         self.cross_talk_suppression = cross_talk_suppression
-        self.scaling_factor=1/(500e6*integration_length)/127
+        self.scaling_factor=1/(500e6*integration_length)/127/127*2
 
     def prepare(self, sweep_points=None):
-        if self.AWG is not None:
-            self.AWG.stop()
         if sweep_points is None:
             self.nr_sweep_points = 1
         else:
@@ -1808,6 +1807,8 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.DDM.ch_pair1_tvmode_nsegments(self.nr_sweep_points)
 
     def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
         #arming DDM trigger
         self.DDM.ch_pair1_tvmode_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
@@ -1873,11 +1874,9 @@ class DDM_integration_logging_det(Hard_Detector):
         self.AWG = AWG
         self.integration_length = integration_length
         self.nr_shots = nr_shots
-        self.scaling_factor=1/(500e6*integration_length)/127
+        self.scaling_factor=1/(500e6*integration_length)/127/127*2
 
     def prepare(self, sweep_points):
-        if self.AWG is not None:
-            self.AWG.stop()
         if sweep_points is None:
             self.nr_sweep_points = 1
         else:
@@ -1889,6 +1888,8 @@ class DDM_integration_logging_det(Hard_Detector):
 
 
     def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
         #arming DDM trigger
         self.DDM.ch_pair1_logging_enable.set(1)
         self.DDM.ch_pair1_run.set(1)

@@ -560,7 +560,6 @@ def get_data_from_timestamp_list(timestamps,
         out_data = data
     elif type(param_names) is dict:
         out_data = od([(key, data[val]) for key, val in param_names.items()])
-
     if numeric_params is not None:
         for nparam in numeric_params:
             if nparam in out_data.keys():
@@ -1452,7 +1451,7 @@ def calculate_transmon_transitions(EC, EJ, asym=0, reduced_flux=0,
     Calculates transmon energy levels from the full transmon qubit Hamiltonian.
     '''
     if dim is None:
-        dim = no_transitions*20
+        dim = no_transitions*25
 
     EJphi = EJ*np.sqrt(asym**2 + (1-asym**2)*np.cos(np.pi*reduced_flux)**2)
 

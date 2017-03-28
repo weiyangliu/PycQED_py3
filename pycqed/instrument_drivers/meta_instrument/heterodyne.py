@@ -204,7 +204,7 @@ class HeterodyneInstrument(Instrument):
                     eval("self._acquisition_instr.ch_pair1_weight{}_wint_intlength({})".format(channel, RO_length*500e6))
                 self._acquisition_instr.ch_pair1_tvmode_naverages(self.nr_averages())
                 self._acquisition_instr.ch_pair1_tvmode_nsegments(1)
-                self.scale_factor=1/(500e6*RO_length)/127
+                self.scale_factor=1/(500e6*RO_length)/127/127*2
 
 
 
