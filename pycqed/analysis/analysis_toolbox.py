@@ -20,7 +20,7 @@ from scipy.signal import argrelextrema
 from .tools.file_handling import *
 from .tools.data_manipulation import *
 from .tools.plotting import *
-import colorsys as colors
+import colorsys as colorsys
 
 try:
     # currently not recognized, does not do anything
@@ -1580,4 +1580,4 @@ def find_min(x, y, return_fit=False, perc=30):
 def get_color_order(i, max_num):
     # take a blue to red scale from 0 to max_num
     # uses HSV system, H_red = 0, H_green = 1/3 H_blue=2/3
-    return colors.hsv_to_rgb(2.*float(i)/(float(max_num)*3.), 1., 1.)
+    return colorsys.hsv_to_rgb(2.*float(i)/(float(max_num)*3.), 1., 1.) #could be .colors

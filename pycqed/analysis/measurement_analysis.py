@@ -357,6 +357,7 @@ class MeasurementAnalysis(object):
                     ylabel=self.ylabel,
                     zlabel=self.zlabels[i],
                     save=False,
+                    log=log,
                     transpose=transpose,
                     cmap_chosen=self.cmap_chosen,
                     **kw)
