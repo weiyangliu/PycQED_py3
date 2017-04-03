@@ -105,7 +105,7 @@ class Dummy_Detector_Hard(Hard_Detector):
         self.detector_control = 'hard'
         self.name = 'Dummy_Detector'
         self.value_names = ['distance', 'Power']
-        self.value_units = ['m', 'nW']
+        self.value_units = ['m', 'W']
         self.delay = delay
         self.noise = noise
         self.times_called = 0
@@ -467,8 +467,6 @@ class CBox_integrated_average_detector(Hard_Detector):
             return self.rotate_and_normalize(data)
         else:
             return data
-
-
 
     def rotate_and_normalize(self, data):
         """
@@ -960,23 +958,32 @@ class Heterodyne_probe(Soft_Detector):
         self.HS = HS
         self.name = 'Heterodyne probe'
         self.value_names = ['|S21|', 'S21 angle']  # , 'Re{S21}', 'Im{S21}']
-        self.value_units = ['mV', 'deg']  # , 'a.u.', 'a.u.']
+        self.value_units = ['V', 'deg']
         self.first = True
         self.last_frequency = 0.
         self.threshold = threshold
         self.last = 1.
+        self.HS.trigger_separation(trigger_separation)
+        if 'double' in demod_mode:
+            HS.single_sideband_demod(False)
+        else:
+            HS.single_sideband_demod(True)
+
         self.trigger_separation = trigger_separation
         self.demod_mode = demod_mode
-        self.RO_length=RO_length
+        self.RO_length = RO_length
 
     def prepare(self):
-        self.HS.prepare(trigger_separation=self.trigger_separation, RO_length=self.RO_length)
+        self.HS.RO_length(self.RO_length)
+        self.HS.trigger_separation(self.trigger_separation)
+
+        self.HS.prepare()
 
     def acquire_data_point(self, **kw):
         passed = False
         c = 0
         while(not passed):
-            S21 = self.HS.probe(demod_mode=self.demod_mode)
+            S21 = self.HS.probe()
             cond_a = ((abs(S21)/self.last) >
                       self.threshold) or ((self.last/abs(S21)) > self.threshold)
             cond_b = self.HS.frequency() >= self.last_frequency
@@ -1375,7 +1382,7 @@ class UHFQC_input_average_detector(Hard_Detector):
     Has two acq_modes, 'IQ' and 'AmpPhase'
     '''
 
-    def __init__(self, UHFQC, AWG, channels=[0, 1], nr_averages=1024, nr_samples=4096, **kw):
+    def __init__(self, UHFQC, AWG=None, channels=[0, 1], nr_averages=1024, nr_samples=4096, **kw):
         super(UHFQC_input_average_detector, self).__init__()
         self.UHFQC = UHFQC
         self.name = 'UHFQC_Streaming_data'
@@ -1390,16 +1397,28 @@ class UHFQC_input_average_detector(Hard_Detector):
         self.nr_averages = nr_averages
 
     def get_values(self):
+<<<<<<< HEAD
         self.UHFQC.quex_rl_readout(0) # resets UHFQC internal readout counters
+=======
+        self.UHFQC.quex_rl_readout(0)  # resets UHFQC internal readout counters
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         self.UHFQC.acquisition_arm()
         # starting AWG
         if self.AWG is not None:
             self.AWG.start()
 
+<<<<<<< HEAD
         data_raw=self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
                                              arm=False, acquisition_time=0.01,
                                              timeout=100)
         data = np.array([data_raw[key] for key in data_raw.keys()])#*self.scaling_factor
+=======
+        data_raw = self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
+                                               arm=False, acquisition_time=0.01,
+                                               timeout=100)
+        data = np.array([data_raw[key]
+                         for key in data_raw.keys()])  # *self.scaling_factor
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
 
         return data
 
@@ -1426,7 +1445,8 @@ class UHFQC_integrated_average_detector(Hard_Detector):
 
     '''
 
-    def __init__(self, UHFQC, AWG, integration_length=1e-6, nr_averages=1024, rotate=False,
+    def __init__(self, UHFQC, AWG=None, integration_length=1e-6, nr_averages=1024,
+                 rotate=False, real_imag=False,
                  channels=[0, 1, 2, 3], cross_talk_suppression=False,
                  **kw):
         super(UHFQC_integrated_average_detector, self).__init__()
@@ -1439,6 +1459,11 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         for i, channel in enumerate(self.channels):
             self.value_names[i] = 'w{}'.format(channel)
             self.value_units[i] = 'V'
+        self.real_imag = real_imag
+        if self.real_imag:
+            self.value_names[0] = 'Magn'
+            self.value_names[1] = 'Phase'
+
         self.rotate = rotate
 
         self.AWG = AWG
@@ -1446,15 +1471,26 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         self.integration_length = integration_length
         self.rotate = rotate
         self.cross_talk_suppression = cross_talk_suppression
+<<<<<<< HEAD
         self.scaling_factor=1/(1.8e9*self.integration_length*self.nr_averages)
 
     def get_values(self):
         self.UHFQC.quex_rl_readout(1) # resets UHFQC internal readout counters
+=======
+        self.scaling_factor = 1 / \
+            (1.8e9*self.integration_length*self.nr_averages)
+
+    def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
+        self.UHFQC.quex_rl_readout(1)  # resets UHFQC internal readout counters
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         self.UHFQC.acquisition_arm()
         # starting AWG
         if self.AWG is not None:
             self.AWG.start()
 
+<<<<<<< HEAD
         data_raw=self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
                                              arm=False, acquisition_time=0.01,
                                              timeout=1000)
@@ -1462,6 +1498,24 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         #offset suppression to be reimplemented
         # if self.cross_talk_suppression:
         #     data[i]=data[i]-eval("self.UHFQC.quex_trans_offset_weightfunction_{}()".format(channel))
+=======
+        data_raw = self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
+                                               arm=False, acquisition_time=0.01,
+                                               timeout=1000)
+        data = np.array([data_raw[key]
+                         for key in data_raw.keys()])*self.scaling_factor
+        if self.real_imag:
+            I = data[0]
+            Q = data[1]
+            S21 = I + 1j*Q
+            data[0] = np.abs(S21)
+            data[1] = np.angle(S21)
+
+        # offset suppression to be reimplemented
+        # if self.cross_talk_suppression:
+        #     data[i]=data[i]-eval("self.UHFQC.quex_trans_offset_weightfunction_{}()".format(channel))
+
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         if self.rotate:
             return self.rotate_and_normalize(data)
         else:
@@ -1487,7 +1541,6 @@ class UHFQC_integrated_average_detector(Hard_Detector):
                     cal_zero_points=self.cal_points[0],
                     cal_one_points=self.cal_points[1])
         return self.corr_data, self.corr_data
-
 
     def prepare(self, sweep_points=None):
         if self.AWG is not None:
@@ -1545,21 +1598,40 @@ class UHFQC_integration_logging_det(Hard_Detector):
         self.integration_length = integration_length
         self.nr_shots = nr_shots
         self.cross_talk_suppression = cross_talk_suppression
+<<<<<<< HEAD
         self.scaling_factor=1/(1.8e9*integration_length)
 
     def get_values(self):
         self.UHFQC.quex_rl_readout(1) # resets UHFQC internal readout counters
+=======
+        self.scaling_factor = 1/(1.8e9*integration_length)
+
+    def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
+        self.UHFQC.quex_rl_readout(1)  # resets UHFQC internal readout counters
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         self.UHFQC.acquisition_arm()
         # starting AWG
         if self.AWG is not None:
             self.AWG.start()
 
+<<<<<<< HEAD
         data_raw=self.UHFQC.acquisition_poll(samples=self.nr_shots,
                                              arm=False, acquisition_time=0.01,
                                              timeout=1000)
         data = np.array([data_raw[key] for key in data_raw.keys()])*self.scaling_factor
 
         #offset suppression to be reimplemented
+=======
+        data_raw = self.UHFQC.acquisition_poll(samples=self.nr_shots,
+                                               arm=False, acquisition_time=0.01,
+                                               timeout=1000)
+        data = np.array([data_raw[key]
+                         for key in data_raw.keys()])*self.scaling_factor
+
+        # offset suppression to be reimplemented
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         # if self.cross_talk_suppression:
         #     data[i]=data[i]-eval("self.UHFQC.quex_trans_offset_weightfunction_{}()".format(channel))
         return data
@@ -1586,7 +1658,10 @@ class UHFQC_integration_logging_det(Hard_Detector):
             # 0/1/2 crosstalk supressed /digitized/raw
             self.UHFQC.quex_rl_source(2)
         self.UHFQC.acquisition_initialize(channels=self.channels, mode='rl')
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
 
     def finish(self):
         if self.AWG is not None:
@@ -1625,7 +1700,8 @@ class Chevron_sim(Hard_Detector):
 
 
 class ATS_integrated_average_continuous_detector(Hard_Detector):
-    #deprecated
+    # deprecated
+
     def __init__(self, ATS, ATS_acq, AWG, seg_per_point=1, normalize=False, rotate=False,
                  nr_averages=1024, integration_length=1e-6, **kw):
         '''
@@ -1742,14 +1818,22 @@ class DDM_input_average_detector(Hard_Detector):
         self.nr_averages = nr_averages
 
     def prepare(self, sweep_points):
+<<<<<<< HEAD
 
+=======
+        if self.AWG is not None:
+            self.AWG.stop()
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         self.DDM.ch_pair1_inavg_scansize.set(self.nr_samples)
         self.DDM.ch_pair1_inavg_Navg(self.nr_averages)
         self.nr_sweep_points = self.nr_samples
 
     def get_values(self):
+<<<<<<< HEAD
         if self.AWG is not None:
             self.AWG.stop()
+=======
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         #arming DDM trigger
         self.DDM.ch_pair1_inavg_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
@@ -1793,9 +1877,17 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.integration_length = integration_length
         self.rotate = rotate
         self.cross_talk_suppression = cross_talk_suppression
+<<<<<<< HEAD
         self.scaling_factor=1/(500e6*integration_length)/127/127*2
 
     def prepare(self, sweep_points=None):
+=======
+        self.scaling_factor=1/(500e6*integration_length)/127
+
+    def prepare(self, sweep_points=None):
+        if self.AWG is not None:
+            self.AWG.stop()
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         if sweep_points is None:
             self.nr_sweep_points = 1
         else:
@@ -1807,8 +1899,11 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.DDM.ch_pair1_tvmode_nsegments(self.nr_sweep_points)
 
     def get_values(self):
+<<<<<<< HEAD
         if self.AWG is not None:
             self.AWG.stop()
+=======
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         #arming DDM trigger
         self.DDM.ch_pair1_tvmode_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
@@ -1874,9 +1969,17 @@ class DDM_integration_logging_det(Hard_Detector):
         self.AWG = AWG
         self.integration_length = integration_length
         self.nr_shots = nr_shots
+<<<<<<< HEAD
         self.scaling_factor=1/(500e6*integration_length)/127/127*2
 
     def prepare(self, sweep_points):
+=======
+        self.scaling_factor=1/(500e6*integration_length)/127
+
+    def prepare(self, sweep_points):
+        if self.AWG is not None:
+            self.AWG.stop()
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         if sweep_points is None:
             self.nr_sweep_points = 1
         else:
@@ -1888,8 +1991,11 @@ class DDM_integration_logging_det(Hard_Detector):
 
 
     def get_values(self):
+<<<<<<< HEAD
         if self.AWG is not None:
             self.AWG.stop()
+=======
+>>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
         #arming DDM trigger
         self.DDM.ch_pair1_logging_enable.set(1)
         self.DDM.ch_pair1_run.set(1)

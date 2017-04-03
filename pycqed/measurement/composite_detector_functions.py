@@ -613,7 +613,6 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     nr_samples=self.nr_samples)
                 SWF.prepare()
 
-
                  #get values detector
                 self.UHFQC.quex_rl_readout(0) # resets UHFQC internal readout counters
                 self.UHFQC.acquisition_arm()

@@ -316,7 +316,7 @@ class UHFQC(Instrument):
 
         return nodes
 
-    def sync():
+    def sync(self):
         self._daq.sync()
 
     def acquisition_arm(self):
@@ -439,7 +439,6 @@ class UHFQC(Instrument):
         self.acquisition_initialize(channels, mode)
         data = self.acquisition_poll(samples, acquisition_time, timeout)
         self.acquisition_finalize()
-
         return data
 
     def acquisition_initialize(self, channels=set([0, 1]), mode='rl'):
@@ -619,7 +618,7 @@ class UHFQC(Instrument):
 
         func(self._make_full_path(path), float(value))
 
-    def get(self, paths, convert=None):
+    def _get(self, paths, convert=None):
         if type(paths) is not list:
             paths = [ paths ]
             single = 1
@@ -637,10 +636,10 @@ class UHFQC(Instrument):
             return values
 
     def geti(self, paths):
-        return self.get(paths, int)
+        return self._get(paths, int)
 
     def getd(self, paths):
-        return self.get(paths, float)
+        return self._get(paths, float)
 
     def getv(self, paths):
         if type(paths) is not list:
@@ -689,7 +688,8 @@ class UHFQC(Instrument):
         wave_I_string = self.array_to_combined_vector_string(Iwave, "Iwave")
         wave_Q_string = self.array_to_combined_vector_string(Qwave, "Qwave")
         delay_samples = int(acquisition_delay*1.8e9/8)
-        delay_string='\twait({});\n'.format(delay_samples)
+        delay_string = '\twait(getUserReg(2));\n'
+        self.awgs_0_userregs_2(delay_samples)
 
         preamble="""
 const TRIGGER1  = 0x000001;
@@ -784,8 +784,8 @@ setTrigger(0);"""
         array = np.arange(int(samples))
         sinwave = RO_amp*np.sin(2*np.pi*array*f_RO_mod/f_sampling)
         coswave = RO_amp*np.cos(2*np.pi*array*f_RO_mod/f_sampling)
-        Iwave = coswave+sinwave;
-        Qwave = coswave-sinwave;
+        Iwave = (coswave+sinwave)/np.sqrt(2)
+        Qwave = (coswave-sinwave)/np.sqrt(2)
         # Iwave, Qwave = PG.mod_pulse(np.ones(samples), np.zeros(samples), f=f_RO_mod, phase=0, sampling_rate=f_sampling)
         self.awg_sequence_acquisition_and_pulse(Iwave, Qwave, acquisition_delay)
 
