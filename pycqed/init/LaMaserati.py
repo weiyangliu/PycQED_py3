@@ -114,8 +114,8 @@ station.add_component(Qubit_LO)
 TWPA_pump = rs.RohdeSchwarz_SGS100A(name='TWPA_pump', address='TCPIP0::192.168.0.11', server_name=None)  #
 station.add_component(TWPA_pump)
 
-TWPA_pump.power(4.0)
-TWPA_pump.frequency(8.12e9)
+TWPA_pump.power(2.5)
+TWPA_pump.frequency(8.18e9)
 TWPA_pump.on()
 
 # VNA
@@ -404,6 +404,7 @@ def switch_to_pulsed_RO_UHFQC_2214(qubit):
     qubit.RO_acq_marker_channel('ch3_marker1')
     qubit.RO_acq_weight_function_I(0)
     qubit.RO_acq_weight_function_Q(1)
+    qubit.RO_acq_marker_delay(0e-9)
 
 
 
@@ -413,11 +414,30 @@ def switch_to_pulsed_RO_UHFQC_2209(qubit):
     qubit.RO_acq_marker_channel('ch3_marker2')
     qubit.RO_acq_weight_function_I(0)
     qubit.RO_acq_weight_function_Q(1)
+    UHFQC_2209.awg_sequence_acquisition()
+    qubit.RO_acq_marker_delay(0e-9)
+
+
+def switch_to_IQ_mod_RO_UHFQC_2209(qubit):
+    UHFQC_2209.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=qubit.f_RO_mod(),
+                                                   RO_amp=qubit.RO_amp(), RO_pulse_length=qubit.RO_pulse_length(),
+                                                   acquisition_delay=270e-9)
+    qubit.RO_pulse_type('MW_IQmod_pulse_UHFQC')
+    qubit.RO_acq_marker_delay(-165e-9)
+    qubit.acquisition_instr('UHFQC_2209')
+    qubit.RO_acq_marker_channel('ch3_marker2')
+    qubit.RO_I_channel('0')
+    qubit.RO_Q_channel('1')
+    qubit.RO_acq_weight_function_I(0)
+    qubit.RO_acq_weight_function_Q(1)
+    qubit.RO_I_offset(0.00243)
+    qubit.RO_Q_offset(0.00599)
 
 
 def load_default_settings(qubit):
     qubit.pulse_I_offset(11e-3)
     qubit.pulse_Q_offset(-10e-3)
+
     qubit.RO_pulse_length(2e-6)
     qubit.RO_pulse_marker_channel('ch1_marker2')
     qubit.f_pulse_mod(50e6)
@@ -459,7 +479,7 @@ if use_DDM:
 
 else:
     UHFQC_2214.awg_sequence_acquisition()
-    UHFQC_2209.awg_sequence_acquisition()
+
     UHFQC_2214.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
     UHFQC_2209.prepare_SSB_weight_and_rotation(QR1.f_RO_mod())
     for qubit in list_qubits_L:

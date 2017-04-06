@@ -780,7 +780,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.MC.set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
         self.MC.set_detector_function(self.input_average_detector)
-        self.MC.run('Measure_transients_{}_0'.format(self.msmt_suffix))
+        self.MC.run('Measure_transients_{}_ground'.format(self.msmt_suffix))
         a0 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
         self.MC.set_sweep_function(awg_swf.OffOn(pulse_pars=self.pulse_pars,
                                                  RO_pars=self.RO_pars,
@@ -789,7 +789,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         # self.MC.set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
         self.MC.set_detector_function(self.input_average_detector)
-        self.MC.run('Measure_transients_{}_1'.format(self.msmt_suffix))
+        self.MC.run('Measure_transients_{}_excited'.format(self.msmt_suffix))
         a1 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
 
     def measure_rb_vs_amp(self, amps, nr_cliff=1,
