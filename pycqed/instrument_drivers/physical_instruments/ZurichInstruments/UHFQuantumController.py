@@ -238,6 +238,10 @@ class UHFQC(Instrument):
         self.sigouts_0_enables_3(0)
         self.sigouts_1_enables_7(0)
 
+        #setting the awg outputs to 50 ohm output impedance
+        self.sigouts_0_imp50(True)
+        self.sigouts_1_imp50(True)
+
 
 
     def _gen_set_func(self, dev_set_type, cmd_str):
