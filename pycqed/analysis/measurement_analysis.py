@@ -5299,19 +5299,13 @@ class Chevron_2D(object):
 
 class DoubleFrequency(TD_Analysis):
 
-<<<<<<< HEAD
-    def __init__(self, label='Ramsey', **kw):
-        kw['label'] = label
-        kw['h5mode'] = 'r+'
-        super(self.__class__, self).__init__(**kw)
-=======
+
     def __init__(self, auto=True, label='Ramsey', timestamp=None, **kw):
         kw['label'] = label
         kw['auto'] = auto
         kw['timestamp'] = timestamp
         kw['h5mode'] = 'r+'
         super().__init__(**kw)
->>>>>>> 5cade8f04a6320600ccac4783c5835757f13ea54
 
     def run_default_analysis(self, **kw):
         self.add_analysis_datagroup_to_file()
