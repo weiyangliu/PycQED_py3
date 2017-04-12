@@ -907,6 +907,18 @@ class Source_frequency_detector(Soft_Detector):
 
 
 class Function_Detector(Soft_Detector):
+    """
+    Defines a detector function that wraps around an user-defined function.
+    Inputs are:
+        sweep_function, function that is going to be wrapped around
+        result_keys, keys of the dictionary returned by the function
+        value_names, names of the elements returned by the function
+        value_units, units of the elements returned by the function
+        msmt_kw, kw arguments for the function
+    The input function sweep_function must return a dictionary.
+    The contents(keys) of this dictionary are going to be the measured
+    values to be plotted and stored by PycQED
+    """
 
     def __init__(self, sweep_function, result_keys, value_names=None,
                  value_unit=None, msmt_kw={}, **kw):
@@ -914,16 +926,57 @@ class Function_Detector(Soft_Detector):
         self.sweep_function = sweep_function
         self.result_keys = result_keys
         self.value_names = value_names
-        self.value_units = value_units
+        self.value_unit = value_unit
+        self.msmt_kw = msmt_kw
+        if self.value_names is None:
+            self.value_names = result_keys
+        if self.value_units is None:
+            self.value_units = ['a.u.'] * len(value_names)
+
+    def acquire_data_point(self, **kw):
+        measurement_kwargs = {}
+        for key, item in self.parameters_dictionary.items():
+            if hasattr(item, 'get'):
+                value = item.get()
+            else:
+                value = item
+            measurement_kwargs[key] = value
+        result = self.function(**measurement_kwargs)
+
+    def acquire_data_point(self, **kw):
+        result = self.sweep_function(**self.msmt_kw)
+        return [result[key] for key in result.keys()]
+
+
+class Function_Detector_list(Soft_Detector):
+    """
+    Defines a detector function that wraps around an user-defined function.
+    Inputs are:
+        sweep_function, function that is going to be wrapped around
+        result_keys, keys of the dictionary returned by the function
+        value_names, names of the elements returned by the function
+        value_units, units of the elements returned by the function
+        msmt_kw, kw arguments for the function
+    The input function sweep_function must return a dictionary.
+    The contents(keys) of this dictionary are going to be the measured
+    values to be plotted and stored by PycQED
+    """
+
+    def __init__(self, sweep_function, result_keys, value_names=None,
+                 value_unit=None, msmt_kw={}, **kw):
+        super(Function_Detector_list, self).__init__()
+        self.sweep_function = sweep_function
+        self.result_keys = result_keys
+        self.value_names = value_names
+        self.value_units = value_unit
         self.msmt_kw = msmt_kw
         if self.value_names is None:
             self.value_names = result_keys
         if self.value_units is None:
             self.value_units = [""] * len(result_keys)
 
-    def acquire_data_points(self, **kw):
-        result = self.sweep_function(**self.msmt_kw)
-        return [result[key] for key in result.keys()]
+    def acquire_data_point(self, **kw):
+        return self.sweep_function(**self.msmt_kw)
 
 
 class Detect_simulated_hanger_Soft(Soft_Detector):
