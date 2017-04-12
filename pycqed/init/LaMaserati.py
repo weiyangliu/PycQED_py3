@@ -58,6 +58,9 @@ from qcodes.instrument_drivers.rohde_schwarz import ZNB20 as ZNB20
 from qcodes.instrument_drivers.weinschel import Weinschel_8320 as Weinschel_8320
 from pycqed.instrument_drivers.physical_instruments import Weinschel_8320_novisa
 
+from imp import reload
+from pycqed.measurement import detector_functions as det
+
 from qcodes.instrument_drivers.tektronix import AWG5014 as tek
 # from qcodes.instrument_drivers.tektronix import AWG520 as tk520
 
@@ -77,6 +80,11 @@ import qcodes.instrument_drivers.AlazarTech.ATS_acquisition_controllers as ats_c
 # from pycqed.instrument_drivers.meta_instrument.Flux_Control import Flux_Control
 
 import pycqed.instrument_drivers.physical_instruments.QuTech_DDM_module as ddm
+
+import pycqed.instrument_drivers.meta_instrument.UHFQC_LookuptableManager as lm_UHFQC
+import pycqed.instrument_drivers.meta_instrument.UHFQC_LookuptableManagerManager as lmm_UHFQC
+
+
 
 t0 = time.time()  # to print how long init takes
 ############################
@@ -125,11 +133,14 @@ TWPA_pump.on()
 # Initializing UHFQC
 use_DDM=False
 if not use_DDM:
-    UHFQC_2214 = ZI_UHFQC.UHFQC('UHFQC_2214', device='dev2214', server_name=None)
-    station.add_component(UHFQC_2214)
+    # UHFQC_2214 = ZI_UHFQC.UHFQC('UHFQC_2214', device='dev2214', server_name=None)
+    # station.add_component(UHFQC_2214)
 
     UHFQC_2209 = ZI_UHFQC.UHFQC('UHFQC_2209', device='dev2209', server_name=None)
     station.add_component(UHFQC_2209)
+    LutMan = lm_UHFQC.UHFQC_LookuptableManager('LutMan', UHFQC=UHFQC_2209,
+                                                 server_name=None)
+    station.add_component(LutMan)
 
 
 
@@ -244,6 +255,13 @@ MC = mc.MeasurementControl('MC', live_plot_enabled=True)
 MC.station = station
 station.MC = MC
 station.add_component(MC)
+
+#adding MC for outer loop
+MC_loop = mc.MeasurementControl('MC_loop', live_plot_enabled=True)
+MC_loop.station = station
+station.MC_loop = MC_loop
+station.add_component(MC)
+
 
 ATT = Weinschel_8320_novisa.Weinschel_8320(name='ATT',address='192.168.0.54', server_name=None)
 station.add_component(ATT)
@@ -430,8 +448,8 @@ def switch_to_IQ_mod_RO_UHFQC_2209(qubit):
     qubit.RO_Q_channel('1')
     qubit.RO_acq_weight_function_I(0)
     qubit.RO_acq_weight_function_Q(1)
-    qubit.RO_I_offset(0.00243)
-    qubit.RO_Q_offset(0.00599)
+    qubit.RO_I_offset(0.00435)
+    qubit.RO_Q_offset(0.00591)
 
 
 def load_default_settings(qubit):
@@ -478,12 +496,12 @@ if use_DDM:
 
 
 else:
-    UHFQC_2214.awg_sequence_acquisition()
+    # UHFQC_2214.awg_sequence_acquisition()
 
-    UHFQC_2214.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
+    # UHFQC_2214.prepare_SSB_weight_and_rotation(QL1.f_RO_mod())
     UHFQC_2209.prepare_SSB_weight_and_rotation(QR1.f_RO_mod())
     for qubit in list_qubits_L:
-        switch_to_pulsed_RO_UHFQC_2214(qubit)
+        switch_to_pulsed_RO_UHFQC_2209(qubit)
         load_default_settings(qubit)
 
     for qubit in list_qubits_R:
@@ -511,4 +529,87 @@ QR4.dac_channel(7)
 #DDM preparation, to be moved to driver
 #prepare the weigh functions
 
+
+
+#some functions for quantum efficiency analysis
+
+#IQ analysis
+def SSB_demod(Ivals, Qvals, IF=10e6):
+    trace_length = len(Ivals)
+    tbase = np.arange(0, trace_length/1.8e9, 1/1.8e9)
+    print(tbase[-1])
+    cosI = np.array(np.cos(2*np.pi*IF*tbase))
+    sinI = np.array(np.sin(2*np.pi*IF*tbase))
+    I=np.multiply(Ivals,cosI)+np.multiply(Qvals, sinI)
+    Q=np.multiply(Ivals,sinI)-np.multiply(Qvals, cosI)
+    return Ivals, Qvals
+
+
+
+def Input_average_analysis(IF, fig_format='png'):
+    # timestamp0 = '20170405_113323' # transients ground state
+    # timestamp1 = '20170405_113338' # transients excited state
+    IF=-IF
+
+    data_file = ma.MeasurementAnalysis(label='_ground', auto=True, TwoD=False)
+    temp = data_file.load_hdf5data()
+    data_file.get_naming_and_values()
+
+    x = data_file.sweep_points/1.8
+    y1 = data_file.measured_values[0]
+    y2 = data_file.measured_values[1]
+    y1_av=np.mean(y1)
+    y2_av=np.mean(y2)
+    I0,Q0=SSB_demod(y1-y1_av,y2-y2_av, IF=IF)
+    power0=(I0**2+Q0**2)/50
+
+
+
+    data_file = ma.MeasurementAnalysis(label='_excited', auto=True, TwoD=False)
+    temp = data_file.load_hdf5data()
+    data_file.get_naming_and_values()
+
+    x = data_file.sweep_points/1.8
+    y1 = data_file.measured_values[0]
+    y2 = data_file.measured_values[1]
+    y1_av=np.mean(y1)
+    y2_av=np.mean(y2)
+    I1,Q1=SSB_demod(y1-y1_av,y2-y2_av, IF=IF)
+    power1=(I1**2+Q1**2)/50
+
+    fig, ax = plt.subplots()
+    plt.plot(x,I0, label='I ground')
+    plt.plot(x,I1, label='I excited')
+    plt.legend()
+    plt.title('Demodulated I')
+    plt.xlabel('time (ns)')
+    plt.ylabel('Demodulated voltage (V)')
+
+
+    fig, ax = plt.subplots()
+    plt.plot(x,Q0, label='Q ground')
+    plt.plot(x,Q1, label='Q excited')
+
+    plt.title('Demodulated Q')
+    plt.xlabel('time (ns)')
+    plt.ylabel('Demodulated Q')
+
+
+    fig, ax = plt.subplots()
+    plt.plot(x,power0*1e6)
+    plt.plot(x,power1*1e6)
+    plt.title('Signal power (uW)')
+    plt.ylabel('Signal power (uW)')
+
+
+    fig, ax = plt.subplots()
+    plt.plot(I0,Q0, label='0')
+    plt.plot(I1,Q1, label='1')
+    plt.legend(frameon=False)
+    plt.title('IQ trajectory '+ data_file.timestamp_string)
+    plt.xlabel('I (V)')
+    plt.ylabel('Q (V)')
+
+
+    plt.savefig(data_file.folder+'\\'+'IQ_trajectory.'+fig_format,format=fig_format)
 
