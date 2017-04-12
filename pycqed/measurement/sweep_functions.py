@@ -341,3 +341,26 @@ class QWG_lutman_par(Soft_Sweep):
 
         self.LutMan_parameter.set(val)
         self.LutMan.load_pulses_onto_AWG_lookuptable()
+
+
+
+class UHFQC_lutman_CLEAR_sweeper(Soft_Sweep):
+    def __init__(self, LutMan, optimization_M_amp , optimization_M_amp_down0,optimization_M_amp_down1, **kw):
+        self.set_kw()
+        self.name= 'CLEAR_sweeper'
+        self.parameter_name = 'CLEAR_scaling_amp'
+        self.unit = 'V'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.optimization_M_amp = optimization_M_amp
+        self.optimization_M_amp_down0 = optimization_M_amp_down0
+        self.optimization_M_amp_down1 = optimization_M_amp_down1
+
+    def set_parameter(self, val):
+        '''
+        Set the parameter(s) to be sweeped. Differs per sweep function
+        '''
+        self.LutMan.M_amp(val)
+        self.LutMan.M_up_amp(val)
+        self.LutMan.M_down_amp0(val/self.optimization_M_amp*self.optimization_M_amp_down0)
+        self.LutMan.M_down_amp1(val/self.optimization_M_amp*self.optimization_M_amp_down1)

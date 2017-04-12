@@ -102,7 +102,7 @@ class UHFQC_LookuptableManager(Instrument):
                    parameter_class=ManualParameter,
                    initial_value=100.0e-9)
         self.add_parameter('M_up_amp', unit='V',
-                           vals=vals.Numbers(0, 1),
+                           vals=vals.Numbers(-1, 1),
                            parameter_class=ManualParameter,
                            initial_value=0.1)
         self.add_parameter('M_up_phi', unit='deg',
@@ -113,11 +113,11 @@ class UHFQC_LookuptableManager(Instrument):
                            parameter_class=ManualParameter,
                            initial_value=200.0e-9)
         self.add_parameter('M_down_amp0', unit='V',
-                           vals=vals.Numbers(0, 1),
+                           vals=vals.Numbers(-1, 1),
                            parameter_class=ManualParameter,
                            initial_value=0.1)
         self.add_parameter('M_down_amp1', unit='V',
-                           vals=vals.Numbers(0, 1),
+                           vals=vals.Numbers(-1, 1),
                            parameter_class=ManualParameter,
                            initial_value=0.1)
         self.add_parameter('M_down_phi0', unit='deg',
@@ -261,9 +261,15 @@ class UHFQC_LookuptableManager(Instrument):
                       np.add(Mod_M_down0[1],
                                   Mod_M_down1[1]))
 
+
         #concatenating up, mid and depletion
         Mod_M_up_mid_down = (np.concatenate((Mod_M_up_mid[0], Mod_M_down[0])),
                     np.concatenate((Mod_M_up_mid[1], Mod_M_down[1])))
+
+        # 3-step pulse, similar to double frequency depletion but then
+        # concatenated instead of simultaneously played.
+        Mod_3step = (np.concatenate((Mod_M_up_mid[0], Mod_M_down0[0], Mod_M_down1[0])),
+            np.concatenate((Mod_M_up_mid[1], Mod_M_down0[1], Mod_M_down1[1])))
 
         self._wave_dict = {'I': Wave_I,
                            'X180': Wave_X_180, 'Y180': Wave_Y_180,
@@ -272,6 +278,7 @@ class UHFQC_LookuptableManager(Instrument):
                            'Block': Block,
                            'ModBlock': ModBlock,
                            'M_square': Mod_M,
+                           'M_3step': Mod_3step,
                            'M_up_mid': Mod_M_up_mid,
                            'M_up_mid_double_dep': Mod_M_up_mid_down
                            }
@@ -288,15 +295,15 @@ class UHFQC_LookuptableManager(Instrument):
         if reload_pulses:
             self.generate_standard_pulses()
         fig, ax = plt.subplots(1, 1)
-        if time_units == 'lut_index':
+        if time_unit == 'lut_index':
             x = np.arange(len(self._wave_dict[wave_name][0]))
             ax.set_xlabel('Lookuptable index (i)')
             ax.vlines(2048, self._voltage_min, self._voltage_max, linestyle='--')
-        elif time_units == 's':
-            x = (np.arange(len(self._wave_dict[wave_name][0]))
+        elif time_unit == 'ns':
+            x = (1e9*np.arange(len(self._wave_dict[wave_name][0]))
                  / self.sampling_rate.get())
-            ax.set_xlabel('time (s)')
-            ax.vlines(2048 / self.sampling_rate.get(),
+            ax.set_xlabel('time (ns)')
+            ax.vlines(2048 / self.sampling_rate.get()*1e9,
                       self._voltage_min, self._voltage_max, linestyle='--')
         print(wave_name)
         ax.set_title(wave_name)
