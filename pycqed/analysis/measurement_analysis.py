@@ -1132,17 +1132,19 @@ class chevron_optimization_v2(TD_Analysis):
 
 class Rabi_Analysis(TD_Analysis):
 
-    def __init__(self, label='Rabi', **kw):
+    def __init__(self, label='Rabi',print_amp180=True, **kw):
         kw['label'] = label
         kw['h5mode'] = 'r+'
+        self.print_amp180 = print_amp180
         super().__init__(**kw)
 
-    def run_default_analysis(self, close_file=True, **kw):
+    def run_default_analysis(self, close_file=True,  **kw):
         self.get_naming_and_values()
         self.fit_data(**kw)
         self.make_figures(**kw)
         if close_file:
             self.data_file.close()
+
         return self.fit_res
 
     def make_figures(self, **kw):
@@ -1169,13 +1171,17 @@ class Rabi_Analysis(TD_Analysis):
             fine_fit = self.fit_res[i].model.func(
                 x_fine, **self.fit_res[i].best_values)
             #adding the fitted amp180
-            label='amp180 = {:.3e}'.format(abs(self.fit_res[i].params['period'].value)/2)
+            if self.print_amp180:
+                label='amp180 = {:.3e}'.format(abs(self.fit_res[i].params['period'].value)/2)
+            else:
+                label='fit'
             self.axs[i].plot(x_fine, fine_fit,label=label )
-            ymin = min(self.measured_values[i])
-            ymax = max(self.measured_values[i])
-            yspan = ymax-ymin
-            self.axs[i].set_ylim(ymin-0.23*yspan, 0.05*yspan+ymax)
-            self.axs[i].legend(frameon=False, loc='lower left')
+            if self.print_amp180:
+                ymin = min(self.measured_values[i])
+                ymax = max(self.measured_values[i])
+                yspan = ymax-ymin
+                self.axs[i].set_ylim(ymin-0.23*yspan, 0.05*yspan+ymax)
+                self.axs[i].legend(frameon=False, loc='lower left')
             if show_guess:
                 fine_fit = self.fit_res[i].model.func(
                     x_fine, **self.fit_res[i].init_values)
