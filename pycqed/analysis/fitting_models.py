@@ -381,6 +381,8 @@ def Cos_guess(model, data, t):
 
     f = np.fft.fftfreq(len(data), t[1]-t[0])
     w[0] = 0  # Removes DC component from fourier transform
+
+    #using maximum absolute fft component
     if -min(w)>max(w):
         freq_guess = f[w == min(w)]
     else:
