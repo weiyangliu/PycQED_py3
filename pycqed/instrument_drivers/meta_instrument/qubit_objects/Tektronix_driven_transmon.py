@@ -699,7 +699,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                      close_fig=True,
                      verbose=True, optimized_weights=False, SSB=False,
                      one_weight_function_UHFQC=False,
-                     multiplier=1, nr_shots=4095):
+                     multiplier=1, nr_shots=4095, set_weight_functions=True):
         self.prepare_for_timedomain()
         if MC is None:
             MC = self.MC
@@ -716,7 +716,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             optimized_weights=optimized_weights,
             integration_length=self.RO_acq_integration_length(),
             close_fig=close_fig, SSB=SSB, multiplier=multiplier,
-            nr_averages=self.RO_acq_averages())
+            nr_averages=self.RO_acq_averages(), set_weight_functions=set_weight_functions)
         if return_detector:
             return d
         d.prepare()
