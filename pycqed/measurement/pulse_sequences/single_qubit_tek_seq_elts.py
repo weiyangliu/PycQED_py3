@@ -405,55 +405,6 @@ def AllXY_seq(pulse_pars, RO_pars, double_points=False,
     else:
         return seq_name
 
-def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'], double_points=False,
-              verbose=False, upload=True, return_seq=False):
-    '''
-    AllXY sequence with premeasurement for photon number detection
-    for a single qubit using the tektronix.
-    SSB_Drag pulse is used for driving, simple modualtion used for RO
-    Input pars:
-        pulse_pars:          dict containing the pulse parameters
-        RO_pars0             dict containing the RO parameters for first measurement
-        RO_pars1             dict containing the RO parameters for second measurement
-
-
-    '''
-    seq_name = 'AllXY_seq'
-    seq = sequence.Sequence(seq_name)
-    station.pulsar.update_channel_settings()
-    el_list = []
-    # Create a dict with the parameters for all the pulses
-    pulses = get_pulse_dict_from_pars(pulse_pars)
-
-    pre_pulses = preparation*21
-    pulse_combinations = [['I', 'I'], ['X180', 'X180'], ['Y180', 'Y180'],
-                          ['X180', 'Y180'], ['Y180', 'X180'],
-                          ['X90', 'I'], ['Y90', 'I'], ['X90', 'Y90'],
-                          ['Y90', 'X90'], ['X90', 'Y180'], ['Y90', 'X180'],
-                          ['X180', 'Y90'], ['Y180', 'X90'], ['X90', 'X180'],
-                          ['X180', 'X90'], ['Y90', 'Y180'], ['Y180', 'Y90'],
-                          ['X180', 'I'], ['Y180', 'I'], ['X90', 'X90'],
-                          ['Y90', 'Y90']]
-    if double_points:
-        pulse_combinations = [val for val in pulse_combinations
-                              for _ in (0, 1)]
-        pre_pulses=pre_pulses*2
-
-    for i, pulse_comb in enumerate(pulse_combinations):
-        pulse_list = [pulses[pre_pulses[i]], RO_pars0, pulses[pulse_comb[0]],
-                      pulses[pulse_comb[1]],
-                      RO_pars1]
-        el = multi_pulse_elt(i, station, pulse_list)
-        el_list.append(el)
-        seq.append_element(el, trigger_wait=True)
-
-    if upload:
-        station.components['AWG'].stop()
-        station.pulsar.program_awg(seq, *el_list, verbose=verbose)
-    if return_seq:
-        return seq, el_list
-    else:
-        return seq_name
 
 
 def OffOn_seq(pulse_pars, RO_pars,
@@ -819,3 +770,91 @@ def get_pulse_dict_from_pars(pulse_pars):
     pulses['mY90']['phase'] = 90
 
     return pulses
+
+
+#quantum efficiency measurement sequences
+def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'], double_points=False,
+              verbose=False, upload=True, return_seq=False):
+    '''
+    AllXY sequence with premeasurement for photon number detection
+    for a single qubit using the tektronix.
+    SSB_Drag pulse is used for driving, simple modualtion used for RO
+    Input pars:
+        pulse_pars:          dict containing the pulse parameters
+        RO_pars0             dict containing the RO parameters for first measurement
+        RO_pars1             dict containing the RO parameters for second measurement
+
+
+    '''
+    seq_name = 'AllXY_premsmt_seq'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+    # Create a dict with the parameters for all the pulses
+    pulses = get_pulse_dict_from_pars(pulse_pars)
+
+    pre_pulses = preparation*21
+    pulse_combinations = [['I', 'I'], ['X180', 'X180'], ['Y180', 'Y180'],
+                          ['X180', 'Y180'], ['Y180', 'X180'],
+                          ['X90', 'I'], ['Y90', 'I'], ['X90', 'Y90'],
+                          ['Y90', 'X90'], ['X90', 'Y180'], ['Y90', 'X180'],
+                          ['X180', 'Y90'], ['Y180', 'X90'], ['X90', 'X180'],
+                          ['X180', 'X90'], ['Y90', 'Y180'], ['Y180', 'Y90'],
+                          ['X180', 'I'], ['Y180', 'I'], ['X90', 'X90'],
+                          ['Y90', 'Y90']]
+    if double_points:
+        pulse_combinations = [val for val in pulse_combinations
+                              for _ in (0, 1)]
+        pre_pulses=pre_pulses*2
+
+    for i, pulse_comb in enumerate(pulse_combinations):
+        pulse_list = [pulses[pre_pulses[i]], RO_pars0, pulses[pulse_comb[0]],
+                      pulses[pulse_comb[1]],
+                      RO_pars1]
+        el = multi_pulse_elt(i, station, pulse_list)
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+
+    if upload:
+        station.components['AWG'].stop()
+        station.pulsar.program_awg(seq, *el_list, verbose=verbose)
+    if return_seq:
+        return seq, el_list
+    else:
+        return seq_name
+
+def Ramsey_premsmt_seq(phases, pulse_pars, RO_pars0, RO_pars1, verbose=False,
+                       upload=True, return_seq=False):
+    '''
+    Ramsey sequence with premeasurements for a single qubit using the tektronix.
+    SSB_Drag pulse is used for driving, simple modualtion used for RO
+    Input pars:
+        phases:              array of phases of the different pulses
+        pulse_pars:          dict containing the pulse parameters
+        RO_pars:             dict containing the RO parameters
+        artificial_detuning: artificial_detuning (Hz) implemented using phase
+        cal_points:          whether to use calibration points or not
+    '''
+    seq_name = 'Ramsey_premsmt_sequence'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+    # First extract values from input, later overwrite when generating
+    # waveforms
+    pulses = get_pulse_dict_from_pars(pulse_pars)
+
+    pulse_pars_x2 = deepcopy(pulses['X90'])
+    # pulse_pars_x2['refpoint'] = 'start'
+    for i, phase in enumerate(phases):
+        pulse_pars_x2['phase'] = phase
+        pulse_list = [pulses['X90'], RO_pars0, pulse_pars_x2, RO_pars1]
+        el = multi_pulse_elt(i, station, pulse_list)
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+    if upload:
+        station.components['AWG'].stop()
+        station.pulsar.program_awg(seq, *el_list, verbose=verbose)
+    if return_seq:
+        return seq, el_list
+    else:
+        return seq_name
