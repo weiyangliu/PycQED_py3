@@ -226,8 +226,15 @@ class Standard_MA(object):
         plot_title = pdict['title']
         plot_cmap = pdict.get('cmap', 'YlGn')
 
-        plot_xvals_step = plot_xvals[1]-plot_xvals[0]
-        plot_yvals_step = plot_yvals[1, 0]-plot_yvals[0, 0]
+        print(plot_yvals[1][0])
+
+        try:
+            plot_xvals_step = plot_xvals[1]-plot_xvals[0]
+            plot_yvals_step = plot_yvals[1][0]-plot_yvals[0][0]
+        except:
+            plot_xvals_step = plot_xvals[1]-plot_xvals[0]
+            plot_yvals_step = plot_yvals[1, 0]-plot_yvals[0, 0]
+
 
         fig_clim = pdict['zrange']
         out = flex_color_plot_vs_x(ax=axs, cmap=plot_cmap, normalize=False,
@@ -235,18 +242,25 @@ class Standard_MA(object):
                                    yvals=plot_yvals,
                                    zvals=plot_zvals.transpose())
 
-        xmin, xmax = plot_xvals.min()-plot_xvals_step / \
-            2., plot_xvals.max()+plot_xvals_step/2.
+        try:
+            xmin, xmax = plot_xvals.min()-plot_xvals_step / \
+                2., plot_xvals.max()+plot_xvals_step/2.
+            axs.set_xlim(xmin, xmax)
+        except:
+            print('failed')
         axs.set_xlabel(plot_xlabel)
-        axs.set_xlim(xmin, xmax)
 
-        ymin, ymax = plot_yvals.min()-plot_yvals_step / \
-            2., plot_yvals.max()+plot_yvals_step/2.
+        try:
+            ymin, ymax = plot_yvals.min()-plot_yvals_step / \
+                2., plot_yvals.max()+plot_yvals_step/2.
+            axs.set_ylim(ymin, ymax)
+        except:
+            print('failed')
+
+
         axs.set_ylabel(plot_ylabel)
-        axs.set_ylim(ymin, ymax)
 
         axs.set_title(plot_title)
-
         # ax_divider = make_axes_locatable(axs)
         # cax = ax_divider.append_axes('right',size='5%', pad='2.5%')
         # cbar = plt.colorbar(out['cmap'], cax=cax)
@@ -254,7 +268,7 @@ class Standard_MA(object):
         # cbar.set_ticklabels([str(fig_clim[0]),'','','','',str(fig_clim[1])])
         # cbar.set_label(plot_zlabel)
 
-        # self.cbar = cbar
+        self.cbar = cbar
 
         axs.figure.tight_layout()
 
