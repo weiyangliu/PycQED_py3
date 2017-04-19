@@ -330,3 +330,4 @@ class quick_analysis_list(Standard_MA):
 
     def process_data(self):
         pass
+

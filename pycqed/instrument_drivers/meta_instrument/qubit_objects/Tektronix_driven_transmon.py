@@ -513,7 +513,8 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         """
 
         self.prepare_for_pulsed_spec()
-        self.heterodyne_instr._disable_auto_seq_loading = True
+        self.heterodyne_instr.auto_seq_loading(False) #prevent HS from overwriting 5014 sequence
+        self.heterodyne_instr._awg_seq_parameters_changed = False #prevent HS from overwriting weight functions each probe call
 
         self.cw_source.pulsemod_state.set('On')
         self.cw_source.power.set(self.spec_pow_pulsed.get())

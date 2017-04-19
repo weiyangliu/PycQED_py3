@@ -173,6 +173,7 @@ class HeterodyneInstrument(Instrument):
         self._acquisition_instr.acquisition_initialize([0, 1], 'rl')
         self.scale_factor_UHFQC = 1/(1.8e9*self.RO_length() *
                                      int(self.nr_averages()))
+        self._UHFQC_awg_parameters_changed = False
 
     def prepare_ATS(self, get_t_base=True):
         if self.AWG != None:
@@ -246,7 +247,6 @@ class HeterodyneInstrument(Instrument):
         if self._awg_seq_parameters_changed or \
            self._UHFQC_awg_parameters_changed:
             self.prepare()
-
         dataset = self._acquisition_instr.acquisition_poll(
             samples=1, acquisition_time=0.001, timeout=10)
         dat = (self.scale_factor_UHFQC*dataset[0][0] +

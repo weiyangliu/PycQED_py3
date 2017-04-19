@@ -635,10 +635,8 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                                                          arm=False, acquisition_time=0.01,
                                                          timeout=100)
                     self.UHFQC.acquisition_finalize()
-                    print('updated')
                     if self.AWG is not None:
                         self.AWG.stop()
-                        print('stopping AWG')
                     data = np.array([data_raw[key] for key in data_raw.keys()])
 
                     #calculating transients
