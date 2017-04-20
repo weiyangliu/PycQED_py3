@@ -649,9 +649,9 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
 
                     #offset subtraction
                     optimized_weights_I = optimized_weights_I - \
-                        np.mean(optimized_weights_I[-100:])
+                        np.mean(optimized_weights_I[:100])
                     optimized_weights_Q = optimized_weights_Q - \
-                        np.mean(optimized_weights_Q[-100:])
+                        np.mean(optimized_weights_Q[:100])
 
                     #joint rescaling to +/-1 Volt
                     maxI=np.max(np.abs(optimized_weights_I))
