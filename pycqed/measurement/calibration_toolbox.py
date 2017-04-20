@@ -320,8 +320,8 @@ def mixer_carrier_cancellation_UHFQC(UHFQC, SH, source, MC,
                                      frequency=None,
                                      AWG_channel1=0,
                                      AWG_channel2=1,
-                                     voltage_grid=[.1, 0.05, 0.02],
-                                     xtol=0.001, **kw):
+                                     voltage_grid=[.1, 0.05, 0.02, 0.005],
+                                     xtol=0.0001, **kw):
     '''
     Varies the mixer offsets to minimize leakage at the carrier frequency.
     this is the version for a UHFQC.
@@ -361,13 +361,14 @@ def mixer_carrier_cancellation_UHFQC(UHFQC, SH, source, MC,
     ch1_swf = UHFQC.sigouts_0_offset
     ch2_swf = UHFQC.sigouts_1_offset
     for voltage_span in voltage_grid:
+        print('used span',voltage_span)
         # Channel 1
         MC.set_sweep_function(ch1_swf)
         MC.set_detector_function(
             det.Signal_Hound_fixed_frequency(signal_hound=SH,
                                              frequency=frequency))
-        MC.set_sweep_points(np.linspace(ch_1_min + voltage_span,
-                                        ch_1_min - voltage_span, 11))
+        MC.set_sweep_points(np.linspace(ch_1_min + voltage_span/2,
+                                        ch_1_min - voltage_span/2, 11))
         MC.run(name='Mixer_cal_Offset_%s' % AWG_channel1,
                sweep_delay=.1, debug_mode=True)
         Mixer_Calibration_Analysis = MA.Mixer_Calibration_Analysis(
@@ -377,8 +378,8 @@ def mixer_carrier_cancellation_UHFQC(UHFQC, SH, source, MC,
 
         # Channel 2
         MC.set_sweep_function(ch2_swf)
-        MC.set_sweep_points(np.linspace(ch_2_min + voltage_span,
-                                        ch_2_min - voltage_span, 11))
+        MC.set_sweep_points(np.linspace(ch_2_min + voltage_span/2,
+                                        ch_2_min - voltage_span/2, 11))
         MC.run(name='Mixer_cal_Offset_ch%s' % AWG_channel2,
                sweep_delay=.1, debug_mode=True)
         Mixer_Calibration_Analysis = MA.Mixer_Calibration_Analysis(
@@ -390,7 +391,7 @@ def mixer_carrier_cancellation_UHFQC(UHFQC, SH, source, MC,
     while(abs(last_ch_1_min - ch_1_min) > xtol
           and abs(last_ch_2_min - ch_2_min) > xtol):
         ii += 1
-        dac_resolution = 0.001
+        dac_resolution = 0.00005
         # channel 1 finer sweep
         MC.set_sweep_function(ch1_swf)
         MC.set_sweep_points(np.linspace(ch_1_min - dac_resolution*6,
