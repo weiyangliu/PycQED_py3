@@ -268,7 +268,7 @@ class Standard_MA(object):
         # cbar.set_ticklabels([str(fig_clim[0]),'','','','',str(fig_clim[1])])
         # cbar.set_label(plot_zlabel)
 
-        self.cbar = cbar
+        #self.cbar = cbar
 
         axs.figure.tight_layout()
 
