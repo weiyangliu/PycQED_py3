@@ -773,7 +773,7 @@ def get_pulse_dict_from_pars(pulse_pars):
 
 
 #quantum efficiency measurement sequences
-def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'], double_points=False,
+def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'],
               verbose=False, upload=True, return_seq=False):
     '''
     AllXY sequence with premeasurement for photon number detection
@@ -793,7 +793,11 @@ def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'], double_
     # Create a dict with the parameters for all the pulses
     pulses = get_pulse_dict_from_pars(pulse_pars)
 
-    pre_pulses = preparation*21
+    if len(preparation)==1:
+        pre_pulses = preparation*42
+    elif len(preparation)==2:
+        pre_pulses = preparation*21
+
     pulse_combinations = [['I', 'I'], ['X180', 'X180'], ['Y180', 'Y180'],
                           ['X180', 'Y180'], ['Y180', 'X180'],
                           ['X90', 'I'], ['Y90', 'I'], ['X90', 'Y90'],
@@ -802,10 +806,10 @@ def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'], double_
                           ['X180', 'X90'], ['Y90', 'Y180'], ['Y180', 'Y90'],
                           ['X180', 'I'], ['Y180', 'I'], ['X90', 'X90'],
                           ['Y90', 'Y90']]
-    if double_points:
-        pulse_combinations = [val for val in pulse_combinations
+
+    pulse_combinations = [val for val in pulse_combinations
                               for _ in (0, 1)]
-        pre_pulses=pre_pulses*2
+
 
     for i, pulse_comb in enumerate(pulse_combinations):
         pulse_list = [pulses[pre_pulses[i]], RO_pars0, pulses[pulse_comb[0]],
