@@ -1481,6 +1481,7 @@ class UHFQC_input_average_detector(Hard_Detector):
     def finish(self):
         if self.AWG is not None:
             self.AWG.stop()
+        self.UHFQC.acquisition_finalize()
 
 
 class UHFQC_integrated_average_detector(Hard_Detector):
@@ -1597,6 +1598,7 @@ class UHFQC_integrated_average_detector(Hard_Detector):
     def finish(self):
         if self.AWG is not None:
             self.AWG.stop()
+        self.UHFQC.acquisition_finalize()
 
 
 class UHFQC_integration_logging_det(Hard_Detector):
@@ -1674,6 +1676,7 @@ class UHFQC_integration_logging_det(Hard_Detector):
     def finish(self):
         if self.AWG is not None:
             self.AWG.stop()
+        self.UHFQC.acquisition_finalize()
 
 # --------------------------------------------
 # Fake detectors
