@@ -113,7 +113,7 @@ class HeterodyneInstrument(Instrument):
                 st_seqs.generate_and_upload_marker_sequence(
                     5e-9, self.trigger_separation(), RF_mod=False,
                     acq_marker_channels=self.acq_marker_channels())
-            self._awg_seq_parameters_changed = False
+        self._awg_seq_parameters_changed = False
 
         # Preparing the acquisition instruments
         if 'CBox' in self.acquisition_instr():
