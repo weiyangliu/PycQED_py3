@@ -3191,6 +3191,108 @@ class AllXY_Analysis(TD_Analysis):
         return self.deviation_total
 
 
+class AllXY_double_Analysis(TD_Analysis):
+
+    '''
+    Performs a rotation and normalization on the data and calculates a
+    deviation from the expected ideal data.
+
+    Automatically works for the standard AllXY sequences of 42 and 21 points.
+    Optional keyword arguments can be used to specify
+    'ideal_data': np.array equal in lenght to the data
+    This version is used to simultaneously measure allxy for two different prerotations.
+    even points for ground state, odd points for excited state.
+    '''
+
+    def __init__(self, label='AllXY', zero_coord=None, one_coord=None,
+                 make_fig=True, **kw):
+        kw['label'] = label
+        kw['h5mode'] = 'r+'  # Read write mode, file must exist
+        self.zero_coord = zero_coord
+        self.one_coord = one_coord
+        self.make_fig = make_fig
+
+        super(self.__class__, self).__init__(**kw)
+
+    def run_default_analysis(self, print_fit_results=False,
+                             close_main_fig=True, **kw):
+        close_file = kw.pop('close_file', True)
+        self.flip_axis = flip_axis
+        self.cal_points = kw.pop('cal_points', None)
+        self.add_analysis_datagroup_to_file()
+        self.get_naming_and_values()
+
+        ideal_data = kw.pop('ideal_data', None)
+        if ideal_data is None:
+            if len(self.measured_values[0]) == 42:
+                ideal_data = np.concatenate((0*np.ones(10), 0.5*np.ones(24),
+                                             np.ones(8)))
+            else:
+                ideal_data = np.concatenate((0*np.ones(5), 0.5*np.ones(12),
+                                             np.ones(4)))
+        self.rotate_and_normalize_data()
+        self.add_dataset_to_analysisgroup('Corrected data',
+                                          self.corr_data)
+        self.analysis_group.attrs.create('corrected data based on',
+                                         'calibration points'.encode('utf-8'))
+        data_error = self.corr_data - ideal_data
+        self.deviation_total = np.mean(abs(data_error))
+        # Plotting
+        if self.make_fig:
+            fig1, fig2, ax1, axarray = self.setup_figures_and_axes()
+            for i in range(2):
+                if len(self.value_names) >= 4:
+                    ax = axarray[i/2, i % 2]
+                else:
+                    ax = axarray[i]
+                self.plot_results_vs_sweepparam(x=self.sweep_points,
+                                                y=self.measured_values[i],
+                                                fig=fig2, ax=ax,
+                                                xlabel=self.xlabel,
+                                                ylabel=str(
+                                                    self.value_names[i]),
+                                                save=False)
+            ax1.set_ylim(min(self.corr_data)-.1, max(self.corr_data)+.1)
+            if self.flip_axis:
+                ylabel = r'$F$ $|0 \rangle$'
+            else:
+                ylabel = r'$F$ $|1 \rangle$'
+            self.plot_results_vs_sweepparam(x=self.sweep_points,
+                                            y=self.corr_data,
+                                            fig=fig1, ax=ax1,
+                                            xlabel='',
+                                            ylabel=ylabel,
+                                            save=False)
+            ax1.plot(self.sweep_points, ideal_data)
+            labels = [item.get_text() for item in ax1.get_xticklabels()]
+            if len(self.measured_values[0]) == 42:
+                locs = np.arange(1, 42, 2)
+            else:
+                locs = np.arange(0, 21, 1)
+            labels = ['II', 'XX', 'YY', 'XY', 'YX',
+                      'xI', 'yI', 'xy', 'yx', 'xY', 'yX',
+                      'Xy', 'Yx', 'xX', 'Xx', 'yY', 'Yy',
+                      'XI', 'YI', 'xx', 'yy']
+
+            ax1.xaxis.set_ticks(locs)
+            ax1.set_xticklabels(labels, rotation=60)
+
+            deviation_text = r'Deviation: %.5f' % self.deviation_total
+            ax1.text(1, 1.05, deviation_text, fontsize=11,
+                     bbox=self.box_props)
+            if not close_main_fig:
+                # Hacked in here, good idea to only show the main fig but can
+                # be optimized somehow
+                self.save_fig(fig1, ylabel='Amplitude (normalized)',
+                              close_fig=False, **kw)
+            else:
+                self.save_fig(fig1, ylabel='Amplitude (normalized)', **kw)
+            self.save_fig(fig2, ylabel='Amplitude', **kw)
+        if close_file:
+            self.data_file.close()
+        return self.deviation_total
+
+
 class RandomizedBenchmarking_Analysis(TD_Analysis):
 
     '''
@@ -3748,7 +3850,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
         else:
             ax.plot(self.sweep_points, fit_res.best_fit, 'r-')
             f0 = self.fit_results.values['f0']
-            plt.plot(f0, fit_res.eval(f=f0), 'o', ms=8)
+            plt.plot(f0*1e9, fit_res.eval(f=f0*1e9), 'o', ms=8)
 
             # save figure
             self.save_fig(fig, xlabel=self.xlabel, ylabel='Mag', **kw)
