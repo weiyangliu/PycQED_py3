@@ -17,10 +17,11 @@ from pycqed.analysis.tools import data_manipulation as dm_tools
 import imp
 import math
 from math import erfc
-from scipy.signal import argrelextrema, argrelmax, argrelmin
+from scipy.signal import argrelmax, argrelmin
 from copy import deepcopy
 
 import pycqed.analysis.tools.plotting as pl_tools
+from pycqed.analysis.tools.plotting import set_xlabel, set_ylabel
 
 try:
     from nathan_plotting_tools import *
@@ -5180,63 +5181,55 @@ def fit_qubit_frequency(sweep_points, data, mode='dac',
 # Ramiro's routines
 
 
-class Chevron_2D(object):
+class Chevron_2D(MeasurementAnalysis):
 
-    def __init__(self, auto=True, label='', timestamp=None):
-        if timestamp is None:
-            self.folder = a_tools.latest_data('Chevron')
-            splitted = self.folder.split('\\')
-            self.scan_start = splitted[-2]+'_'+splitted[-1][:6]
-            self.scan_stop = self.scan_start
-        else:
-            self.scan_start = timestamp
-            self.scan_stop = timestamp
-            self.folder = a_tools.get_folder(timestamp=self.scan_start)
-        self.pdict = {'I': 'amp',
-                      'sweep_points': 'sweep_points'}
-        self.opt_dict = {'scan_label': 'Chevron_2D'}
-        self.nparams = ['I', 'sweep_points']
-        self.label = label
-        if auto == True:
-            self.analysis()
+    # def __init__(self, auto=True, label='', timestamp=None):
+        # if timestamp is None:
+        #     self.folder = a_tools.latest_data(label)
+        #     splitted = self.folder.split('\\')
+        #     self.scan_start = splitted[-2]+'_'+splitted[-1][:6]
+        #     self.scan_stop = self.scan_start
+        # else:
+        #     self.scan_start = timestamp
+        #     self.scan_stop = timestamp
+        #     self.folder = a_tools.get_folder(timestamp=timestamp)
+        # self.pdict = {'I': 'amp',
+        #               'sweep_points': 'sweep_points'}
+        # self.opt_dict = {'scan_label': 'Chevron_2D'}
+        # self.nparams = ['I', 'sweep_points']
+        # self.label = label
+        # if auto == True:
+        #     self.analysis()
+    def run_default_analysis(self, **kw):
+        self.get_naming_and_values_2D()
+        self.analysis(**kw)
 
-    def analysis(self):
-        chevron_scan = ca.quick_analysis(t_start=self.scan_start,
-                                         t_stop=self.scan_stop,
-                                         options_dict=self.opt_dict,
-                                         params_dict_TD=self.pdict,
-                                         numeric_params=self.nparams)
-        x, y, z = self.reshape_data(chevron_scan.TD_dict['sweep_points'][0],
-                                    chevron_scan.TD_dict['I'][0])
+    def analysis(self, **kw):
+        x = self.sweep_points
+        y = self.sweep_points_2D
+        z = self.measured_values[0].transpose()
         plot_times = y
         plot_step = plot_times[1]-plot_times[0]
-
         plot_x = x
         x_step = plot_x[1]-plot_x[0]
-
         result = z
 
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111)
         cmin, cmax = 0, 1
         fig_clim = [cmin, cmax]
-        out = flex_colormesh_plot_vs_xy(ax=ax, clim=fig_clim, cmap='viridis',
-                                        xvals=plot_times,
-                                        yvals=plot_x,
-                                        zvals=result)
-        ax.set_xlabel(r'AWG Amp (Vpp)')
-        ax.set_ylabel(r'Time (ns)')
-        ax.set_title('%s: Chevron scan' % self.scan_start)
-        # ax.set_xlim(xmin, xmax)
-        ax.set_ylim(plot_x.min()-x_step/2., plot_x.max()+x_step/2.)
-        ax.set_xlim(
-            plot_times.min()-plot_step/2., plot_times.max()+plot_step/2.)
-        #     ax.set_xlim(plot_times.min()-plot_step/2.,plot_times.max()+plot_step/2.)
-        # ax.set_xlim(0,50)
-        #     print('Bounce %d ns amp=%.3f; Pole %d ns amp=%.3f'%(list_values[iter_idx,0],
-        #                                                                list_values[iter_idx,1],
-        #                                                                list_values[iter_idx,2],
-        # list_values[iter_idx,3]))
+
+        out = a_tools.color_plot(x, y, z, fig=fig, ax=ax)
+        # out = pl_tools.flex_colormesh_plot_vs_xy(ax=ax,
+        #                                          cmap='viridis',
+        #                                          xvals=x,
+        #                                          yvals=y,
+        #                                          zvals=z)
+        set_xlabel(ax, self.parameter_names[0], self.parameter_units[0])
+        set_ylabel(ax, self.parameter_names[1], self.parameter_units[1])
+
+        ax.set_title('{}: Chevron scan'.format(self.timestamp))
+
         ax_divider = make_axes_locatable(ax)
         cax = ax_divider.append_axes('right', size='10%', pad='5%')
         cbar = plt.colorbar(out['cmap'], cax=cax)
@@ -5245,9 +5238,9 @@ class Chevron_2D(object):
         cbar.set_ticklabels(
             [str(fig_clim[0]), '', '', '', '', str(fig_clim[1])])
         cbar.set_label('Qubit excitation probability')
-
         fig.tight_layout()
-        self.save_fig(fig)
+        save_fig = kw.pop('save_fig', True)
+        self.save_fig(fig, save_fig)
 
     def reshape_axis_2d(self, axis_array):
         x = axis_array[0, :]
@@ -5284,7 +5277,7 @@ class Chevron_2D(object):
             plot_formats = [plot_formats]
         for plot_format in plot_formats:
             if figname is None:
-                figname = (self.scan_start+'_Chevron_2D_'+'.'+plot_format)
+                figname = (self.timestamp+'_Chevron_2D_'+'.'+plot_format)
             else:
                 figname = (figname+'.' + plot_format)
             self.savename = os.path.abspath(os.path.join(

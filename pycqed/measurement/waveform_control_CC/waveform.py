@@ -149,7 +149,9 @@ def martinis_flux_pulse(length, lambda_coeffs, theta_f,
     of the pulse has a value corresponding to theta_f.
 
     length          (float)
-    lambda_coeffs   (list of floats)
+    lambda_coeffs   (list of floats), note that element 0 corresponds to
+                        lambda_0 and element 1 corresponds to lambda_1 etc.
+                        lambda 0 is used to set the
     theta_f         (float) final angle of the interaction. This determines the
                     Voltage for the centerpoint of the waveform.
 
