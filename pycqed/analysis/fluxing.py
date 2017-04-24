@@ -135,12 +135,20 @@ class Chevron_2D(MeasurementAnalysis):
         # Do fitting and plot fit results
         fit_res, fit_res.best_values = self.fit_fourier_transform(
             self.plot_times, peaks_lower, peaks_higher)
-        eval_fit_lower = lambda d: ChevFourierFunc2(
+        # eval_fit_lower = lambda d: ChevFourierFunc2(
+        #     delta=d,
+        #     **fit_res.best_values, branch=np.zeros(d.shape, dtype=np.bool))
+        # eval_fit_higher = lambda d: ChevFourierFunc2(
+        #     delta=d,
+        #     **fit_res.best_values, branch=np.ones(d.shape, dtype=np.bool))
+        eval_fit_lower = lambda d: ChevFourierFunc(
             delta=d,
             **fit_res.best_values, branch=np.zeros(d.shape, dtype=np.bool))
-        eval_fit_higher = lambda d: ChevFourierFunc2(
+        eval_fit_higher = lambda d: ChevFourierFunc(
             delta=d,
             **fit_res.best_values, branch=np.ones(d.shape, dtype=np.bool))
+
+
 
         ax.plot(self.plot_times, eval_fit_lower(self.plot_times), '-',
                 c='orange', label='fit')
@@ -162,8 +170,8 @@ class Chevron_2D(MeasurementAnalysis):
         fit_mask_lower = np.array([True]*len(peaks_lower))
         fit_mask_higher = np.array([True]*len(peaks_higher))
         # Hardcoded, not cool
-        fit_mask_lower[:25] = False
-        fit_mask_higher[:25] = False
+        # fit_mask_lower[:25] = False
+        # fit_mask_higher[:25] = False
         print(times)
 
         my_fit_points = np.concatenate(
@@ -175,16 +183,19 @@ class Chevron_2D(MeasurementAnalysis):
 
         fit_func = lambda delta, alpha, beta, f_res, g: ChevFourierFunc2(
             delta, alpha, beta, f_res, g, mask_branch)
+        fit_func = lambda delta, alpha, beta, g: ChevFourierFunc(
+            delta, alpha, beta, g, mask_branch)
         ChevFourierModel = lmfit.Model(fit_func)
 
         ChevFourierModel.set_param_hint(
-            'alpha', value=1., min=0., max=10., vary=False)
+            'alpha', value=1./1000, min=0.)#, max=10.e6, vary=True)
         ChevFourierModel.set_param_hint(
-            'beta', value=0.14*1e-1, min=-10., max=10., vary=True)
+            'beta', value=0.14/1000)#, min=-10., max=10., vary=True)
+        # ChevFourierModel.set_param_hint(
+        #     'f_res', value=4.68e9, min=0., max=50.0e9, vary=False)
         ChevFourierModel.set_param_hint(
-            'f_res', value=4.68e9, min=0., max=50.0e9, vary=False)
-        ChevFourierModel.set_param_hint(
-            'g', value=np.pi*2e1, min=0, max=500e6)
+            'g', value=np.pi*2e6, min=0, max=500e6)
+            # 0.0239*2.0e9, min=0, max=2000, vary=True)
 
         my_fit_params = ChevFourierModel.make_params()
 

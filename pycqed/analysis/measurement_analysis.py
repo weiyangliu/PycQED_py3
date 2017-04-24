@@ -5183,31 +5183,13 @@ def fit_qubit_frequency(sweep_points, data, mode='dac',
 
 class Chevron_2D(MeasurementAnalysis):
 
-    # def __init__(self, auto=True, label='', timestamp=None):
-        # if timestamp is None:
-        #     self.folder = a_tools.latest_data(label)
-        #     splitted = self.folder.split('\\')
-        #     self.scan_start = splitted[-2]+'_'+splitted[-1][:6]
-        #     self.scan_stop = self.scan_start
-        # else:
-        #     self.scan_start = timestamp
-        #     self.scan_stop = timestamp
-        #     self.folder = a_tools.get_folder(timestamp=timestamp)
-        # self.pdict = {'I': 'amp',
-        #               'sweep_points': 'sweep_points'}
-        # self.opt_dict = {'scan_label': 'Chevron_2D'}
-        # self.nparams = ['I', 'sweep_points']
-        # self.label = label
-        # if auto == True:
-        #     self.analysis()
-    def run_default_analysis(self, **kw):
+    def run_default_analysis(self, save_fig=True, **kw):
         self.get_naming_and_values_2D()
-        self.analysis(**kw)
 
-    def analysis(self, **kw):
         x = self.sweep_points
         y = self.sweep_points_2D
         z = self.measured_values[0].transpose()
+
         plot_times = y
         plot_step = plot_times[1]-plot_times[0]
         plot_x = x
@@ -5219,28 +5201,16 @@ class Chevron_2D(MeasurementAnalysis):
         cmin, cmax = 0, 1
         fig_clim = [cmin, cmax]
 
-        out = a_tools.color_plot(x, y, z, fig=fig, ax=ax)
-        # out = pl_tools.flex_colormesh_plot_vs_xy(ax=ax,
-        #                                          cmap='viridis',
-        #                                          xvals=x,
-        #                                          yvals=y,
-        #                                          zvals=z)
+        out = a_tools.color_plot(x, y, z, fig=fig, ax=ax, add_colorbar=True,
+                                 zlabel='Qubit excitation probability')
         set_xlabel(ax, self.parameter_names[0], self.parameter_units[0])
         set_ylabel(ax, self.parameter_names[1], self.parameter_units[1])
+        figname = '{}: Chevron scan'.format(self.timestamp)
+        ax.set_title(figname)
 
-        ax.set_title('{}: Chevron scan'.format(self.timestamp))
-
-        ax_divider = make_axes_locatable(ax)
-        cax = ax_divider.append_axes('right', size='10%', pad='5%')
-        cbar = plt.colorbar(out['cmap'], cax=cax)
-        cbar.set_ticks(
-            np.arange(fig_clim[0], 1.01*fig_clim[1], (fig_clim[1]-fig_clim[0])/5.))
-        cbar.set_ticklabels(
-            [str(fig_clim[0]), '', '', '', '', str(fig_clim[1])])
-        cbar.set_label('Qubit excitation probability')
         fig.tight_layout()
-        save_fig = kw.pop('save_fig', True)
-        self.save_fig(fig, save_fig)
+        if save_fig:
+            self.save_fig(fig, figname='test')
 
     def reshape_axis_2d(self, axis_array):
         x = axis_array[0, :]
@@ -5255,7 +5225,6 @@ class Chevron_2D(MeasurementAnalysis):
             dimy_c = dimy + 1
         else:
             dimy_c = dimy
-        # print(dimx,dimy,dimy_c,dimx*dimy)
         return x[:dimy_c], (y[::dimy_c])
 
     def reshape_data(self, sweep_points, data):
