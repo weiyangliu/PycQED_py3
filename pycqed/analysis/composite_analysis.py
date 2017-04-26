@@ -226,13 +226,13 @@ class Standard_MA(object):
         plot_title = pdict['title']
         plot_cmap = pdict.get('cmap', 'YlGn')
 
-        print(plot_yvals[1][0])
 
         try:
             plot_xvals_step = plot_xvals[1]-plot_xvals[0]
             plot_yvals_step = plot_yvals[1][0]-plot_yvals[0][0]
         except:
             plot_xvals_step = plot_xvals[1]-plot_xvals[0]
+            print(np.shape(plot_yvals))
             plot_yvals_step = plot_yvals[1, 0]-plot_yvals[0, 0]
 
 

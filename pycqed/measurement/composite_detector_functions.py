@@ -463,20 +463,21 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                         integration_length=self.integration_length,
                         nr_shots=min(self.nr_shots, 4094)))
                 if self.set_weight_functions:
+                    print('setting standard weights')
+                    if self.IF == None:
+                        raise ValueError(
+                                'IF has to be provided when not using optimized weights')
                     if self.SSB:
+                            print('SSB')
                             self.UHFQC.prepare_SSB_weight_and_rotation(
                                 IF=self.IF, weight_function_I=self.weight_function_I,
                                 weight_function_Q=self.weight_function_Q)
                     else:
-                        if self.IF == None:
-                            raise ValueError(
-                                'IF has to be provided when not using optimized weights')
-                        else:
-
-                            self.UHFQC.prepare_DSB_weight_and_rotation(
-                                IF=self.IF,
-                                weight_function_I=self.weight_function_I,
-                                weight_function_Q=self.weight_function_Q)
+                        print('DSB')
+                        self.UHFQC.prepare_DSB_weight_and_rotation(
+                            IF=self.IF,
+                            weight_function_I=self.weight_function_I,
+                            weight_function_Q=self.weight_function_Q)
             elif 'DDM' in str(self.acquisition_instr):
                 self.MC.set_detector_function(
                     det.DDM_integration_logging_det(
@@ -649,9 +650,21 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
 
                     #offset subtraction
                     optimized_weights_I = optimized_weights_I - \
-                        np.mean(optimized_weights_I[:100])
+                        np.mean(optimized_weights_I[-100:])
+
                     optimized_weights_Q = optimized_weights_Q - \
-                        np.mean(optimized_weights_Q[:100])
+                        np.mean(optimized_weights_Q[-100:])
+
+                    #using boxcar filter to smoothen weight functions
+                    # print('implemented filter')
+                    # N=3
+                    # times=1
+                    # for i in range(times):
+                    #     optimized_weights_I=np.convolve(optimized_weights_I, np.ones(N)/N)
+                    #     optimized_weights_I=optimized_weights_I[:-N+1]
+                    # for i in range(times):
+                    #     optimized_weights_Q=np.convolve(optimized_weights_Q, np.ones(N)/N)
+                    #     optimized_weights_Q=optimized_weights_Q[:-N+1]
 
                     #joint rescaling to +/-1 Volt
                     maxI=np.max(np.abs(optimized_weights_I))

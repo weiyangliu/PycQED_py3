@@ -657,14 +657,14 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
     def measure_allxy(self, double_points=True,
                       MC=None,
-                      analyze=True, close_fig=True, verbose=True):
+                      analyze=True, close_fig=True, verbose=True, upload=True):
         self.prepare_for_timedomain()
         if MC is None:
             MC = self.MC
 
         MC.set_sweep_function(awg_swf.AllXY(
             pulse_pars=self.pulse_pars, RO_pars=self.RO_pars,
-            double_points=double_points))
+            double_points=double_points, upload=upload))
         MC.set_detector_function(self.int_avg_det)
         MC.run('AllXY'+self.msmt_suffix)
 
@@ -699,7 +699,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                      analyze=True,
                      close_fig=True,
                      verbose=True, optimized_weights=False, SSB=False,
-                     one_weight_function_UHFQC=False,
+                     one_weight_function_UHFQC=False, upload=True,
                      multiplier=1, nr_shots=4095, set_weight_functions=True):
         self.prepare_for_timedomain()
         if MC is None:
@@ -716,7 +716,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             nr_shots=nr_shots, one_weight_function_UHFQC=one_weight_function_UHFQC,
             optimized_weights=optimized_weights,
             integration_length=self.RO_acq_integration_length(),
-            close_fig=close_fig, SSB=SSB, multiplier=multiplier,
+            close_fig=close_fig, SSB=SSB, multiplier=multiplier, upload=upload,
             nr_averages=self.RO_acq_averages(), set_weight_functions=set_weight_functions)
         if return_detector:
             return d

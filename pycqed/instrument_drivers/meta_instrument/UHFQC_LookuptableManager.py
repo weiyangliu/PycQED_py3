@@ -245,7 +245,7 @@ class UHFQC_LookuptableManager(Instrument):
                        delay=0,
                        phase=self.get('M_down_phi1'))
         Mod_M_down0 = PG.mod_pulse(M_down0[0],
-                         M_down1[1],
+                         M_down0[1],
                          f_modulation=self.get('M0_modulation'),
                          sampling_rate=self.get('sampling_rate'),
                          Q_phase_delay=self.get('mixer_IQ_phase_skewness'))
