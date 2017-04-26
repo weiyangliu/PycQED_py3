@@ -432,3 +432,20 @@ def skin_kernel(alpha=0., length=601):
         kernel_skineffect = np.zeros(length)
         kernel_skineffect[0] = 1.
     return kernel_skineffect
+
+
+def kernel_pointwise(points, d=1):
+    """
+    This function implements a kernel, based on part of its points.
+    The full kernel is reconstructed by interpolation of the points provided.
+    Inputs:
+        points, array with kernel values
+        d, time separation between elements in points
+
+    Length of the output kernel is d*len(points)
+    """
+    length = d*len(points)
+    t_kernel = np.arange(length)
+    t_points = np.arange(0, length, d)
+    kernel = np.interp(t_kernel, t_points, points)
+    return kernel/np.sum(kernel)

@@ -53,7 +53,6 @@ class Distortion(Instrument):
                        'Kernel is based on parameters in kernel object \n' +
                        'and files specified in the kernel list.'))
 
-
         self.add_parameter('skineffect_alpha', unit='',
                            parameter_class=ConfigParameter,
                            initial_value=0,
@@ -131,6 +130,19 @@ class Distortion(Instrument):
                            parameter_class=ConfigParameter,
                            vals=vals.Numbers())
 
+        self.add_parameter('pointwise_kernel_enabled', unit='',
+                           initial_value=False,
+                           parameter_class=ConfigParameter,
+                           vals=vals.Bool())
+        self.add_parameter('pointwise_spacing', unit='ns',
+                           initial_value=1,
+                           parameter_class=ConfigParameter,
+                           vals=vals.Numbers())
+        self.add_parameter('pointwise_N', unit='',
+                           initial_value=2,
+                           parameter_class=ConfigParameter,
+                           vals=vals.Numbers())
+
         self.add_parameter('corrections_length', unit='ns',
                            parameter_class=ConfigParameter,
                            initial_value=1000,
@@ -164,6 +176,32 @@ class Distortion(Instrument):
         return kf.decay_kernel(amp=self.decay_amp_2(), tau=self.decay_tau_2(),
                                length=self.decay_length_2())
 
+    def get_pointwise_kernel(self):
+        points_list = []
+        par_name = 'pointwise_el_'
+        num = int(self.pointwise_N())
+        for i in range(num):
+            par_id = par_name + '%d' % i
+            if hasattr(self, par_id):
+                points_list.append(self.get(par_id))
+            else:
+                raise ValueError('Parameter not created: %s' % par_id)
+        points = np.array(points_list)
+        return kf.kernel_pointwise(points, d=self.pointwise_spacing())
+
+    def create_pointwise_pars(self, num, spacing):
+        self.pointwise_spacing(spacing)
+        self.pointwise_N(num)
+        par_name = 'pointwise_el_'
+        for i in range(num):
+            par_id = par_name + '%d' % i
+            if not hasattr(self, par_id):
+                self.add_parameter(par_id, unit='',
+                                   initial_value=0,
+                                   parameter_class=ConfigParameter,
+                                   vals=vals.Numbers())
+        self.set(par_name + '0', 1)
+
     # def get_poly_kernel(self):
     #     return poly_kernel(a=self.poly_a(),
     #                        b=self.poly_b(),
@@ -194,6 +232,8 @@ class Distortion(Instrument):
                        self.get_skin_kernel(),
                        self.get_decay_kernel_1(),
                        self.get_decay_kernel_2()]
+        if self.pointwise_kernel_enabled():
+            kernel_list.append(self.get_pointwise_kernel())
         cache.update({'OPT_chevron.tmp': self.convolve_kernel(kernel_list)})
 
     def get_corrections_kernel(self):
@@ -214,6 +254,9 @@ class Distortion(Instrument):
             self.get_skin_kernel(),
             self.get_decay_kernel_1(),
             self.get_decay_kernel_2()]
+        if self.pointwise_kernel_enabled():
+            print('Adding pointwise kernel')
+            kernel_object_kernels.append(self.get_pointwise_kernel())
 
         kernel_list = external_kernels + kernel_object_kernels
         return self.convolve_kernel(kernel_list,
