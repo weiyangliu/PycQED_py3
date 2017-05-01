@@ -8,56 +8,19 @@
     Bugs:
 '''
 
+import logging
 import numpy as np
 from pycqed.analysis.fitting_models import Qubit_freq_to_dac
 
-class Waveform():
-    # complex waveforms
-
-    @staticmethod
-    def exp(fs, nrSamples, frequency, initialPhase=0, amplitude=1):
-        return amplitude * np.exp(2*np.pi * frequency/fs * np.array(range(nrSamples)) + initialPhase)
-
-    # real (i.e. non-complex) waveforms
-    @staticmethod
-    def cos(fs, nrSamples, frequency, initialPhase=0, amplitude=1):
-        return amplitude * np.cos(2*np.pi * frequency/fs * np.array(range(nrSamples)) + initialPhase)
-
-    @staticmethod
-    def sin(fs, nrSamples, frequency, initialPhase=0, amplitude=1):
-        return amplitude * np.sin(2*np.pi * frequency/fs * np.array(range(nrSamples)) + initialPhase)
-
-    @staticmethod
-    def DC(fs, nrSamples, offset=0):
-        return np.zeros(nrSamples) + offset
-
-    @staticmethod
-    def gauss(fs, nrSamples, mu, sigma, amplitude=1):
-        t = 1/fs * np.array(range(nrSamples))
-        return amplitude*np.exp(-(0.5 * ((t-mu)**2) / sigma**2))
-
-    @staticmethod
-    def derivGauss(fs, nrSamples, mu, sigma, amplitude=1, motzoi=1):
-        t = 1/fs * np.array(range(nrSamples))
-        gauss = amplitude*np.exp(-(0.5 * ((t-mu)**2) / sigma**2))
-        return motzoi * -1 * (t-mu)/(sigma**1) * gauss
-
-    @staticmethod
-    def block(fs, nrSamples, offset=0):
-        negative = np.zeros(nrSamples/2)
-        positive = np.zeros(nrSamples/2) + offset
-        return np.concatenate((negative, positive), axis=0)
-
 
 def gauss_pulse(amp, sigma_length, nr_sigma=4, sampling_rate=2e8,
-                axis='x',
+                axis='x', phase=0,
                 motzoi=0, delay=0):
     '''
     All inputs are in s and Hz.
+    phases are in degree.
     '''
     sigma = sigma_length  # old legacy naming, to be replaced
-    # nr_sigma_samples = int(sigma_length * sampling_rate)
-    # nr_pulse_samples = int(nr_sigma*nr_sigma_samples)
     length = sigma*nr_sigma
     mu = length/2.
 
@@ -73,15 +36,16 @@ def gauss_pulse(amp, sigma_length, nr_sigma=4, sampling_rate=2e8,
     delay_samples = delay*sampling_rate
 
     # generate pulses
-    if axis == 'x':
-        pulse_I = gauss_env
-        pulse_Q = deriv_gauss_env
-    elif axis == 'y':
-        pulse_I = -1*deriv_gauss_env
-        pulse_Q = gauss_env
     Zeros = np.zeros(int(delay_samples))
-    pulse_I = np.array(list(Zeros)+list(pulse_I))
-    pulse_Q = np.array(list(Zeros)+list(pulse_Q))
+    G = np.array(list(Zeros)+list(gauss_env))
+    D = np.array(list(Zeros)+list(deriv_gauss_env))
+
+    if axis == 'y':
+        phase += 90
+
+    pulse_I = np.cos(2*np.pi*phase/360)*G - np.sin(2*np.pi*phase/360)*D
+    pulse_Q = np.sin(2*np.pi*phase/360)*G + np.cos(2*np.pi*phase/360)*D
+
     return pulse_I, pulse_Q
 
 
@@ -168,10 +132,11 @@ def simple_mod_pulse(pulse_I, pulse_Q, f_modulation,
 
 def martinis_flux_pulse(length, lambda_coeffs, theta_f,
                         f_01_max,
-                        f_bus,
                         g2,
                         E_c,
                         dac_flux_coefficient,
+                        f_interaction=None,
+                        f_bus=None,
                         asymmetry=0,
                         sampling_rate=1e9,
                         return_unit='V'):
@@ -190,41 +155,47 @@ def martinis_flux_pulse(length, lambda_coeffs, theta_f,
                     Voltage for the centerpoint of the waveform.
 
     f_01_max        (float) qubit sweet spot frequency (Hz).
-    f_bus           (float) frequency of the bus (Hz).
     g2              (float) coupling between 11-02 (Hz),
                             approx sqrt(2) g1 (the 10-01 coupling).
     E_c             (float) Charging energy of the transmon (Hz).
+        N.B. specify either f_interaction or f_bus
+    f_interaction   (float) interaction frequency (Hz).
+    f_bus           (float) frequency of the bus (Hz).
     dac_flux_coefficient  (float) conversion factor for AWG voltage to flux (1/V)
     asymmetry       (float) qubit asymmetry
 
     sampling_rate   (float)
-    return_unit     (enum: ['V', 'eps', 'f01', 'theta']) wehter to return the pulse
+    return_unit     (enum: ['V', 'eps', 'f01', 'theta']) whether to return the pulse
                     expressed in units of theta: the reference frame of the
                     interaction, units of epsilon: detuning to the bus
                     eps=f12-f_bus
     """
     lambda_coeffs = np.array(lambda_coeffs)
-    nr_samples = round((length)*sampling_rate) # rounds the nr samples
-    length= nr_samples/sampling_rate # gives back the rounded length
+    nr_samples = int(np.round((length)*sampling_rate))  # rounds the nr samples
+    length = nr_samples/sampling_rate  # gives back the rounded length
     t_step = 1/sampling_rate
     t = np.arange(0, length, t_step)
-    theta_0 = np.arctan(2*g2/(f_01_max-E_c-f_bus))
+    if f_interaction is None:
+        f_interaction = f_bus + E_c
+    theta_0 = np.arctan(2*g2/(f_01_max-f_interaction))
     # you can not have weaker coupling than the initial coupling
     assert(theta_f > theta_0)
     odd_coeff_lambda_sum = np.sum(lambda_coeffs[::2])
     delta_theta = theta_f - theta_0
-    #add a square pulse that reaches theta_f, for this, lambda0 is used
-    lambda0=1-lambda_coeffs[0] # only use lambda_coeffs[0] for scaling, this
-    #enables fixing the square to 0 in optimizations by setting lambda_coeffs[0]=1
+    # add a square pulse that reaches theta_f, for this, lambda0 is used
+    lambda0 = 1-lambda_coeffs[0]  # only use lambda_coeffs[0] for scaling, this
+    # enables fixing the square to 0 in optimizations by setting
+    # lambda_coeffs[0]=1
     th_scale_factor = delta_theta/(lambda0+odd_coeff_lambda_sum)
     mart_pulse_theta = np.ones(nr_samples)*theta_0
     mart_pulse_theta += th_scale_factor*np.ones(nr_samples)*lambda0
 
     for i, lambda_coeff in enumerate(lambda_coeffs):
-       n = i+1
-       mart_pulse_theta += th_scale_factor*lambda_coeff*(1-np.cos(n*2*np.pi*t/length))/2
-    #adding square pulse scaling with lambda0 satisfying the condition
-    #lamb0=1-lambda1
+        n = i+1
+        mart_pulse_theta += th_scale_factor * \
+            lambda_coeff*(1-np.cos(n*2*np.pi*t/length))/2
+    # adding square pulse scaling with lambda0 satisfying the condition
+    # lamb0=1-lambda_1
     if return_unit == 'theta':
         return mart_pulse_theta
 
@@ -234,7 +205,7 @@ def martinis_flux_pulse(length, lambda_coeffs, theta_f,
         return mart_pulse_eps
 
     # pulse parameterized in the f01 frequency
-    mart_pulse_f01 = mart_pulse_eps + E_c + f_bus
+    mart_pulse_f01 = mart_pulse_eps + f_interaction
     if return_unit == 'f01':
         return mart_pulse_f01
     mart_pulse_V = Qubit_freq_to_dac(
@@ -246,14 +217,119 @@ def martinis_flux_pulse(length, lambda_coeffs, theta_f,
     return mart_pulse_V
 
 
-def mod_gauss(amp, sigma_length, f_modulation, axis='x',
+def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
+                           f_01_max,
+                           J2,
+                           dac_flux_coefficient,
+                           E_c=0,
+                           f_bus=None,
+                           f_interaction=None,
+                           asymmetry=0,
+                           sampling_rate=1e9,
+                           return_unit='V'):
+    """
+    Returns the pulse specified by Martinis and Geller
+    Phys. Rev. A 90 022307 (2014).
+
+    \theta = \theta _0 + \sum_{n=1}^\infty  (\lambda_n*(1-\cos(n*2*pi*t/t_p))/2
+
+    note that the lambda coefficients are rescaled to ensure that the center
+    of the pulse has a value corresponding to theta_f.
+
+    length          (float)
+    lambda_2
+    lambda_3
+
+    theta_f         (float) final angle of the interaction in degrees.
+                    Determines the Voltage for the center of the waveform.
+
+    f_01_max        (float) qubit sweet spot frequency (Hz).
+    J2              (float) coupling between 11-02 (Hz),
+                    approx sqrt(2) J1 (the 10-01 coupling).
+    E_c             (float) Charging energy of the transmon (Hz).
+    f_bus           (float) frequency of the bus (Hz).
+    f_interaction   (float) interaction frequency (Hz).
+    dac_flux_coefficient  (float) conversion factor for AWG voltage to
+                    flux (1/V)
+    asymmetry       (float) qubit asymmetry
+
+    sampling_rate   (float)
+    return_unit     (enum: ['V', 'eps', 'f01', 'theta']) whether to return the
+                    pulse expressed in units of theta: the reference frame of
+                    the interaction, units of epsilon: detuning to the bus
+                    eps=f12-f_bus
+    """
+    # Define number of samples and time points
+    nr_samples = int(np.round((length)*sampling_rate))  # rounds the nr samples
+    length = nr_samples/sampling_rate  # gives back the rounded length
+    t_step = 1/sampling_rate
+    t = np.arange(0, length, t_step)
+
+    # Derived parameters
+    if f_interaction is None:
+        f_interaction = f_bus + E_c
+    theta_i = np.arctan(2*J2 / (f_01_max - f_interaction))
+    # Converting angle to radians as that is used under the hood
+    theta_f = 2*np.pi*theta_f/360
+    if theta_f < theta_i:
+        raise ValueError(
+            'theta_f ({:2.f} deg) < theta_i ({:2.f} deg):'.format(
+                theta_f/(2*np.pi)*360, theta_i/(2*np.pi)*360)
+            + 'final coupling weaker than initial coupling')
+
+    # lambda_1 is scaled such that the final ("center") angle is theta_f
+    lambda_1 = (theta_f - theta_i) / 2 - lambda_3
+
+    # Calculate the wave
+    theta_wave = np.ones(nr_samples) * theta_i
+    theta_wave += lambda_1 * (1 - np.cos(2 * np.pi * t / length))
+    theta_wave += lambda_2 * (1 - np.cos(4 * np.pi * t / length))
+    theta_wave += lambda_3 * (1 - np.cos(6 * np.pi * t / length))
+
+    # Clip wave to [theta_i, pi] to avoid poles in the wave expressed in freq
+    theta_wave_clipped = np.clip(theta_wave, theta_i, np.pi-.01)
+    if not np.array_equal(theta_wave, theta_wave_clipped):
+        logging.warning(
+            'Martinis flux wave form has been clipped to [{}, 180 deg]'
+            .format(theta_i))
+
+    # Return in the specified units
+    if return_unit == 'theta':
+        # Theta is returned in radians here
+        return theta_wave_clipped
+
+    # Convert to detuning from f_interaction
+    delta_f_wave = 2 * J2 / np.tan(theta_wave_clipped)
+    if return_unit == 'eps':
+        return delta_f_wave
+
+    # Convert to parametrization of f_01
+    f_01_wave = delta_f_wave + f_interaction
+    if return_unit == 'f01':
+        return f_01_wave
+
+    # Convert to voltage
+    voltage_wave = Qubit_freq_to_dac(
+        frequency=f_01_wave,
+        f_max=f_01_max,
+        E_c=E_c,
+        dac_sweet_spot=0,
+        dac_flux_coefficient=dac_flux_coefficient,
+        asymmetry=asymmetry,
+        branch='positive')
+    return voltage_wave
+
+
+def mod_gauss(amp, sigma_length, f_modulation, axis='x', phase=0,
+              nr_sigma=4,
               motzoi=0, sampling_rate=2e8,
               Q_phase_delay=0, delay=0):
     '''
     Simple gauss pulse maker for CBOX. All inputs are in s and Hz.
     '''
-    pulse_I, pulse_Q = gauss_pulse(amp, sigma_length, nr_sigma=4,
+    pulse_I, pulse_Q = gauss_pulse(amp, sigma_length, nr_sigma=nr_sigma,
                                    sampling_rate=sampling_rate, axis=axis,
+                                   phase=phase,
                                    motzoi=motzoi, delay=delay)
     pulse_I_mod, pulse_Q_mod = mod_pulse(pulse_I, pulse_Q, f_modulation,
                                          sampling_rate=sampling_rate,

@@ -24,11 +24,13 @@ from qcodes.instrument.parameter import Command, no_setter
 # Note: the HandshakeParameter is a temporary param that should be replaced
 # once qcodes issue #236 is closed
 class HandshakeParameter(StandardParameter):
+
     """
     If a string is specified as a set command it will append '*OPC?' and use
     instrument.ask instead of instrument.write
     """
     # pass
+
     def _set_set(self, set_cmd, set_parser):
         exec_str = self._instrument.ask if self._instrument else None
         if isinstance(set_cmd, str):
@@ -52,6 +54,7 @@ class QuTech_AWG_Module(SCPI):
         self.device_descriptor.numMarkersPerChannel = 2
         self.device_descriptor.numMarkers = 8
         self.device_descriptor.numTriggers = 8
+        # Commented out until bug fixed
         self.device_descriptor.numCodewords = 128
 
         # valid values
@@ -96,11 +99,11 @@ class QuTech_AWG_Module(SCPI):
                                label=('Transformation matrix channel' +
                                       'pair {}'.format(i)),
                                get_cmd=self._gen_ch_get_func(
-                                    self._getMatrix, ch_pair),
-                               set_cmd=self._gen_ch_set_func(
-                                    self._setMatrix, ch_pair),
-                               # NB range is not a hardware limit
-                               vals=vals.Arrays(-2, 2, shape=(2, 2)))
+                self._getMatrix, ch_pair),
+                set_cmd=self._gen_ch_set_func(
+                self._setMatrix, ch_pair),
+                # NB range is not a hardware limit
+                vals=vals.Arrays(-2, 2, shape=(2, 2)))
 
         for i in range(1, self.device_descriptor.numTriggers+1):
             triglev_cmd = 'qutech:trigger{}:level'.format(i)
@@ -134,14 +137,16 @@ class QuTech_AWG_Module(SCPI):
                                val_mapping={True: '1', False: '0'},
                                vals=vals.Bool())
 
-            self.add_parameter('ch{}_amp'.format(ch),
-                               parameter_class=HandshakeParameter,
-                               label='Amplitude channel {} (Vpp into 50 Ohm)'.format(ch),
-                               unit='Vpp',
-                               get_cmd=amp_cmd + '?',
-                               set_cmd=amp_cmd + ' {:.6f}',
-                               vals=vals.Numbers(-2.0, 2.0),
-                               get_parser=float)
+            self.add_parameter(
+                'ch{}_amp'.format(ch),
+                parameter_class=HandshakeParameter,
+                label='Channel {} Amplitude '.format(ch),
+                unit='Vpp',
+                docstring='Amplitude channel {} (Vpp into 50 Ohm)'.format(ch),
+                get_cmd=amp_cmd + '?',
+                set_cmd=amp_cmd + ' {:.6f}',
+                vals=vals.Numbers(-2.0, 2.0),
+                get_parser=float)
 
             self.add_parameter('ch{}_offset'.format(ch),
                                # parameter_class=HandshakeParameter,
@@ -188,10 +193,18 @@ class QuTech_AWG_Module(SCPI):
                           call_cmd='QUTEch:OUTPut:SYNCsideband',
                           docstring=doc_sSG)
         # command is run but using start and stop because
-        self.add_function('start',
-                          call_cmd='awgcontrol:run:immediate')
+        # FIXME: replace custom start function when proper error message has
+        # been implemented.
+        # self.add_function('start',
+        #                   call_cmd='awgcontrol:run:immediate')
         self.add_function('stop',
                           call_cmd='awgcontrol:stop:immediate')
+
+    def start(self):
+        run_mode = self.run_mode()
+        if run_mode == 'NONE':
+            raise RuntimeError('No run mode is specified')
+        self.write('awgcontrol:run:immediate')
 
     def _setMatrix(self, chPair, mat):
         '''
@@ -364,9 +377,16 @@ class QuTech_AWG_Module(SCPI):
 
         Compatibility:  QWG
         """
+        wv_val = vals.Arrays(min_value=-1, max_value=1)
+        wv_val.validate(waveform)
+
+        maxWaveLen = 2**17-4  # FIXME: this is the hardware max
+
         waveLen = len(waveform)
-        # FIXME: check waveform is there, problems might arise if it already
-        # existed
+        if waveLen > maxWaveLen:
+            raise ValueError('Waveform length ({}) must be < {}'.format(
+                             waveLen, maxWaveLen))
+
         self.newWaveformReal(name, waveLen)
         self.sendWaveformDataReal(name, waveform)
 

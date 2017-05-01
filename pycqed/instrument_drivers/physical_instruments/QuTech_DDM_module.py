@@ -112,7 +112,7 @@ class DDMq(SCPI):
                                vals=vals.Numbers(0, 1)
                                )
             sholdoff_cmd = 'qutech:input{}:holdoff'.format(ch_pair)
-            self.add_parameter('ch_pair{}_holdoff'.format(ch_pair),
+            self.add_parameter('ch_pair{}_inavg_holdoff'.format(ch_pair),
                                label=('Set holdoff' +
                                       'ch_pair {} '.format(ch_pair)),
                                docstring='specifying the number of clocks the measurement trigger  ' +
@@ -835,9 +835,7 @@ class DDMq(SCPI):
         statuswint = self.ask('qutech:wint{:d}:status{:d}?'.format(ch_pair, 1))
         statuswintstr = format(int(statuswint), 'b').zfill(32)
         reversestatuswintstr = statuswintstr[::-1]
-        tempstatus=self._get_temp_status(ch_pair)
-        tempstatusstr = format(np.uint32(tempstatus), 'b').zfill(32)
-        reversetempstatusstr = tempstatusstr[::-1]
+
         def _DI():
             if (reversestatusstr[0] == '1'):
                 logging.warning('\nOver range on DI input. ')
@@ -908,14 +906,15 @@ class DDMq(SCPI):
 
             return None
 
+
         ADCstatus = {0: _DI,
                      1: _DQ,
                      2: _DCLK_PLL_LOCKED,
                      3: _CalRun,
+
                      4: _FalseTrig,
                      5: _Temperature
                      }
-
         for x in range(0, 6):
             print(ADCstatus[x]())
         return None
@@ -960,6 +959,7 @@ class DDMq(SCPI):
     def set_time(self, timesec):
         self.write('system:time {:d}'.format(timesec))
 
+
     def _get_temp_status(self, ch_pair):
         temp = self.ask('qutech:adc{:d}:temperature:status? '.format(ch_pair))
         return int(temp)
@@ -990,7 +990,6 @@ class DDMq(SCPI):
 
         return dict(zip(('ActualTemp', 'LastCalTemp', 'TempDiff', 'BrdTemp',
                         'WarnMessage'), tempparts))
-
 
     # Overloding get_idn function to format DDM versions
     def get_idn(self):
