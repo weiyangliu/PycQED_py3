@@ -1132,11 +1132,11 @@ class chevron_optimization_v2(TD_Analysis):
 
 class Rabi_Analysis(TD_Analysis):
 
-    def __init__(self, label='Rabi',print_amp180=True, fixed_amp180=False, **kw):
+    def __init__(self, label='Rabi',print_amp180=False, fixed_amp180=False, **kw):
         kw['label'] = label
         kw['h5mode'] = 'r+'
         self.print_amp180 = print_amp180
-        self.fixed_amp180 = fixed_amp180
+        self.fixed_amp180 = fixed_amp180# used for ramsey phase sweeps
         super().__init__(**kw)
 
     def run_default_analysis(self, close_file=True,  **kw):

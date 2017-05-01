@@ -364,3 +364,30 @@ class UHFQC_lutman_CLEAR_sweeper(Soft_Sweep):
         self.LutMan.M_up_amp(val)
         self.LutMan.M_down_amp0(val/self.optimization_M_amp*self.optimization_M_amp_down0)
         self.LutMan.M_down_amp1(val/self.optimization_M_amp*self.optimization_M_amp_down1)
+
+
+class UHFQC_Lutman_par_with_reload(Soft_Sweep):
+    def __init__(self, LutMan, parameter, pulse_name=['X180'], run=False, single=True):
+        '''
+        Generic sweep function that combines setting a LutMan parameter
+        with reloading lookuptables.
+        '''
+        super().__init__()
+        self.LutMan = LutMan
+        self.parameter = parameter
+        self.name = parameter.name
+        self.parameter_name = parameter.label
+        self.unit = parameter.units
+        self.pulse_name = pulse_name[0]
+        self.run = run
+        self.single = single
+
+    def set_parameter(self, val):
+        self.parameter.set(val)
+        if self.run:
+            self.LutMan.UHFQC.awgs_0_enable(False)
+        self.LutMan.load_pulse_onto_AWG_lookuptable(self.pulse_name)
+        if self.run:
+            self.LutMan.UHFQC.acquisition_arm(single=self.single)
+            temp = self.LutMan.UHFQC.awgs_0_enable() #old-fashoined assertion
+            del temp

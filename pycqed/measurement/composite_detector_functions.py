@@ -384,7 +384,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                  IF=None, weight_function_I=0, weight_function_Q=1,
                  optimized_weights=False, one_weight_function_UHFQC=False,
                  wait=0.0, close_fig=True, SSB=False, set_weight_functions=False,
-                 nr_averages=1024, integration_length=1e-6,
+                 nr_averages=1024, integration_length=1e-6, thresholded=False,
                  nr_shots=4094, **kw):
         self.detector_control = 'soft'
         self.name = 'SSRO_Fidelity'
@@ -412,6 +412,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
         self.SSB = SSB
         self.IF = IF
         self.nr_shots = nr_shots
+        self.thresholded = thresholded #only used for DDM
 
         if 'CBox' in str(self.acquisition_instr):
             self.CBox = self.acquisition_instr
@@ -481,16 +482,22 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
             elif 'DDM' in str(self.acquisition_instr):
                 self.MC.set_detector_function(
                     det.DDM_integration_logging_det(
-                        self.acquisition_instr, self.AWG,
+                        self.acquisition_instr, self.AWG, thresholded=self.thresholded,
                         channels=[
                             self.weight_function_I, self.weight_function_Q],
                         integration_length=self.integration_length,
                         nr_shots=min(self.nr_shots, 8000)))
+
                 if self.set_weight_functions:
                     if self.SSB:
                         self.DDM.prepare_SSB_weight_and_rotation(
-                            IF=self.IF, weight_function_I=self.weight_function_I,
+                            IF=-self.IF, weight_function_I=self.weight_function_I,
                             weight_function_Q=self.weight_function_Q)
+                    else:
+                        self.DDM.prepare_DSB_weight_and_rotation(
+                            IF=-self.IF, weight_function_I=self.weight_function_I,
+                            weight_function_Q=self.weight_function_Q)
+
                 #not yet implemented
                 # else:
                 #     if self.IF == None:

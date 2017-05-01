@@ -1949,7 +1949,7 @@ class DDM_integration_logging_det(Hard_Detector):
     '''
 
     def __init__(self, DDM, AWG, integration_length=1e-6,
-                 channels=[1, 2], nr_shots=4096, **kw):
+                 channels=[1, 2], nr_shots=4096, thresholded=False, threshold=0, **kw):
         super(DDM_integration_logging_det, self).__init__()
         self.DDM = DDM
         self.name = 'DDM_integration_logging_det'
@@ -1966,6 +1966,8 @@ class DDM_integration_logging_det(Hard_Detector):
         self.integration_length = integration_length
         self.nr_shots = nr_shots
         self.scaling_factor=1/(500e6*integration_length)/127/127*2
+        self.thresholded=thresholded
+        self.threshold=threshold #not used yet
 
 
 
@@ -1982,6 +1984,7 @@ class DDM_integration_logging_det(Hard_Detector):
         self.DDM.ch_pair1_logging_nshots(self.nr_shots)
 
 
+
     def get_values(self):
         if self.AWG is not None:
             self.AWG.stop()
@@ -1994,7 +1997,13 @@ class DDM_integration_logging_det(Hard_Detector):
         # polling the data, function checks that measurement is finished
         data = ['']*len(self.channels)
         for i, channel in enumerate(self.channels):
-            data[i] = eval("self.DDM.ch_pair1_weight{}_logging_int()".format(channel))*self.scaling_factor
+            if self.thresholded:
+                data[i] = eval("self.DDM.ch_pair1_weight{}_logging_qstate()".format(channel))
+                print('should be thresholded')
+            else:
+                data[i] = eval("self.DDM.ch_pair1_weight{}_logging_int()".format(channel))*self.scaling_factor
+                print('should not be thresholded')
+
         return data
 
     def finish(self):

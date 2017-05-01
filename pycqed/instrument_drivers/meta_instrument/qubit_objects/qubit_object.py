@@ -412,11 +412,11 @@ class Transmon(Qubit):
                 ampl = abs(a.fit_res[0].params['period'].value)/2
                 print("taking I")
             else:
-                if (a.fit_res[0].params['period'].stderr <=
-                        a.fit_res[1].params['period'].stderr):
-                    ampl = abs(a.fit_res[0].params['period'].value)/2
-                else:
+                if (a.fit_res[0].params['amplitude'].value <=
+                        a.fit_res[1].params['amplitude'].value):
                     ampl = abs(a.fit_res[1].params['period'].value)/2
+                else:
+                    ampl = abs(a.fit_res[0].params['period'].value)/2
         else:
             ampl = amps
         if verbose:

@@ -104,6 +104,8 @@ class Lutman_par_with_reload(Soft_Sweep):
             self.LutMan.load_pulses_onto_AWG_lookuptable(awg_nr)
 
 
+
+
 class Lutman_par_with_reload_single_pulse(Soft_Sweep):
     def __init__(self, LutMan, parameter, pulse_names=['X180'], awg_nrs=[0]):
         '''
@@ -124,6 +126,7 @@ class Lutman_par_with_reload_single_pulse(Soft_Sweep):
         for awg_nr in self.awg_nrs:
             for pulse_name in self.pulse_names:
                 self.LutMan.load_pulse_onto_AWG_lookuptable(pulse_name, awg_nr)
+
 
 
 

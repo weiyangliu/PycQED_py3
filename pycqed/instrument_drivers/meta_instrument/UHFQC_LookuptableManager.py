@@ -41,12 +41,12 @@ class UHFQC_LookuptableManager(Instrument):
                            vals=vals.Numbers(-1, 1),
                            parameter_class=ManualParameter,
                            initial_value=0.05)
-        self.add_parameter('Q_ampCW', unit='V',
+        self.add_parameter('M_ampCW', unit='V',
                            vals=vals.Numbers(-1, 1),
                            parameter_class=ManualParameter,
                            initial_value=0.05)
-        self.add_parameter('Q_block_length', unit='s',
-                           vals=vals.Numbers(1e-9, 640e-9),
+        self.add_parameter('M_block_length', unit='s',
+                           vals=vals.Numbers(1e-9, 8000e-9),
                            parameter_class=ManualParameter,
                            initial_value=500e-9)
         self.add_parameter('Q_motzoi_parameter', vals=vals.Numbers(-2, 2),
@@ -200,12 +200,12 @@ class UHFQC_LookuptableManager(Instrument):
                                  sampling_rate=self.get('sampling_rate'),
                                  Q_phase_delay=self.get('mixer_IQ_phase_skewness'),
                                  nr_sigma=self.Q_gauss_nr_sigma())
-        Block = PG.block_pulse(self.get('Q_ampCW'), self.Q_block_length.get(),  #ns
+        Block = PG.block_pulse(self.get('M_ampCW'), self.M_block_length.get(),  #ns
                                sampling_rate=self.get('sampling_rate'),
                                delay=0,
                                phase=0)
         ModBlock = PG.mod_pulse(Block[0], Block[1],
-                                f_modulation=self.Q_modulation.get(),
+                                f_modulation=self.M_modulation.get(),
                                 sampling_rate=self.sampling_rate.get(),
                                 Q_phase_delay=self.mixer_IQ_phase_skewness.get())
 
@@ -276,7 +276,7 @@ class UHFQC_LookuptableManager(Instrument):
                            'X90': Wave_X_90, 'Y90': Wave_Y_90,
                            'mX90': Wave_mX90, 'mY90': Wave_mY90,
                            'Block': Block,
-                           'ModBlock': ModBlock,
+                           'M_ModBlock': ModBlock,
                            'M_square': Mod_M,
                            'M_3step': Mod_3step,
                            'M_up_mid': Mod_M_up_mid,
@@ -376,15 +376,13 @@ class UHFQC_LookuptableManager(Instrument):
             wave_dict = self.generate_standard_pulses()
         else:
             wave_dict = self._wave_dict
-        I_ch = 0
-        Q_ch = 1
+
         I_wave = np.clip(wave_dict[pulse_name][0],
                          self._voltage_min, self._voltage_max)
         Q_wave = np.clip(np.multiply(self.get('mixer_QI_amp_ratio'),
                          wave_dict[pulse_name][1]), self._voltage_min,
                          self._voltage_max)
         self.UHFQC.awg_sequence_acquisition_and_pulse(I_wave, Q_wave, self.acquisition_delay())
-        print('wave {} should be loaded in UHFQC'.format(pulse_name))
 
     def give_back_wave_forms(self, pulse_name, regenerate_pulses=True):
         '''
@@ -395,8 +393,7 @@ class UHFQC_LookuptableManager(Instrument):
             wave_dict = self.generate_standard_pulses()
         else:
             wave_dict = self._wave_dict
-        I_ch = 0
-        Q_ch = 1
+
         I_wave = np.clip(wave_dict[pulse_name][0],
                          self._voltage_min, self._voltage_max)
         Q_wave = np.clip(np.multiply(self.get('mixer_QI_amp_ratio'),

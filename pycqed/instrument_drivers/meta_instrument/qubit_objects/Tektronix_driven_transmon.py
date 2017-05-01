@@ -18,6 +18,7 @@ from pycqed.analysis import measurement_analysis as ma
 from pycqed.measurement.calibration_toolbox import mixer_carrier_cancellation_5014
 from pycqed.measurement.calibration_toolbox import mixer_carrier_cancellation_UHFQC
 from pycqed.measurement.calibration_toolbox import mixer_skewness_calibration_5014
+from pycqed.measurement.calibration_toolbox import mixer_skewness_cal_UHFQC_adaptive
 from pycqed.measurement.optimization import nelder_mead
 
 import pycqed.measurement.pulse_sequences.single_qubit_tek_seq_elts as sq
@@ -48,7 +49,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
     def __init__(self, name,
                  LO, cw_source, td_source,
-                 IVVI, AWG, FluxCtrl,
+                 IVVI, AWG, FluxCtrl, RO_LutMan,
                  heterodyne_instr, MC, rf_RO_source=None, **kw):
         super(CBox_driven_transmon, self).__init__(name, **kw)
         # Change this when inheriting directly from Transmon instead of
@@ -62,6 +63,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.AWG = AWG
         self.MC = MC
         self.FluxCtrl = FluxCtrl
+        self.RO_LutMan = RO_LutMan
 
         self.add_parameter('mod_amp_cw', label='RO modulation ampl cw',
                            unit='V', initial_value=0.5,
@@ -190,11 +192,23 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                            vals=vals.Numbers(.1, 2),
                            initial_value=1,
                            parameter_class=ManualParameter)
+        self.add_parameter('RO_phi', label='IQ phase skewness', unit='deg',
+                           vals=vals.Numbers(-180, 180),
+                           initial_value=0,
+                           parameter_class=ManualParameter)
+        self.add_parameter('RO_alpha', label='QI amplitude skewness', unit='',
+                           vals=vals.Numbers(.1, 2),
+                           initial_value=1,
+                           parameter_class=ManualParameter)
 
         # Single shot readout specific parameters
         self.add_parameter('RO_threshold', unit='dac-value',
                            initial_value=0,
                            parameter_class=ManualParameter)
+        self.add_parameter('RO_thresholded', vals=vals.Bool(),
+                           initial_value=False,
+                           parameter_class=ManualParameter)
+
         # CBox specific parameter
         self.add_parameter('signal_line', parameter_class=ManualParameter,
                            vals=vals.Enum(0, 1), initial_value=0)
@@ -420,12 +434,10 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         # Still need to test this, start by doing this in notebook
         self.prepare_for_timedomain()
         self.AWG.stop()  # Make sure no waveforms are played
-        AWG_channel1 = self.RO_I_channel.get()
-        AWG_channel2 = self.RO_Q_channel.get()
         source = self.LO
         offset_I, offset_Q = mixer_carrier_cancellation_UHFQC(
             UHFQC=self._acquisition_instr, SH=signal_hound, source=source, MC=self.MC,
-            AWG_channel1=AWG_channel1, AWG_channel2=AWG_channel2)
+            AWG_channel1=self.RO_I_channel(), AWG_channel2=self.RO_Q_channel())
 
         if update:
             self.RO_I_offset.set(offset_I)
@@ -449,6 +461,22 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         if update:
             self.phi_skew.set(phi)
             self.alpha.set(alpha)
+
+    def calibrate_mixer_skewness_UHFQC(self, signal_hound, update=True,calibrate_both_sidebands=True):
+        '''
+        Calibrates the mixer skewness using mixer_skewness_cal_UHFQC_adaptive
+        see calibration toolbox for details
+        '''
+        self.prepare_for_timedomain()
+        phi, alpha = mixer_skewness_cal_UHFQC_adaptive(
+            self._acquisition_instr, SH=signal_hound, source=self.LO, AWG=self.AWG, acquisition_marker_channel=self.RO_acq_marker_channel(),
+            LutMan=self.RO_LutMan, MC=self.MC, AWG_channel1=self.RO_I_channel(), AWG_channel2=self.RO_Q_channel(),
+            calibrate_both_sidebands=calibrate_both_sidebands)
+        if update:
+            self.RO_phi.set(phi)
+            self.RO_alpha.set(alpha)
+            self.RO_LutMan.mixer_alpha(alpha)
+            self.RO_LutMan.mixer_phi(phi)
 
     def calibrate_RO_threshold(self, method='conventional',
                                MC=None, close_fig=True,
@@ -700,7 +728,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                      close_fig=True,
                      verbose=True, optimized_weights=False, SSB=False,
                      one_weight_function_UHFQC=False, upload=True,
-                     multiplier=1, nr_shots=4095, set_weight_functions=True):
+                     multiplier=1, nr_shots=4095, set_weight_functions=True, thresholded=False):
         self.prepare_for_timedomain()
         if MC is None:
             MC = self.MC
@@ -715,7 +743,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             weight_function_Q=self.RO_acq_weight_function_Q(),
             nr_shots=nr_shots, one_weight_function_UHFQC=one_weight_function_UHFQC,
             optimized_weights=optimized_weights,
-            integration_length=self.RO_acq_integration_length(),
+            integration_length=self.RO_acq_integration_length(), thresholded=thresholded,
             close_fig=close_fig, SSB=SSB, multiplier=multiplier, upload=upload,
             nr_averages=self.RO_acq_averages(), set_weight_functions=set_weight_functions)
         if return_detector:
@@ -1002,12 +1030,12 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                               self.RO_acq_weight_function_Q()],
                     nr_averages=self.RO_acq_averages(),
                     integration_length=self.RO_acq_integration_length())
-
+            print('refreshing DDM detectors, thresholded = ', self.RO_thresholded())
             self.int_log_det = det.DDM_integration_logging_det(
                 DDM=self._acquisition_instr, AWG=self.AWG,
                 channels=[
                     self.RO_acq_weight_function_I(), self.RO_acq_weight_function_Q()],
-                integration_length=self.RO_acq_integration_length())
+                integration_length=self.RO_acq_integration_length(), thresholded=self.RO_thresholded(), threshold=self.RO_threshold())
 
         elif 'ATS' in acquisition_instr:
             logging.info("setting ATS acquisition")
