@@ -1126,6 +1126,8 @@ class SH_mixer_skewness_det(Soft_Detector):
     def finish(self, **kw):
         self.SH.abort()
 
+
+
 # ---------------------------------------------------------------------------
 # CBox v3 detectors
 # ---------------------------------------------------------------------------
@@ -1647,7 +1649,6 @@ class UHFQC_correlation_detector(UHFQC_integrated_average_detector):
 
         else:
             return data
->>>>>>> Proj/starmon
 
 
 class UHFQC_integration_logging_det(Hard_Detector):

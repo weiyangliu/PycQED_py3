@@ -313,7 +313,6 @@ class Transmon(Qubit):
                        f_step=1e6,
                        verbose=True,
                        update=True,
-                       close_fig=True,
                        invert=False, #this inverts the magnitude for dip fitting
                        close_fig=True):
         """

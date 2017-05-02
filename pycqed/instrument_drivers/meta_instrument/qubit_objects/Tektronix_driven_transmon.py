@@ -65,6 +65,8 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                            parameter_class=InstrumentParameter)
 
         self.add_parameter('LutMan', parameter_class=InstrumentParameter)
+        self.add_parameter('RO_LutMan', parameter_class=InstrumentParameter)
+
         self.add_parameter('CBox', parameter_class=InstrumentParameter)
         self.add_parameter('MC', parameter_class=InstrumentParameter)
 
@@ -483,8 +485,8 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         '''
         self.prepare_for_timedomain()
         phi, alpha = mixer_skewness_cal_UHFQC_adaptive(
-            self._acquisition_instr, SH=signal_hound, source=self.LO, AWG=self.AWG, acquisition_marker_channel=self.RO_acq_marker_channel(),
-            LutMan=self.RO_LutMan, MC=self.MC, AWG_channel1=self.RO_I_channel(), AWG_channel2=self.RO_Q_channel(),
+            self._acquisition_instr, SH=signal_hound, source=self.LO.get_instr(), AWG=self.AWG.get_instr(), acquisition_marker_channel=self.RO_acq_marker_channel(),
+            LutMan=self.RO_LutMan.get_instr(), MC=self.MC.get_instr(),
             calibrate_both_sidebands=calibrate_both_sidebands)
         if update:
             self.RO_phi.set(phi)

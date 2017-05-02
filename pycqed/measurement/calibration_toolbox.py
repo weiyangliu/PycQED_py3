@@ -11,6 +11,9 @@ from pycqed.measurement.waveform_control_CC import single_qubit_qasm_seqs as sqq
 
 from pycqed.measurement.waveform_control_CC import qasm_to_asm as qta
 from pycqed.measurement.waveform_control_CC import instruction_lib as ins_lib
+from pycqed.measurement import sweep_functions as swf
+from pycqed.analysis import measurement_analysis as ma
+
 
 '''
 Contains general calibration routines, most notably for calculating mixer
@@ -702,70 +705,34 @@ def mixer_skewness_cal_UHFQC_adaptive(UHFQC, SH, source, AWG,
     AWG.run()
 
     #  Ensure that the block is 4 periods of the modulation freq
+    #  Ensure that the block is 4 periods of the modulation freq
     LutMan.M_block_length.set(960e-9)  # in ns
     LutMan.M_ampCW.set(0.2)
     LutMan.render_wave('M_ModBlock', time_unit='ns')
     # divide instead of multiply by 1e-9 because of rounding errs
-    sweepfunctions = [swf.UHFQC_Lutman_par_with_reload(LutMan,
-                                                    LutMan.mixer_QI_amp_ratio,
-                                                    ['M_ModBlock'], run=True, single=False),
-                      swf.UHFQC_Lutman_par_with_reload(LutMan,
-                                                    LutMan.mixer_IQ_phase_skewness,
-                                                    ['M_ModBlock'], run=True, single=False)]
-    ampl_min_lst = np.empty(2)
-    phase_min_lst = np.empty(2)
-    if calibrate_both_sidebands:
-        sidebands = ['Numerical mixer calibration spurious sideband',
-                     'Numerical mixer calibration desired sideband']
-    else:
-        sidebands = ['Numerical mixer calibration spurious sideband']
+    S1 = swf.UHFQC_Lutman_par_with_reload(LutMan,
+                                        LutMan.mixer_QI_amp_ratio,
+                                        ['M_ModBlock'], run=True, single=False)
+    S2 =swf.UHFQC_Lutman_par_with_reload(LutMan,
+                                         LutMan.mixer_IQ_phase_skewness,
+                                        ['M_ModBlock'], run=True, single=False)
 
-    for i, name in enumerate(sidebands):
+    detector = det.Signal_Hound_fixed_frequency(
+                SH, frequency=(source.frequency.get() -
+                               LutMan.M_modulation()),
+                Navg=5, delay=0.0, prepare_each_point=False)
 
-        sign = -1 if i is 0 else 1  # Flips freq to minimize signal
-        # Note Signal hound has frequency in GHz
-        detector = det.Signal_Hound_fixed_frequency(
-            SH, frequency=(source.frequency.get() +
-                           sign*LutMan.M_modulation()),
-            Navg=5, delay=.3)
-        # Timing is not finetuned and can probably be sped up
-
-        xtol = 5e-4
-        ftol = 1e-5
-        start_ratio = 0.8
-        phase_center = i * 180  # i=0 is spurious sideband, i=1 is desired
-        r_step = .1
-        sk_step = 10.
-        start_skewness = phase_center-10
-        ad_func_pars = {'adaptive_function': 'Powell',
-                        'x0': [start_ratio, start_skewness],
-                        'direc': [[r_step, 0],
-                                  [0, sk_step],
-                                  [0, 0]],  # direc is a tuple of vectors
-                        'ftol': ftol,
-                        'xtol': xtol, 'minimize': True}
-
-        MC.set_sweep_functions(sweepfunctions)  # sets swf1 and swf2
-        MC.set_detector_function(detector)  # sets test_detector
-        MC.set_adaptive_function_parameters(ad_func_pars)
-        MC.run(name=name, mode='adaptive')
-        a = MA.OptimizationAnalysis(auto=True, label='Numerical')
-        ampl_min_lst[i] = a.optimization_result[0][0]
-        phase_min_lst[i] = a.optimization_result[0][1]
-
-    if calibrate_both_sidebands:
-        phi = -1*(np.mod((phase_min_lst[0] - (phase_min_lst[1]-180)), 360))/2.0
-        alpha = (1/ampl_min_lst[0] + 1/ampl_min_lst[1])/2.
-        if verbose:
-            print('Finished calibration')
-            print('*'*80)
-            print('Phase at minimum w-: {} deg, w+: {} deg'.format(
-                phase_min_lst[0], phase_min_lst[1]))
-            print('QI_amp_ratio at minimum w-: {},  w+: {}'.format(
-                ampl_min_lst[0], ampl_min_lst[1]))
-            print('*'*80)
-            print('Phi = {} deg'.format(phi))
-            print('alpha = {}'.format(alpha))
-        return phi, alpha
-    else:
-        return phase_min_lst[0], ampl_min_lst[0]
+    ad_func_pars = {'adaptive_function': nelder_mead,
+                        'x0': [1.0, 0.0],
+                        'initial_step': [.15, 10],
+                        'no_improv_break': 10,
+                        'minimize': True,
+                        'maxiter': 500}
+    MC.set_sweep_functions([S1, S2])
+    MC.set_detector_function(detector)  # sets test_detector
+    MC.set_adaptive_function_parameters(ad_func_pars)
+    MC.run(name='Spurious_sideband', mode='adaptive')
+    a = ma.OptimizationAnalysis(auto=True, label='Spurious_sideband')
+    alpha = a.optimization_result[0][0]
+    phi = a.optimization_result[0][1]
+    return phi, alpha

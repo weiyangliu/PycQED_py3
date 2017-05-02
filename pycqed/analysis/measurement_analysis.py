@@ -1215,13 +1215,12 @@ class Rabi_Analysis(TD_Analysis):
         for i in [0, 1]:
             params = model.guess(model, data=self.measured_values[i],
                                  t=self.sweep_points)
-<<<<<<< HEAD
             if self.fixed_amp180:
                 params['frequency'].value=1/360
                 params['frequency'].vary=False
-=======
-            params['frequency'].value = freq_guess
->>>>>>> Proj/starmon
+            else:
+                params['frequency'].value = freq_guess
+
             self.fit_res[i] = fit_mods.CosModel.fit(
                 data=self.measured_values[i],
                 t=self.sweep_points,
@@ -4143,15 +4142,10 @@ class Qubit_Spectroscopy_Analysis(MeasurementAnalysis):
             except:
                 # Quick fix to make it work with pulsed spec which does not
                 # return both I,Q and, amp and phase
-<<<<<<< HEAD
                 if invert:
                     self.data_dist = -self.measured_values[0] #option for dip fitting
                 else:
                     self.data_dist = self.measured_values[0] #only using the amplitude!!
-=======
-                # only using the amplitude!!
-                self.data_dist = self.measured_values[0]
->>>>>>> Proj/starmon
                 # self.data_dist = a_tools.calculate_distance_ground_state(
                 #     data_real=self.measured_values[0],
                 #     data_imag=self.measured_values[1])
@@ -5414,11 +5408,6 @@ class Chevron_2D(object):
 
 
 class DoubleFrequency(TD_Analysis):
-
-<<<<<<< HEAD
-
-=======
->>>>>>> Proj/starmon
     def __init__(self, auto=True, label='Ramsey', timestamp=None, **kw):
         kw['label'] = label
         kw['auto'] = auto

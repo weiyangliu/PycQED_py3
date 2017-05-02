@@ -437,9 +437,3 @@ class UHFQC_Lutman_par_with_reload(Soft_Sweep):
         self.LutMan.load_pulse_onto_AWG_lookuptable(self.pulse_name)
         if self.run:
             self.LutMan.UHFQC.acquisition_arm(single=self.single)
-            temp = self.LutMan.UHFQC.awgs_0_enable() #old-fashoined assertion
-            del temp
-=======
-        self.LutMan.load_pulses_onto_AWG_lookuptable(regenerate_pulses=True)
-        self.LutMan.QWG.get_instr().start()
->>>>>>> Proj/starmon
