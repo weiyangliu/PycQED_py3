@@ -1436,6 +1436,8 @@ class UHFQC_integrated_average_detector(Hard_Detector):
 
         data_raw = self.UHFQC.acquisition_poll(
             samples=self.nr_sweep_points, arm=False, acquisition_time=0.01)
+        data = np.array([data_raw[key]
+                         for key in data_raw.keys()])*self.scaling_factor
 
         # Corrects offsets after crosstalk suppression matrix in UFHQC
         if self.result_logging_mode == 'lin_trans':

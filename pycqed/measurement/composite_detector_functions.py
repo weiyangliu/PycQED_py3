@@ -317,8 +317,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                         self.AWG.start()
 
                     data_raw=self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
-                                                         arm=False, acquisition_time=0.01,
-                                                         timeout=100)
+                                                         arm=False, acquisition_time=0.01)
                     data = np.array([data_raw[key] for key in data_raw.keys()])
                     if self.AWG is not None:
                         self.AWG.stop()
@@ -341,8 +340,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                         self.AWG.start()
 
                     data_raw=self.UHFQC.acquisition_poll(samples=self.nr_sweep_points,
-                                                         arm=False, acquisition_time=0.01,
-                                                         timeout=100)
+                                                         arm=False, acquisition_time=0.01)
                     self.UHFQC.acquisition_finalize()
                     if self.AWG is not None:
                         self.AWG.stop()
@@ -358,10 +356,10 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
 
                     #offset subtraction
                     optimized_weights_I = optimized_weights_I - \
-                        np.mean(optimized_weights_I[-100:])
+                        np.mean(optimized_weights_I[-144:])
 
                     optimized_weights_Q = optimized_weights_Q - \
-                        np.mean(optimized_weights_Q[-100:])
+                        np.mean(optimized_weights_Q[-144:])
 
                     #using boxcar filter to smoothen weight functions
                     # print('implemented filter')
