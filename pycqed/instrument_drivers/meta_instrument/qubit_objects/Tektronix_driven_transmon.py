@@ -448,13 +448,10 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         # Still need to test this, start by doing this in notebook
         self.prepare_for_timedomain()
         self.AWG.get_instr().stop()  # Make sure no waveforms are played
-        AWG_channel1 = self.RO_I_channel.get()
-        AWG_channel2 = self.RO_Q_channel.get()
         source = self.LO.get_instr()
         offset_I, offset_Q = mixer_carrier_cancellation_UHFQC(
             UHFQC=self._acquisition_instr, SH=signal_hound, source=source, MC=self.MC.get_instr(
-            ),
-            AWG_channel1=AWG_channel1, AWG_channel2=AWG_channel2)
+            ))
         if update:
             self.RO_I_offset.set(offset_I)
             self.RO_Q_offset.set(offset_Q)
@@ -478,7 +475,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             self.phi_skew.set(phi)
             self.alpha.set(alpha)
 
-    def calibrate_mixer_skewness_UHFQC(self, signal_hound, update=True,calibrate_both_sidebands=True):
+    def calibrate_mixer_skewness_UHFQC(self, signal_hound, update=True):
         '''
         Calibrates the mixer skewness using mixer_skewness_cal_UHFQC_adaptive
         see calibration toolbox for details
@@ -486,13 +483,12 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.prepare_for_timedomain()
         phi, alpha = mixer_skewness_cal_UHFQC_adaptive(
             self._acquisition_instr, SH=signal_hound, source=self.LO.get_instr(), AWG=self.AWG.get_instr(), acquisition_marker_channel=self.RO_acq_marker_channel(),
-            LutMan=self.RO_LutMan.get_instr(), MC=self.MC.get_instr(),
-            calibrate_both_sidebands=calibrate_both_sidebands)
+            LutMan=self.RO_LutMan.get_instr(), MC=self.MC.get_instr())
         if update:
             self.RO_phi.set(phi)
             self.RO_alpha.set(alpha)
-            self.RO_LutMan.mixer_alpha(alpha)
-            self.RO_LutMan.mixer_phi(phi)
+            self.RO_LutMan.get_instr().mixer_alpha(alpha)
+            self.RO_LutMan.get_instr().mixer_phi(phi)
 
     def calibrate_RO_threshold(self, method='conventional',
                                MC=None, close_fig=True,
@@ -831,7 +827,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
-            'Measure_transients_{}_0'.format(self.msmt_suffix))
+            'Measure_transients_{}_ground'.format(self.msmt_suffix))
         a0 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
         self.MC.get_instr().set_sweep_function(awg_swf.OffOn(pulse_pars=self.pulse_pars,
                                                              RO_pars=self.RO_pars,
@@ -842,7 +838,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
-            'Measure_transients_{}_1'.format(self.msmt_suffix))
+            'Measure_transients_{}_excited'.format(self.msmt_suffix))
         a1 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
 
     def measure_rb_vs_amp(self, amps, nr_cliff=1,
