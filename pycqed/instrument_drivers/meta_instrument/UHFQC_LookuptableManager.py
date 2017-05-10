@@ -59,22 +59,12 @@ class UHFQC_LookuptableManager(Instrument):
         self.add_parameter('Q_gauss_nr_sigma', vals=vals.Numbers(),
                            parameter_class=ManualParameter,
                            initial_value=4)
-        self.add_parameter('mixer_QI_amp_ratio', vals=vals.Numbers(),
-                           parameter_class=ManualParameter,
-                           initial_value=1.0)
-        self.add_parameter('mixer_IQ_phase_skewness', vals=vals.Numbers(),
-                           unit='deg',
-                           parameter_class=ManualParameter,
-                           initial_value=0.0)
         self.add_parameter('Q_modulation', vals=vals.Numbers(), unit='Hz',
                            parameter_class=ManualParameter,
                            initial_value=20.0e6)
         self.add_parameter('sampling_rate', vals=vals.Numbers(), unit='Hz',
                            parameter_class=ManualParameter,
                            initial_value=1.8e9)
-        # These parameters are added for mixer skewness correction.
-        # They are intended to be renamed such that they can be combined with
-        # mixer_QI_amp_ratio and mixer_IQ_phase_skewness.
         self.add_parameter('mixer_alpha', vals=vals.Numbers(),
                            parameter_class=ManualParameter,
                            initial_value=1.0)
@@ -167,46 +157,40 @@ class UHFQC_LookuptableManager(Instrument):
                                   self.get('Q_modulation'), axis='x',
                                   motzoi=self.get('Q_motzoi_parameter'),
                                   sampling_rate=self.get('sampling_rate'),
-                                  Q_phase_delay=self.get(
-                                      'mixer_IQ_phase_skewness'),
+                                  Q_phase_delay=0,
                                   nr_sigma=self.Q_gauss_nr_sigma())
         Wave_X_90 = PG.mod_gauss(self.get('Q_amp90'), self.get('Q_gauss_width'),
                                  self.get('Q_modulation'), axis='x',
                                  motzoi=self.get('Q_motzoi_parameter'),
                                  sampling_rate=self.get('sampling_rate'),
-                                 Q_phase_delay=self.get(
-                                     'mixer_IQ_phase_skewness'),
+                                 Q_phase_delay=0,
                                  nr_sigma=self.Q_gauss_nr_sigma())
 
         Wave_Y_180 = PG.mod_gauss(self.get('Q_amp180'), self.get('Q_gauss_width'),
                                   self.get('Q_modulation'), axis='y',
                                   motzoi=self.get('Q_motzoi_parameter'),
                                   sampling_rate=self.get('sampling_rate'),
-                                  Q_phase_delay=self.get(
-                                      'mixer_IQ_phase_skewness'),
+                                  Q_phase_delay=0,
                                   nr_sigma=self.Q_gauss_nr_sigma())
         Wave_Y_90 = PG.mod_gauss(self.get('Q_amp90'), self.get('Q_gauss_width'),
                                  self.get('Q_modulation'), axis='y',
                                  motzoi=self.get('Q_motzoi_parameter'),
                                  sampling_rate=self.get('sampling_rate'),
-                                 Q_phase_delay=self.get(
-                                     'mixer_IQ_phase_skewness'),
+                                 Q_phase_delay=0,
                                  nr_sigma=self.Q_gauss_nr_sigma())
 
         Wave_mX90 = PG.mod_gauss(-self.get('Q_amp90'), self.get('Q_gauss_width'),
                                  self.get('Q_modulation'), axis='x',
                                  motzoi=self.get('Q_motzoi_parameter'),
                                  sampling_rate=self.get('sampling_rate'),
-                                 Q_phase_delay=self.get(
-                                     'mixer_IQ_phase_skewness'),
+                                 Q_phase_delay=0,
                                  nr_sigma=self.Q_gauss_nr_sigma())
 
         Wave_mY90 = PG.mod_gauss(-self.get('Q_amp90'), self.get('Q_gauss_width'),
                                  self.get('Q_modulation'), axis='y',
                                  motzoi=self.get('Q_motzoi_parameter'),
                                  sampling_rate=self.get('sampling_rate'),
-                                 Q_phase_delay=self.get(
-                                     'mixer_IQ_phase_skewness'),
+                                 Q_phase_delay=0,
                                  nr_sigma=self.Q_gauss_nr_sigma())
         Block = PG.block_pulse(self.get('M_ampCW'), self.M_block_length.get(),  #ns
 
@@ -216,7 +200,7 @@ class UHFQC_LookuptableManager(Instrument):
         ModBlock = PG.mod_pulse(Block[0], Block[1],
                                 f_modulation=self.M_modulation.get(),
                                 sampling_rate=self.sampling_rate.get(),
-                                Q_phase_delay=self.mixer_IQ_phase_skewness.get())
+                                Q_phase_delay=0)
 
         # RO pulses
         M = PG.block_pulse(self.get('M_amp'), self.M_length.get(),  # ns
@@ -226,7 +210,7 @@ class UHFQC_LookuptableManager(Instrument):
         Mod_M = PG.mod_pulse(M[0], M[1],
                              f_modulation=self.M_modulation.get(),
                              sampling_rate=self.sampling_rate.get(),
-                             Q_phase_delay=self.mixer_IQ_phase_skewness.get())
+                             Q_phase_delay=0)
         # advanced RO pulses
         # with ramp-up
         M_up = PG.block_pulse(self.get('M_up_amp'), self.M_up_length.get(),  # ns
@@ -240,7 +224,7 @@ class UHFQC_LookuptableManager(Instrument):
         Mod_M_up_mid = PG.mod_pulse(M_up_mid[0], M_up_mid[1],
                                     f_modulation=self.get('M_modulation'),
                                     sampling_rate=self.get('sampling_rate'),
-                                    Q_phase_delay=self.get('mixer_IQ_phase_skewness'))
+                                    Q_phase_delay=0)
 
         # with ramp-up and double frequency depletion
         M_down0 = PG.block_pulse(self.get('M_down_amp0'), self.get('M_down_length'),  # ns
@@ -256,13 +240,13 @@ class UHFQC_LookuptableManager(Instrument):
                          M_down0[1],
                          f_modulation=self.get('M0_modulation'),
                          sampling_rate=self.get('sampling_rate'),
-                         Q_phase_delay=self.get('mixer_IQ_phase_skewness'))
+                         Q_phase_delay=0)
 
         Mod_M_down1 = PG.mod_pulse(M_down1[0],
                                    M_down1[1],
                                    f_modulation=self.get('M1_modulation'),
                                    sampling_rate=self.get('sampling_rate'),
-                                   Q_phase_delay=self.get('mixer_IQ_phase_skewness'))
+                                   Q_phase_delay=0)
 
         # summing the depletion components
         Mod_M_down = (np.add(Mod_M_down0[0],
@@ -370,9 +354,6 @@ class UHFQC_LookuptableManager(Instrument):
 
         Notes on the procedure for acquiring this matrix can be found in
         PycQED/docs/notes/MixerSkewnessCalibration_LDC_150629.pdf
-
-        Note: The same effect as the predistortion matrix can also be achieved
-        by setting the IQ-phase skewness and QI-amp-ratio paramters.
         '''
 
         mixer_pre_distortion_matrix = np.array(
@@ -398,8 +379,7 @@ class UHFQC_LookuptableManager(Instrument):
 
         I_wave = np.clip(wave_dict[pulse_name][0],
                          self._voltage_min, self._voltage_max)
-        Q_wave = np.clip(np.multiply(self.get('mixer_QI_amp_ratio'),
-                                     wave_dict[pulse_name][1]), self._voltage_min,
+        Q_wave = np.clip(wave_dict[pulse_name][1], self._voltage_min,
                          self._voltage_max)
         self.UHFQC.awg_sequence_acquisition_and_pulse(I_wave, Q_wave, self.acquisition_delay())
 
@@ -416,7 +396,6 @@ class UHFQC_LookuptableManager(Instrument):
 
         I_wave = np.clip(wave_dict[pulse_name][0],
                          self._voltage_min, self._voltage_max)
-        Q_wave = np.clip(np.multiply(self.get('mixer_QI_amp_ratio'),
-                                     wave_dict[pulse_name][1]), self._voltage_min,
+        Q_wave = np.clip(wave_dict[pulse_name][1], self._voltage_min,
                          self._voltage_max)
         return I_wave, Q_wave

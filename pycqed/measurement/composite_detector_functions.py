@@ -355,11 +355,11 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     optimized_weights_Q = (transient1_Q-transient0_Q)
 
                     #offset subtraction
-                    optimized_weights_I = optimized_weights_I - \
-                        np.mean(optimized_weights_I[-144:])
+                    # optimized_weights_I = optimized_weights_I - \
+                    #     np.mean(optimized_weights_I[-144:])
 
-                    optimized_weights_Q = optimized_weights_Q - \
-                        np.mean(optimized_weights_Q[-144:])
+                    # optimized_weights_Q = optimized_weights_Q - \
+                    #     np.mean(optimized_weights_Q[-144:])
 
                     #using boxcar filter to smoothen weight functions
                     # print('implemented filter')

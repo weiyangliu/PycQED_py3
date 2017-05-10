@@ -653,10 +653,10 @@ def mixer_skewness_cal_UHFQC_adaptive(UHFQC, SH, source, AWG,
     LutMan.render_wave('M_ModBlock', time_unit='ns')
     # divide instead of multiply by 1e-9 because of rounding errs
     S1 = swf.UHFQC_Lutman_par_with_reload(LutMan,
-                                        LutMan.mixer_QI_amp_ratio,
+                                        LutMan.mixer_alpha,
                                         ['M_ModBlock'], run=True, single=False)
     S2 =swf.UHFQC_Lutman_par_with_reload(LutMan,
-                                         LutMan.mixer_IQ_phase_skewness,
+                                         LutMan.mixer_phi,
                                         ['M_ModBlock'], run=True, single=False)
 
     detector = det.Signal_Hound_fixed_frequency(
