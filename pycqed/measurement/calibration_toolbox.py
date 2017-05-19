@@ -649,7 +649,7 @@ def mixer_skewness_cal_UHFQC_adaptive(UHFQC, SH, source, AWG,
     #  Ensure that the block is 4 periods of the modulation freq
     #  Ensure that the block is 4 periods of the modulation freq
     LutMan.M_block_length.set(960e-9)  # in ns
-    LutMan.M_ampCW.set(0.2)
+    LutMan.M_ampCW.set(0.4)
     LutMan.render_wave('M_ModBlock', time_unit='ns')
     # divide instead of multiply by 1e-9 because of rounding errs
     S1 = swf.UHFQC_Lutman_par_with_reload(LutMan,

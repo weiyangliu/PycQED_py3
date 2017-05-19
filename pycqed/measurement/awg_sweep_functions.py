@@ -1623,7 +1623,7 @@ class AllXY_premsmt(swf.Hard_Sweep):
 
 class Ramsey_premsmt(swf.Hard_Sweep):
 
-    def __init__(self, pulse_pars, RO_pars0, RO_pars1, upload=True):
+    def __init__(self, pulse_pars, RO_pars0, RO_pars1, upload=True, one_sweep_point=False):
         super().__init__()
         self.pulse_pars = pulse_pars
         self.RO_pars0 = RO_pars0
@@ -1632,10 +1632,17 @@ class Ramsey_premsmt(swf.Hard_Sweep):
         self.unit = 'degrees'
         self.parameter_name = 'phase'
         self.name = 'Ramsey_premsmt'
+        self.one_sweep_point=one_sweep_point
 
     def prepare(self, **kw):
         if self.upload:
-            sqs.Ramsey_premsmt_seq(phases=self.sweep_points,
-                                   pulse_pars=self.pulse_pars,
-                          RO_pars0=self.RO_pars0,
-                          RO_pars1=self.RO_pars1)
+            if self.one_sweep_point:
+                sqs.Ramsey_premsmt_seq(phases=[0,1],
+                                       pulse_pars=self.pulse_pars,
+                              RO_pars0=self.RO_pars0,
+                              RO_pars1=self.RO_pars1)
+            else:
+                sqs.Ramsey_premsmt_seq(phases=self.sweep_points,
+                                       pulse_pars=self.pulse_pars,
+                              RO_pars0=self.RO_pars0,
+                              RO_pars1=self.RO_pars1)

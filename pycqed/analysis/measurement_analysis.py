@@ -3874,8 +3874,8 @@ class Homodyne_Analysis(MeasurementAnalysis):
                           fit_res.params['Q'].value,
                           fit_res.params['Q'].stderr)
 
-        ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
-                verticalalignment='top', bbox=self.box_props)
+        # ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
+        #         verticalalignment='top', bbox=self.box_props)
 
         if 'hanger' in fitting_model:
             self.plot_results_vs_sweepparam(x=self.sweep_points,
