@@ -4401,7 +4401,7 @@ class TwoD_Analysis(MeasurementAnalysis):
         close_file = kw.pop('close_file', True)
 
         self.get_naming_and_values_2D()
-        self.fig_array = []
+        self.fig_array = []       
         self.ax_array = []
 
         for i, meas_vals in enumerate(self.measured_values):
@@ -5834,6 +5834,6 @@ class IVcurve(MeasurementAnalysis):
         self.ax.legend(loc='best')
         self.ax.set_title('%s: IV curve' % (self.timestamp_string))
         self.ax.set_xlabel(self.sweep_name)
-        self.ax.set_ylabel('Resistance (Ohm)')
+        self.ax.set_ylabel('Voltage (V)')
 
         self.save_fig(self.fig, fig_tight=False, **kw)
