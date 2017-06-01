@@ -378,7 +378,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             # self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(
             #     f_RO_mod=self.f_RO_mod(), RO_amp=self.RO_amp(),
             # RO_pulse_length=self.RO_pulse_length(), acquisition_delay=270e-9)
-        elif self.RO_pulse_type.get() is 'Gated_MW_RO_pulse':
+        else:
             self.RF_RO_source.get_instr().pulsemod_state('On')
             self.RF_RO_source.get_instr().frequency(self.f_RO.get())
             self.RF_RO_source.get_instr().power(self.RO_pulse_power.get())
@@ -556,8 +556,8 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         """
 
         self.prepare_for_pulsed_spec()
-        self.heterodyne_instr.auto_seq_loading(False) #prevent HS from overwriting 5014 sequence
-        self.heterodyne_instr._awg_seq_parameters_changed = False #prevent HS from overwriting weight functions each probe call
+        self.heterodyne_instr.get_instr().auto_seq_loading(False) #prevent HS from overwriting 5014 sequence
+        self.heterodyne_instr.get_instr()._awg_seq_parameters_changed = False #prevent HS from overwriting weight functions each probe call
 
         self.cw_source.get_instr().pulsemod_state.set('On')
         self.cw_source.get_instr().power.set(self.spec_pow_pulsed.get())

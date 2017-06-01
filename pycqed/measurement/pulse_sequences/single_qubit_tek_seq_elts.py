@@ -828,7 +828,7 @@ def AllXY_premsmt_seq(pulse_pars, RO_pars0, RO_pars1, preparation=['I'],
         return seq_name
 
 def Ramsey_premsmt_seq(phases, pulse_pars, RO_pars0, RO_pars1, verbose=False,
-                       upload=True, return_seq=False):
+                       upload=True, cal_points=True, return_seq=False):
     '''
     Ramsey sequence with premeasurements for a single qubit using the tektronix.
     SSB_Drag pulse is used for driving, simple modualtion used for RO
@@ -851,10 +851,17 @@ def Ramsey_premsmt_seq(phases, pulse_pars, RO_pars0, RO_pars1, verbose=False,
     # pulse_pars_x2['refpoint'] = 'start'
     for i, phase in enumerate(phases):
         pulse_pars_x2['phase'] = phase
-        pulse_list = [pulses['X90'], RO_pars0, pulse_pars_x2, RO_pars1]
+        if cal_points and (i == (len(phases)-4) or i == (len(phases)-3)):
+            pulse_list = [RO_pars0, pulses['I'], RO_pars1]
+        elif cal_points and (i == (len(phases)-2) or i == (len(phases)-1)):
+            pulse_list = [RO_pars0, pulses['X180'], RO_pars1]
+        else:
+            pulse_list = [pulses['X90'], RO_pars0, pulse_pars_x2, RO_pars1]
+
         el = multi_pulse_elt(i, station, pulse_list)
         el_list.append(el)
         seq.append_element(el, trigger_wait=True)
+
     if upload:
         station.components['AWG'].stop()
         station.pulsar.program_awg(seq, *el_list, verbose=verbose)

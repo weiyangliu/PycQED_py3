@@ -1137,7 +1137,7 @@ class chevron_optimization_v2(TD_Analysis):
 
 class Rabi_Analysis(TD_Analysis):
 
-    def __init__(self, label='Rabi',print_amp180=False, fixed_amp180=False, **kw):
+    def __init__(self, label='Rabi', print_amp180=False, fixed_amp180=False, **kw):
         kw['label'] = label
         kw['h5mode'] = 'r+'
         self.print_amp180 = print_amp180
@@ -2783,9 +2783,10 @@ class T1_Analysis(TD_Analysis):
 
 class Ramsey_Analysis(TD_Analysis):
 
-    def __init__(self, label='Ramsey', **kw):
+    def __init__(self, label='Ramsey', phase_sweep_only=False, **kw):
         kw['label'] = label
         kw['h5mode'] = 'r+'
+        self.phase_sweep_only = phase_sweep_only
         super(self.__class__, self).__init__(**kw)
 
     def fit_Ramsey(self, print_fit_results=False):
@@ -2802,64 +2803,83 @@ class Ramsey_Analysis(TD_Analysis):
         freq_est = fft_axis_scaling*index_of_fourier_maximum
         est_number_of_periods = index_of_fourier_maximum
 
-        if ((average > 0.7*max(self.normalized_data_points)) or
-                (est_number_of_periods < 2) or
-                est_number_of_periods > len(ft_of_data)/2.):
-            print('the trace is too short to find multiple periods')
-
-            if print_fit_results:
-                print('Setting frequency to 0 and ' +
-                      'fitting with decaying exponential.')
+        if self.phase_sweep_only:
             damped_osc_mod.set_param_hint('frequency',
-                                          value=freq_est,
+                                          value=1/360,
                                           vary=False)
             damped_osc_mod.set_param_hint('phase',
+                                          value=0, vary=True)
+            damped_osc_mod.set_param_hint('amplitude',
+                                          value=0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)),
+                                          min=0.0, max=4.0)
+            damped_osc_mod.set_param_hint('tau',
+
+
+        else:
+            if ((average > 0.7*max(self.normalized_data_points)) or
+                    (est_number_of_periods < 2) or
+                    est_number_of_periods > len(ft_of_data)/2.):
+                print('the trace is too short to find multiple periods')
+
+                if print_fit_results:
+                    print('Setting frequency to 0 and ' +
+                          'fitting with decaying exponential.')
+                damped_osc_mod.set_param_hint('frequency',
+                                              value=freq_est,
+                                              vary=False)
+                damped_osc_mod.set_param_hint('phase',
+                                              value=0, vary=False)
+            else:
+                damped_osc_mod.set_param_hint('frequency',
+                                              value=freq_est,
+                                              vary=True,
+                                              min=(1/(100 *
+                                                      self.sweep_points[-1])),
+                                              max=(20/self.sweep_points[-1]))
+
+            amplitude_guess = 1
+            damped_osc_mod.set_param_hint('amplitude',
+                                          value=amplitude_guess,
+                                          min=0.4, max=4.0)
+
+            if (np.average(self.normalized_data_points[:4]) >
+                    np.average(self.normalized_data_points[4:8])):
+                phase_estimate = 0
+            else:
+                phase_estimate = np.pi
+
+            damped_osc_mod.set_param_hint('phase',
+                                          value=phase_estimate, vary=True)
+
+            damped_osc_mod.set_param_hint('tau',
+                                          value=self.norm_sweep_points[1]*10,
+                                          min=self.norm_sweep_points[1],
+                                          max=self.norm_sweep_points[1]*1000)
+
+            damped_osc_mod.set_param_hint('exponential_offset',
+                                          value=0.5,
+                                          min=0.4, max=4.0)
+            damped_osc_mod.set_param_hint('oscillation_offset',
                                           value=0, vary=False)
-        else:
-            damped_osc_mod.set_param_hint('frequency',
-                                          value=freq_est,
-                                          vary=True,
-                                          min=(1/(100 *
-                                                  self.sweep_points[-1])),
-                                          max=(20/self.sweep_points[-1]))
 
-        amplitude_guess = 1
-        damped_osc_mod.set_param_hint('amplitude',
-                                      value=amplitude_guess,
-                                      min=0.4, max=4.0)
-
-        if (np.average(self.normalized_data_points[:4]) >
-                np.average(self.normalized_data_points[4:8])):
-            phase_estimate = 0
-        else:
-            phase_estimate = np.pi
-
-        damped_osc_mod.set_param_hint('phase',
-                                      value=phase_estimate, vary=True)
-
-        damped_osc_mod.set_param_hint('tau',
-                                      value=self.norm_sweep_points[1]*10,
-                                      min=self.norm_sweep_points[1],
-                                      max=self.norm_sweep_points[1]*1000)
-
-        damped_osc_mod.set_param_hint('exponential_offset',
-                                      value=0.5,
-                                      min=0.4, max=4.0)
-        damped_osc_mod.set_param_hint('oscillation_offset',
-                                      value=0, vary=False)
-
-        damped_osc_mod.set_param_hint('n',
-                                      value=1,
-                                      vary=False)
+            damped_osc_mod.set_param_hint('n',
+                                          value=1,
+                                          vary=False)
         self.params = damped_osc_mod.make_params()
         fit_res = damped_osc_mod.fit(data=self.normalized_data_points,
                                      t=self.norm_sweep_points,
                                      params=self.params)
-        if fit_res.chisqr > .35:
+        print(fit_res.chisqr)
+        if self.phase_sweep_only:
+            chi_sqr_bound = 0
+        else:
+            chi_sqr_bound = 0.35
+
+        if fit_res.chisqr > chi_sqr_bound:
             logging.warning('Fit did not converge, varying phase')
             fit_res_lst = []
 
-            for phase_estimate in np.linspace(0, 2*np.pi, 8):
+            for phase_estimate in np.linspace(0, 2*np.pi*7/8, 7):
                 damped_osc_mod.set_param_hint('phase',
                                               value=phase_estimate)
                 self.params = damped_osc_mod.make_params()
@@ -2875,6 +2895,9 @@ class Ramsey_Analysis(TD_Analysis):
             print(fit_res.fit_report())
         return fit_res
 
+
+
+
     def plot_results(self, fig, ax, fit_res, ylabel, show_guess=False):
         textstr = ('  $f$  \t= %.3g $ \t \pm$ (%.3g) Hz'
                    % (fit_res.params['frequency'].value,
@@ -2882,15 +2905,24 @@ class Ramsey_Analysis(TD_Analysis):
                    '\n$T_2^\star$ = %.3g $\t \pm$ (%.3g) s '
                    % (fit_res.params['tau'].value,
                       fit_res.params['tau'].stderr))
-        ax.text(0.4, 0.95, textstr,
-                transform=ax.transAxes, fontsize=11,
-                verticalalignment='top', bbox=self.box_props)
-        self.plot_results_vs_sweepparam(x=self.sweep_points*1e6,
-                                        y=self.normalized_values,
-                                        fig=fig, ax=ax,
-                                        xlabel=r'Time ($\mu s$)',
-                                        ylabel=ylabel,
-                                        save=False)
+        if self.phase_sweep_only:
+            self.plot_results_vs_sweepparam(x=self.sweep_points,
+                                y=self.normalized_values,
+                                fig=fig, ax=ax,
+                                xlabel=r'Phase ($\circ$)',
+                                ylabel=ylabel,
+                                save=False)
+        else:
+            self.plot_results_vs_sweepparam(x=self.sweep_points*1e6,
+                                y=self.normalized_values,
+                                fig=fig, ax=ax,
+                                xlabel=r'Time ($\mu s$)',
+                                ylabel=ylabel,
+                                save=False)
+            ax.text(0.4, 0.95, textstr,
+                    transform=ax.transAxes, fontsize=11,
+                    verticalalignment='top', bbox=self.box_props)
+
 
         x = np.linspace(self.norm_sweep_points[0],
                         self.norm_sweep_points[-1],
@@ -2908,7 +2940,10 @@ class Ramsey_Analysis(TD_Analysis):
             amplitude=best_vals['amplitude'],
             oscillation_offset=best_vals['oscillation_offset'],
             exponential_offset=best_vals['exponential_offset'])
-        ax.plot(x*1e6, y, 'r-')
+        if self.phase_sweep_only:
+            ax.plot(x, y, 'r-')
+        else:
+            ax.plot(x*1e6, y, 'r-')
 
     def run_default_analysis(self, print_fit_results=False, **kw):
 
@@ -4099,10 +4134,10 @@ class Hanger_Analysis_CosBackground(MeasurementAnalysis):
             print(fit_res.fit_report())
 
         fig, ax = self.default_ax()
-        # textstr = '$f_{\mathrm{center}}$ = %.4f $\pm$ (%.3g) GHz' % (
-        #     fit_res.params['f0'].value, fit_res.params['f0'].stderr)
-        # ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
-        # verticalalignment='top', bbox=self.box_props)
+        textstr = '$f_{\mathrm{center}}$ = %.4f $\pm$ (%.3g) GHz' % (
+            fit_res.params['f0'].value, fit_res.params['f0'].stderr)
+        ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=11,
+        verticalalignment='top', bbox=self.box_props)
         self.plot_results_vs_sweepparam(x=self.sweep_points,
                                         y=self.measured_powers,
                                         fig=fig, ax=ax,
