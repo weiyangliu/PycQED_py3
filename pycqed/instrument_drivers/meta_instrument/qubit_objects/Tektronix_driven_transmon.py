@@ -753,6 +753,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             analyze=analyze,
             raw=no_fits,
             MC=MC,
+            Qubit_LO=self.td_source.get_instr(),
             AWG=self.AWG.get_instr(), acquisition_instr=self._acquisition_instr,
             pulse_pars=self.pulse_pars, RO_pars=self.RO_pars, IF=self.f_RO_mod(),
             weight_function_I=self.RO_acq_weight_function_I(),

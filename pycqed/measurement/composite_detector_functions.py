@@ -79,7 +79,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
     For Qcodes. Readout with CBox, UHFLI, DDM, pulse generation with 5014
     '''
 
-    def __init__(self, measurement_name,  MC, AWG, acquisition_instr,
+    def __init__(self, measurement_name,  MC, AWG, acquisition_instr, Qubit_LO,
                  pulse_pars, RO_pars, raw=True, analyze=True, upload=True,
                  IF=None, weight_function_I=0, weight_function_Q=1,
                  optimized_weights=False, one_weight_function_UHFQC=False,
@@ -113,6 +113,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
         self.IF = IF
         self.nr_shots = nr_shots
         self.thresholded = thresholded #only used for DDM
+        self.Qubit_LO = Qubit_LO
 
         if 'CBox' in str(self.acquisition_instr):
             self.CBox = self.acquisition_instr
@@ -290,6 +291,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                                 self.weight_function_I, self.weight_function_Q]
                     #copy pasted from input average prepare
                     self.UHFQC.quex_iavg_length(self.nr_samples)
+                    self.MC.soft_avg(8)
                     self.UHFQC.quex_iavg_avgcnt(int(np.log2(self.nr_averages)))
                     self.UHFQC.awgs_0_userregs_1(1)  # 0 for rl, 1 for iavg
                     self.UHFQC.awgs_0_userregs_0(
@@ -303,9 +305,10 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     SWF = awg_swf.OffOn(
                         pulse_pars=self.pulse_pars,
                         RO_pars=self.RO_pars,
-                        pulse_comb='OffOff',
+                        pulse_comb='OnOn',
                         nr_samples=self.nr_samples)
                     SWF.prepare()
+                    self.Qubit_LO.off()
                     if self.AWG is not None:
                         self.AWG.stop()
 
@@ -313,6 +316,7 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     self.UHFQC.quex_rl_readout(0) # resets UHFQC internal readout counters
                     self.UHFQC.acquisition_arm()
                     # starting AWG
+
                     if self.AWG is not None:
                         self.AWG.start()
 
@@ -322,15 +326,16 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     if self.AWG is not None:
                         self.AWG.stop()
                     #calculating transients
-                    transient0_I = data[0]
-                    transient0_Q = data[1]
+                    transient0_I = data[0]-np.mean(data[0][-1024:])
+                    transient0_Q = data[1]-np.mean(data[1][-1024:])
 
-                    SWF = awg_swf.OffOn(
-                        pulse_pars=self.pulse_pars,
-                        RO_pars=self.RO_pars,
-                        pulse_comb='OnOn',
-                        nr_samples=self.nr_samples)
-                    SWF.prepare()
+                    # SWF = awg_swf.OffOn(
+                    #     pulse_pars=self.pulse_pars,
+                    #     RO_pars=self.RO_pars,
+                    #     pulse_comb='OnOn',
+                    #     nr_samples=self.nr_samples)
+                    # SWF.prepare()
+                    self.Qubit_LO.on()
 
                      #get values detector
                     self.UHFQC.quex_rl_readout(0) # resets UHFQC internal readout counters
@@ -346,13 +351,17 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                         self.AWG.stop()
                     data = np.array([data_raw[key] for key in data_raw.keys()])
 
+
+                    self.MC.soft_avg(1)
                     #calculating transients
-                    transient1_I = data[0]
-                    transient1_Q = data[1]
+                    transient1_I = data[0]-np.mean(data[0][-1024:])
+                    transient1_Q = data[1]-np.mean(data[1][-1024:])
 
                     #constructing the raw weight function
                     optimized_weights_I = (transient1_I-transient0_I)
                     optimized_weights_Q = (transient1_Q-transient0_Q)
+
+
 
                     #offset subtraction
                     # optimized_weights_I = optimized_weights_I - \

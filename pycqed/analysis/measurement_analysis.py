@@ -2813,6 +2813,7 @@ class Ramsey_Analysis(TD_Analysis):
                                           value=0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)),
                                           min=0.0, max=4.0)
             damped_osc_mod.set_param_hint('tau',
+                                          value=1000000000, vary=False)
 
 
         else:
@@ -2856,13 +2857,13 @@ class Ramsey_Analysis(TD_Analysis):
                                           min=self.norm_sweep_points[1],
                                           max=self.norm_sweep_points[1]*1000)
 
-            damped_osc_mod.set_param_hint('exponential_offset',
+        damped_osc_mod.set_param_hint('exponential_offset',
                                           value=0.5,
                                           min=0.4, max=4.0)
-            damped_osc_mod.set_param_hint('oscillation_offset',
+        damped_osc_mod.set_param_hint('oscillation_offset',
                                           value=0, vary=False)
 
-            damped_osc_mod.set_param_hint('n',
+        damped_osc_mod.set_param_hint('n',
                                           value=1,
                                           vary=False)
         self.params = damped_osc_mod.make_params()
