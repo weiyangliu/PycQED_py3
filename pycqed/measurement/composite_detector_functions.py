@@ -291,7 +291,6 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                                 self.weight_function_I, self.weight_function_Q]
                     #copy pasted from input average prepare
                     self.UHFQC.quex_iavg_length(self.nr_samples)
-                    self.MC.soft_avg(8)
                     self.UHFQC.quex_iavg_avgcnt(int(np.log2(self.nr_averages)))
                     self.UHFQC.awgs_0_userregs_1(1)  # 0 for rl, 1 for iavg
                     self.UHFQC.awgs_0_userregs_0(
@@ -326,8 +325,8 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     if self.AWG is not None:
                         self.AWG.stop()
                     #calculating transients
-                    transient0_I = data[0]-np.mean(data[0][-1024:])
-                    transient0_Q = data[1]-np.mean(data[1][-1024:])
+                    transient0_I = data[0]-np.mean(data[0][-720:])
+                    transient0_Q = data[1]-np.mean(data[1][-720:])
 
                     # SWF = awg_swf.OffOn(
                     #     pulse_pars=self.pulse_pars,
@@ -352,7 +351,6 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                     data = np.array([data_raw[key] for key in data_raw.keys()])
 
 
-                    self.MC.soft_avg(1)
                     #calculating transients
                     transient1_I = data[0]-np.mean(data[0][-1024:])
                     transient1_Q = data[1]-np.mean(data[1][-1024:])

@@ -813,34 +813,38 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                            analyze=True,
                            close_fig=True,
                            verbose=True,
-                           nr_samples=512):
+                           nr_samples=512, upload=True):
 
         self.prepare_for_timedomain()
         if MC is None:
             MC = self.MC.get_instr()
-
+        self.td_source.get_instr().off()
         self.MC.get_instr().set_sweep_function(awg_swf.OffOn(pulse_pars=self.pulse_pars,
                                                              RO_pars=self.RO_pars,
-                                                             pulse_comb='OffOff',
-                                                             nr_samples=nr_samples))
+                                                             pulse_comb='OnOn',
+                                                             nr_samples=nr_samples, upload=upload))
         self.MC.get_instr().set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
+
 
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
             'Measure_transients_{}_ground'.format(self.msmt_suffix))
         a0 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
+        self.td_source.get_instr().on()
         self.MC.get_instr().set_sweep_function(awg_swf.OffOn(pulse_pars=self.pulse_pars,
                                                              RO_pars=self.RO_pars,
                                                              pulse_comb='OnOn',
-                                                             nr_samples=nr_samples))
-        # self.MC.get_instr().set_sweep_points(np.arange(nr_samples))
+                                                             nr_samples=nr_samples, upload=False))
+        self.MC.get_instr().set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
 
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
             'Measure_transients_{}_excited'.format(self.msmt_suffix))
         a1 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
+
+
 
     def measure_rb_vs_amp(self, amps, nr_cliff=1,
                           resetless=True,
