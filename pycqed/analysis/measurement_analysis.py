@@ -1772,10 +1772,12 @@ class SSRO_Analysis(MeasurementAnalysis):
                              sample_1=1,
                              channels=['I', 'Q'],
                              no_fits=False,
-                             print_fit_results=False, **kw):
+                             print_fit_results=False, peg=None, pge=None,**kw):
 
         self.add_analysis_datagroup_to_file()
         self.no_fits = no_fits
+        self.pge=pge #fixed fraction of ground state in the excited state histogram (relaxation)
+        self.peg=peg #fixed fraction of excited state in the ground state hitogram (residual population)
         self.get_naming_and_values()
         # plotting histograms of the raw shots on I and Q axis
 
@@ -2174,8 +2176,10 @@ class SSRO_Analysis(MeasurementAnalysis):
         NormCdf2Model.set_param_hint('mu1', value=np.average(shots_I_1_rot))
         NormCdf2Model.set_param_hint(
             'sigma1', value=np.std(shots_I_1_rot), min=0)
-        NormCdf2Model.set_param_hint('frac1', value=0.9, min=0, max=1)
-
+        if self.pge==None:
+            NormCdf2Model.set_param_hint('frac1', value=0.9, min=0, max=1)
+        else:
+            NormCdf2Model.set_param_hint('frac1', value=1-self.pge, vary=False)
         # performing the double gaussfits of on 1 data
         params = NormCdf2Model.make_params()
         fit_res_double_1 = NormCdf2Model.fit(
@@ -2197,8 +2201,12 @@ class SSRO_Analysis(MeasurementAnalysis):
         NormCdf2Model.set_param_hint('mu1', value=mu1_1, vary=False)
         NormCdf2Model.set_param_hint(
             'sigma1', value=sigma1_1, min=0, vary=False)
-        NormCdf2Model.set_param_hint(
-            'frac1', value=0.025, min=0, max=1, vary=True)
+        if self.peg==None:
+            NormCdf2Model.set_param_hint(
+                'frac1', value=0.025, min=0, max=1, vary=True)
+        else:
+            NormCdf2Model.set_param_hint(
+                'frac1', value=self.peg,vary=False)
 
         params = NormCdf2Model.make_params()
         fit_res_double_0 = NormCdf2Model.fit(
@@ -2212,7 +2220,7 @@ class SSRO_Analysis(MeasurementAnalysis):
         mu0_0 = fit_res_double_0.params['mu0'].value
         mu1_0 = fit_res_double_0.params['mu1'].value
         frac1_0 = fit_res_double_0.params['frac1'].value
-        print('frac1 in 0: {:.4f}'.format(frac1_0))
+        #print('frac1 in 0: {:.4f}'.format(frac1_0))
 
         def NormCdf(x, mu, sigma):
             t = x-mu
@@ -2299,10 +2307,10 @@ class SSRO_Analysis(MeasurementAnalysis):
 
         # plotting the histograms
         fig, axes = plt.subplots(figsize=(8, 4))
-        n1, bins1, patches = pylab.hist(shots_I_1_rot, bins=int(min_len/50),
+        n1, bins1, patches = pylab.hist(shots_I_1_rot, bins=int(min_len/500),
                                         label='1 I', histtype='step',
                                         color='red', normed=True)
-        n0, bins0, patches = pylab.hist(shots_I_0_rot, bins=int(min_len/50),
+        n0, bins0, patches = pylab.hist(shots_I_0_rot, bins=int(min_len/500),
                                         label='0 I', histtype='step',
                                         color='blue', normed=True)
         pylab.clf()
@@ -2333,15 +2341,15 @@ class SSRO_Analysis(MeasurementAnalysis):
         y0_1 = (1-frac1_1)*pylab.normpdf(bins1, mu0_1, sigma0_1)
 
         pylab.semilogy(bins0, y0, 'b', linewidth=1.5)
-        pylab.semilogy(bins0, y1_0, 'b--', linewidth=3.5)
-        pylab.semilogy(bins0, y0_0, 'b--', linewidth=3.5)
+        pylab.semilogy(bins0, y1_0, 'b--', linewidth=1.5)
+        pylab.semilogy(bins0, y0_0, 'b--', linewidth=1.5)
 
         pylab.semilogy(bins1, y1, 'r', linewidth=1.5)
-        pylab.semilogy(bins1, y0_1, 'r--', linewidth=3.5)
-        pylab.semilogy(bins1, y1_1, 'r--', linewidth=3.5)
+        pylab.semilogy(bins1, y0_1, 'r--', linewidth=1.5)
+        pylab.semilogy(bins1, y1_1, 'r--', linewidth=1.5)
         #(pylab.gca()).set_ylim(1e-6,1e-3)
         pdf_max = (max(max(y0), max(y1)))
-        (pylab.gca()).set_ylim(pdf_max/1000, 2*pdf_max)
+        (pylab.gca()).set_ylim(pdf_max/100, 2*pdf_max)
 
         plt.title('Histograms of {} shots, {}'.format(
             min_len, self.timestamp_string))
@@ -2870,14 +2878,15 @@ class Ramsey_Analysis(TD_Analysis):
         fit_res = damped_osc_mod.fit(data=self.normalized_data_points,
                                      t=self.norm_sweep_points,
                                      params=self.params)
-        print(fit_res.chisqr)
+        #print(fit_res.chisqr)
         if self.phase_sweep_only:
             chi_sqr_bound = 0
         else:
             chi_sqr_bound = 0.35
 
         if fit_res.chisqr > chi_sqr_bound:
-            logging.warning('Fit did not converge, varying phase')
+            if not self.phase_sweep_only:
+                logging.warning('Fit did not converge, varying phase')
             fit_res_lst = []
 
             for phase_estimate in np.linspace(0, 2*np.pi*7/8, 7):

@@ -84,15 +84,7 @@
     "float"
   ],
   [
-    "sigins/0/autorange",
-    "float"
-  ],
-  [
     "sigins/1/min",
-    "float"
-  ],
-  [
-    "sigins/1/autorange",
     "float"
   ],
   [

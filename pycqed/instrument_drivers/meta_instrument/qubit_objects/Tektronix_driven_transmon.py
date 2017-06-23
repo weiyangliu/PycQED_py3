@@ -282,16 +282,17 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self.heterodyne_instr.get_instr()._disable_auto_seq_loading = False
 
-        self.heterodyne_instr.get_instr().RF.on()
         self.heterodyne_instr.get_instr().LO.on()
         if hasattr(self.heterodyne_instr.get_instr(), 'mod_amp'):
             self.heterodyne_instr.get_instr().set('mod_amp', self.mod_amp_cw.get())
         else:
             self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
+            self.heterodyne_instr.get_instr().RF.on()
+
+
         self.heterodyne_instr.get_instr().set('f_RO_mod', self.f_RO_mod.get())
         self.heterodyne_instr.get_instr().frequency.set(RO_freq)
-        self.heterodyne_instr.get_instr().RF.power(self.RO_power_cw())
-        self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
+
         self.heterodyne_instr.get_instr().nr_averages(self.RO_acq_averages())
         # Turning of TD source
         if self.td_source.get_instr() is not None:

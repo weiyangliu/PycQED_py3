@@ -437,3 +437,33 @@ class UHFQC_Lutman_par_with_reload(Soft_Sweep):
         self.LutMan.load_pulse_onto_AWG_lookuptable(self.pulse_name)
         if self.run:
             self.LutMan.UHFQC.acquisition_arm(single=self.single)
+
+class HS_modulated_RO_amp_squared(Soft_Sweep):
+    def __init__(self, HS):
+        '''
+        Generic sweep function that combines setting a LutMan parameter
+        with reloading lookuptables.
+        '''
+        super().__init__()
+        self.HS = HS
+        self.name = 'RO_amp_squared'
+        self.parameter_name = 'RO_amp_squared'
+        self.unit = 'V^2'
+
+    def set_parameter(self, val):
+        self.HS.mod_amp(val**2)
+
+class HS_modulated_RO_power_dBFS(Soft_Sweep):
+    def __init__(self, HS):
+        '''
+        Generic sweep function that combines setting a LutMan parameter
+        with reloading lookuptables.
+        '''
+        super().__init__()
+        self.HS = HS
+        self.name = 'RO_power'
+        self.parameter_name = 'RO_power'
+        self.unit = 'dBFS'
+
+    def set_parameter(self, val):
+        self.HS.mod_amp(10**(val/20))

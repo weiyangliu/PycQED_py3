@@ -580,17 +580,22 @@ class LO_modulated_Heterodyne(HeterodyneInstrument):
                 IF=self.f_RO_mod(), weight_function_I=0, weight_function_Q=1)
         # this sets the result to integration and rotation outcome
         self._acquisition_instr.quex_rl_source(2)
+        # only one sample to average over
         self._acquisition_instr.quex_rl_length(1)
         self._acquisition_instr.quex_rl_avgcnt(
-             int(np.log2(self.nr_averages())))
-        self._acquisition_instr.quex_wint_length(int(self.RO_length()*1.8e9))
-        # The AWG program uses userregs/0 to define the number of
+            int(np.log2(self.nr_averages())))
+        self._acquisition_instr.quex_wint_length(
+            int(self.RO_length()*1.8e9))
+        # Configure the result logger to not do any averaging
+        # The AWG program uses userregs/0 to define the number o
         # iterations in the loop
-        self._acquisition_instr.awgs_0_userregs_0(int(self.nr_averages()))
-        self._acquisition_instr.awgs_0_userregs_1(0) # 0 for rl, 1 for iavg
-        self._acquisition_instr.awgs_0_userregs_2(
-            int(self.acquisition_delay()*1.8e9/8))
-        self._acquisition_instr.awgs_0_single(1)
+        self._acquisition_instr.awgs_0_userregs_0(
+            int(self.nr_averages()))
+        self._acquisition_instr.awgs_0_userregs_1(0)  # 0 for rl, 1 for iavg
+        self._acquisition_instr.acquisition_initialize([0, 1], 'rl')
+        self.scale_factor_UHFQC = 1/(1.8e9*self.RO_length() *
+                                     int(self.nr_averages()))
+        self._UHFQC_awg_parameters_changed = False
 
     def probe_CBox(self):
         if self._awg_seq_parameters_changed:

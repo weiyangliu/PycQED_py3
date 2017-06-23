@@ -9,6 +9,7 @@ import unittest
 import matplotlib.pyplot as plt
 import imp
 from pycqed.analysis.fit_toolbox import functions as func
+import scipy as scipy
 
 imp.reload(PG)
 
@@ -74,6 +75,15 @@ class UHFQC_LookuptableManager(Instrument):
         self.add_parameter('mixer_apply_predistortion_matrix', vals=vals.Bool(),
                            parameter_class=ManualParameter,
                            initial_value=False)
+        self.add_parameter('bessel_filter_apply', vals=vals.Bool(),
+                           parameter_class=ManualParameter,
+                           initial_value=False)
+        self.add_parameter('bessel_filter_order', vals=vals.Numbers(),
+                           parameter_class=ManualParameter,
+                           initial_value=8)
+        self.add_parameter('bessel_filter_cutoff', vals=vals.Numbers(),unit='Hz',
+                           parameter_class=ManualParameter,
+                           initial_value=100e6)
         self.add_parameter('M_modulation', vals=vals.Numbers(), unit='Hz',
                            parameter_class=ManualParameter,
                            initial_value=20.0e6)
@@ -126,6 +136,7 @@ class UHFQC_LookuptableManager(Instrument):
         self.add_parameter('acquisition_delay', vals=vals.Numbers(), unit='ns',
                            parameter_class=ManualParameter,
                            initial_value=270e-9)
+
 
         # Set to a default because box is not expected to change
         self._voltage_min = -1.0
@@ -203,7 +214,7 @@ class UHFQC_LookuptableManager(Instrument):
                                 Q_phase_delay=0)
 
         # RO pulses
-        M = PG.block_pulse(self.get('M_amp'), self.M_length.get(),  # ns
+        M =PG.block_pulse(self.get('M_amp'), self.M_length.get(),  # ns
                            sampling_rate=self.get('sampling_rate'),
                            delay=0,
                            phase=self.get('M_phi'))
@@ -221,10 +232,14 @@ class UHFQC_LookuptableManager(Instrument):
         M_up_mid = (np.concatenate((M_up[0], M[0])),
                     np.concatenate((M_up[1], M[1])))
 
+
+
         Mod_M_up_mid = PG.mod_pulse(M_up_mid[0], M_up_mid[1],
                                     f_modulation=self.get('M_modulation'),
                                     sampling_rate=self.get('sampling_rate'),
                                     Q_phase_delay=0)
+
+
 
         # with ramp-up and double frequency depletion
         M_down0 = PG.block_pulse(self.get('M_down_amp0'), self.get('M_down_length'),  # ns
@@ -262,8 +277,16 @@ class UHFQC_LookuptableManager(Instrument):
 
         # 3-step pulse, similar to double frequency depletion but then
         # concatenated instead of simultaneously played.
-        Mod_3step = (np.concatenate((Mod_M_up_mid[0], Mod_M_down0[0], Mod_M_down1[0])),
-            np.concatenate((Mod_M_up_mid[1], Mod_M_down0[1], Mod_M_down1[1])))
+
+        #testing the bessel on this pulse only
+        M_3step = (np.concatenate((np.zeros(10),M_up_mid[0], M_down0[0], M_down1[0], np.zeros(10))),
+                    np.concatenate((np.zeros(10),M_up_mid[1], M_down0[1], M_down1[1], np.zeros(10))))
+
+        Mod_3step = self.bessel_filter(PG.mod_pulse(M_3step[0],
+                                  M_3step[1],
+                                   f_modulation=self.get('M_modulation'),
+                                   sampling_rate=self.get('sampling_rate'),
+                                   Q_phase_delay=0))
 
         self._wave_dict = {'I': Wave_I,
                            'X180': Wave_X_180, 'Y180': Wave_Y_180,
@@ -283,6 +306,15 @@ class UHFQC_LookuptableManager(Instrument):
                 self._wave_dict[key] = np.dot(M, val)
 
         return self._wave_dict
+
+    def bessel_filter(self, wave):
+        if self.bessel_filter_apply():
+            wave=np.array(wave)
+            b,a=scipy.signal.bessel(int(self.bessel_filter_order()), self.bessel_filter_cutoff()*2*np.pi/(1.8e9), btype='low', analog=False, output='ba')
+            wave_filtered = scipy.signal.filtfilt(b, a, wave)
+        else:
+            wave_filtered=wave
+        return wave_filtered
 
     def render_wave(self, wave_name, show=True, time_unit='lut_index',
                     reload_pulses=True):
