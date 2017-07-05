@@ -327,7 +327,7 @@ class HeterodyneInstrument(Instrument):
         # internally stored to allow setting RF from stored setting
 
     def _get_RF_power(self):
-        return self._RF_power
+        return self.RF.power()
 
     def _set_status(self, val):
         if val == 'On':

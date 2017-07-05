@@ -2820,8 +2820,12 @@ class Ramsey_Analysis(TD_Analysis):
             damped_osc_mod.set_param_hint('amplitude',
                                           value=0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)),
                                           min=0.0, max=4.0)
+            fixed_tau=1e9
             damped_osc_mod.set_param_hint('tau',
-                                          value=1000000000, vary=False)
+                                          value=fixed_tau,
+                                          vary=False,
+                                           min=0,
+                                           max=fixed_tau)
 
 
         else:
@@ -2859,11 +2863,11 @@ class Ramsey_Analysis(TD_Analysis):
 
             damped_osc_mod.set_param_hint('phase',
                                           value=phase_estimate, vary=True)
-
-            damped_osc_mod.set_param_hint('tau',
+            damped_osc_mod.set_param_hint('tau', vary=True,
                                           value=self.norm_sweep_points[1]*10,
                                           min=self.norm_sweep_points[1],
                                           max=self.norm_sweep_points[1]*1000)
+
 
         damped_osc_mod.set_param_hint('exponential_offset',
                                           value=0.5,

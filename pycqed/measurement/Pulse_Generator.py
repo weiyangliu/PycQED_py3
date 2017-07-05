@@ -72,6 +72,7 @@ def block_pulse(amp, length, sampling_rate=2e8, delay=0, phase=0):
     pulse_Q = list(Zeros)+list(block_Q)
     return pulse_I, pulse_Q
 
+
 ####################
 # Pulse modulation #
 ####################

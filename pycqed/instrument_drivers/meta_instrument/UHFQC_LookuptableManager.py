@@ -288,6 +288,48 @@ class UHFQC_LookuptableManager(Instrument):
                                    sampling_rate=self.get('sampling_rate'),
                                    Q_phase_delay=0))
 
+        #amsterdam houses, fixed length of 600 ns +2*200 ns depletion
+        unitlength=36 #samples = 20ns
+
+        ams_sc_base=0.4
+        ams_sc_step=0.07
+        ams_sc_I,ams_sc_Q =self.ams_sc(self.M_amp(),unitlength, ams_sc_base, ams_sc_step, phase=self.get('M_phi'))
+
+        # ams_clock_base=0.6
+        # ams_clock_delta=0.2
+        # ams_clock_I,ams_clock_Q =ams_clock(unitlength, ams_clock_base, ams_clock_delta)
+
+        ams_bottle_base=0.55
+        ams_bottle_delta=0.3
+        ams_bottle_I,ams_bottle_Q =self.ams_bottle(self.M_amp(),unitlength, ams_bottle_base, ams_bottle_delta, phase=self.M_phi())
+
+
+        ams_midup_base=0.75
+        ams_midup_delta=0.25
+        ams_midup_I,ams_midup_Q =self.ams_midup(self.M_amp(),unitlength, ams_midup_base, ams_midup_delta, phase=self.M_phi())
+
+        ams_bottle_base3=0.5
+        ams_bottle_delta3=0.1
+        ams_bottle3_I,ams_bottle3_Q =self.ams_bottle3(self.M_down_amp0(),unitlength, ams_bottle_base3, ams_bottle_delta3, phase=self.M_down_phi0())
+
+
+        ams_bottle_base2=0.7
+        ams_bottle_delta2=0.3
+        ams_bottle2_I,ams_bottle2_Q =self.ams_bottle2(self.M_down_amp1(),unitlength, ams_bottle_base2, ams_bottle_delta2, phase=self.M_down_phi1())
+
+        amsterdam_I=np.concatenate([np.zeros(10),ams_sc_I, ams_bottle_I,ams_midup_I, ams_bottle3_I,ams_bottle2_I,np.zeros(10)])
+        amsterdam_Q=np.concatenate([np.zeros(10),ams_sc_Q, ams_bottle_Q,ams_midup_Q, ams_bottle3_Q,ams_bottle2_Q,np.zeros(10)])
+
+        M_3step_ams = (amsterdam_I, amsterdam_Q)
+
+        Mod_3step_ams = self.bessel_filter(PG.mod_pulse(M_3step_ams[0],
+                                  M_3step_ams[1],
+                                   f_modulation=self.get('M_modulation'),
+                                   sampling_rate=self.get('sampling_rate'),
+                                   Q_phase_delay=0))
+
+
+
         self._wave_dict = {'I': Wave_I,
                            'X180': Wave_X_180, 'Y180': Wave_Y_180,
                            'X90': Wave_X_90, 'Y90': Wave_Y_90,
@@ -296,6 +338,7 @@ class UHFQC_LookuptableManager(Instrument):
                            'M_ModBlock': ModBlock,
                            'M_square': Mod_M,
                            'M_3step': Mod_3step,
+                           'M_3step_ams': Mod_3step_ams,
                            'M_up_mid': Mod_M_up_mid,
                            'M_up_mid_double_dep': Mod_M_up_mid_down
                            }
@@ -431,3 +474,75 @@ class UHFQC_LookuptableManager(Instrument):
         Q_wave = np.clip(wave_dict[pulse_name][1], self._voltage_min,
                          self._voltage_max)
         return I_wave, Q_wave
+
+
+        #Amsterdam houses functions
+    def ams_sc(self, amp, unitlength, ams_sc_base, ams_sc_step, phase):
+        ams_sc=ams_sc_base*np.ones(13*unitlength)+np.concatenate([0*np.ones(unitlength),
+                                                            ams_sc_step*np.ones(unitlength),
+                                                            2*ams_sc_step*np.ones(unitlength),
+                                                            3*ams_sc_step*np.ones(unitlength),
+                                                            4*ams_sc_step*np.ones(unitlength),
+                                                            5*ams_sc_step*np.ones(unitlength),
+                                                            6*ams_sc_step*np.ones(unitlength),
+                                                            5*ams_sc_step*np.ones(unitlength),
+                                                            4*ams_sc_step*np.ones(unitlength),
+                                                            3*ams_sc_step*np.ones(unitlength),
+                                                            2*ams_sc_step*np.ones(unitlength),
+                                                            ams_sc_step*np.ones(unitlength),
+                                                            0.0*np.ones(unitlength)])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_sc_I=ams_sc*amp_I
+        ams_sc_Q=ams_sc*amp_Q
+        return ams_sc_I, ams_sc_Q
+
+    def ams_clock(self, amp, unitlength, ams_clock_base, ams_clock_delta, phase):
+        ams_clock=ams_clock_base*np.ones(8*unitlength)+np.concatenate([np.linspace(0,ams_clock_delta, unitlength),
+                                                                       ams_clock_delta*np.ones(6*unitlength),
+                                                                       np.linspace(ams_clock_delta, 0, unitlength)  ])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_clock_I=ams_clock*amp_I
+        ams_clock_Q=ams_clock*amp_Q
+        return ams_clock_I, ams_clock_Q
+
+    def ams_bottle(self, amp, unitlength, ams_bottle_base, ams_bottle_delta, phase):
+        ams_bottle=ams_bottle_base*np.ones(8*unitlength)+np.concatenate([np.linspace(0,ams_bottle_delta, 3*unitlength)**4/ams_bottle_delta**3,
+                                                                         ams_bottle_delta*np.ones(2*unitlength),
+                                                                         np.linspace(ams_bottle_delta, 0,3*unitlength)**4/ams_bottle_delta**3])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_bottle_I=ams_bottle*amp_I
+        ams_bottle_Q=ams_bottle*amp_Q
+        return ams_bottle_I, ams_bottle_Q
+
+    def ams_bottle2(self, amp, unitlength, ams_bottle_base, ams_bottle_delta, phase):
+        ams_bottle=ams_bottle_base*np.ones(7*unitlength)+np.concatenate([np.linspace(0,ams_bottle_delta, 3*unitlength)**2/ams_bottle_delta**1,
+                                                                         ams_bottle_delta*np.ones(1*unitlength),
+                                                                         np.linspace(ams_bottle_delta, 0,3*unitlength)**2/ams_bottle_delta**1])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_bottle_I=ams_bottle*amp_I
+        ams_bottle_Q=ams_bottle*amp_Q
+        return ams_bottle_I, ams_bottle_Q
+
+    def ams_bottle3(self, amp, unitlength, ams_bottle_base, ams_bottle_delta, phase):
+        ams_bottle=ams_bottle_base*np.ones(13*unitlength)+np.concatenate([np.linspace(0,ams_bottle_delta, 6.5*unitlength),
+                                                                          np.linspace(ams_bottle_delta, 0,6.5*unitlength)])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_bottle_I=ams_bottle*amp_I
+        ams_bottle_Q=ams_bottle*amp_Q
+        return ams_bottle_I, ams_bottle_Q
+
+
+    def ams_midup(self, amp, unitlength, ams_midup_base, ams_midup_delta, phase):
+        ams_midup=ams_midup_base*np.ones(9*unitlength)+np.concatenate([0*np.ones(3*unitlength),
+                                                                       ams_midup_delta*np.ones(3*unitlength)+-0.03*np.linspace(-unitlength, unitlength, 3*unitlength)**2/unitlength**2,
+                                                                       0*np.ones(3*unitlength)])
+        amp_I = amp*np.cos(phase*2*np.pi/360)
+        amp_Q = amp*np.sin(phase*2*np.pi/360)
+        ams_mid_up_I=ams_midup*amp_I
+        ams_mid_up_Q=ams_midup*amp_Q
+        return ams_mid_up_I, ams_mid_up_Q
