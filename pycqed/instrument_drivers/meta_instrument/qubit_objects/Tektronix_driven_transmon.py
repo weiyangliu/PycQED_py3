@@ -46,7 +46,6 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         Depending on the RO_pulse_type some parameters are not used
     '''
 
-
     def __init__(self, name, **kw):
         super(CBox_driven_transmon, self).__init__(name, **kw)
         # Change this when inheriting directly from Transmon instead of
@@ -289,17 +288,16 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
             self.heterodyne_instr.get_instr().RF.on()
 
-
         self.heterodyne_instr.get_instr().set('f_RO_mod', self.f_RO_mod.get())
         self.heterodyne_instr.get_instr().frequency.set(RO_freq)
 
         self.heterodyne_instr.get_instr().nr_averages(self.RO_acq_averages())
         # Turning of TD source
-        if self.td_source.get_instr() is not None:
+        if self.td_source() is not 'None':
             self.td_source.get_instr().off()
 
         # Updating Spec source
-        if self.cw_source.get_instr() is not None:
+        if self.cw_source() is not 'None':
             self.cw_source.get_instr().power(self.spec_pow())
             self.cw_source.get_instr().frequency(self.f_qubit())
             self.cw_source.get_instr().off()
@@ -557,8 +555,10 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         """
 
         self.prepare_for_pulsed_spec()
-        self.heterodyne_instr.get_instr().auto_seq_loading(False) #prevent HS from overwriting 5014 sequence
-        self.heterodyne_instr.get_instr()._awg_seq_parameters_changed = False #prevent HS from overwriting weight functions each probe call
+        self.heterodyne_instr.get_instr().auto_seq_loading(
+            False)  # prevent HS from overwriting 5014 sequence
+        # prevent HS from overwriting weight functions each probe call
+        self.heterodyne_instr.get_instr()._awg_seq_parameters_changed = False
 
         self.cw_source.get_instr().pulsemod_state.set('On')
         self.cw_source.get_instr().power.set(self.spec_pow_pulsed.get())
@@ -827,7 +827,6 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.MC.get_instr().set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
 
-
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
             'Measure_transients_{}_ground'.format(self.msmt_suffix))
@@ -844,8 +843,6 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.MC.get_instr().run(
             'Measure_transients_{}_excited'.format(self.msmt_suffix))
         a1 = ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
-
-
 
     def measure_rb_vs_amp(self, amps, nr_cliff=1,
                           resetless=True,
@@ -998,28 +995,31 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self._acquisition_instr = self.find_instrument(acquisition_instr)
         if 'CBox' in acquisition_instr:
-            logging.info("setting CBox acquisition")
-            self.int_avg_det = det.CBox_integrated_average_detector(
-                self._acquisition_instr,
-                self.AWG.get_instr(),
-                nr_averages=self.RO_acq_averages(),
-                integration_length=self.RO_acq_integration_length(
-                ),
-                normalize=True)
-            self.int_avg_det_rot = det.CBox_integrated_average_detector(
-                self._acquisition_instr,
-                self.AWG.get_instr(),
-                nr_averages=self.RO_acq_averages(),
-                integration_length=self.RO_acq_integration_length(
-                ),
-                normalize=True)
-            self.int_log_det = det.CBox_integration_logging_det(
-                self._acquisition_instr,
-                self.AWG.get_instr(), integration_length=self.RO_acq_integration_length())
+            if self.AWG() != 'None':
+                logging.info("setting CBox acquisition")
+                print('starting int avg')
+                self.int_avg_det = det.CBox_integrated_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(),
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length(),
+                    normalize=True)
+                print('starting int avg rot')
+                self.int_avg_det_rot = det.CBox_integrated_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(),
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length(),
+                    normalize=True)
+                print('starting int log det')
+                self.int_log_det = det.CBox_integration_logging_det(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(), integration_length=self.RO_acq_integration_length())
 
-            self.input_average_detector = det.CBox_input_average_detector(
-                self._acquisition_instr,
-                self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
+                self.input_average_detector = det.CBox_input_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
+
 
         elif 'UHFQC' in acquisition_instr:
             logging.info("setting UHFQC acquisition")
