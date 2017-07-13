@@ -193,11 +193,12 @@ class SSRO_Fidelity_Detector_Tek(det.Soft_Detector):
                 if self.set_weight_functions:
                     if self.SSB:
                         self.DDM.prepare_SSB_weight_and_rotation(
-                            IF=-self.IF, weight_function_I=self.weight_function_I,
+                            IF=self.IF, weight_function_I=self.weight_function_I,
                             weight_function_Q=self.weight_function_Q)
+                        print('changed')
                     else:
                         self.DDM.prepare_DSB_weight_and_rotation(
-                            IF=-self.IF, weight_function_I=self.weight_function_I,
+                            IF=self.IF, weight_function_I=self.weight_function_I,
                             weight_function_Q=self.weight_function_Q)
 
                 #not yet implemented

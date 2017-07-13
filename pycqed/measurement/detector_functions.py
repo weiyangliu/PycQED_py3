@@ -1942,7 +1942,7 @@ class DDM_integrated_average_detector(Hard_Detector):
     '''
 
     def __init__(self, DDM, AWG, integration_length=1e-6, nr_averages=1024, rotate=False,
-                 channels=[1, 2, 3, 4, 5], crosstalk_suppression=False,
+                 channels=[1, 2, 3, 4, 5], cross_talk_suppression=False,
                  **kw):
         super(DDM_integrated_average_detector, self).__init__()
         self.DDM = DDM

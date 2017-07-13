@@ -1044,17 +1044,17 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             logging.info("setting DDM acquisition")
             self.input_average_detector = det.DDM_input_average_detector(
                 DDM=self._acquisition_instr,
-                AWG=self.AWG, nr_averages=self.RO_acq_averages())
+                AWG=self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
 
             self.int_avg_det = det.DDM_integrated_average_detector(
-                DDM=self._acquisition_instr, AWG=self.AWG,
+                DDM=self._acquisition_instr, AWG=self.AWG.get_instr(),
                 channels=[self.RO_acq_weight_function_I(),
                           self.RO_acq_weight_function_Q()],
                 nr_averages=self.RO_acq_averages(),
                 integration_length=self.RO_acq_integration_length())
 
             self.int_log_det = det.DDM_integration_logging_det(
-                DDM=self._acquisition_instr, AWG=self.AWG,
+                DDM=self._acquisition_instr, AWG=self.AWG.get_instr(),
                 channels=[self.RO_acq_weight_function_I(),
                           self.RO_acq_weight_function_Q()],
                 integration_length=self.RO_acq_integration_length())
