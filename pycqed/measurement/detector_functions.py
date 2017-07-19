@@ -1523,18 +1523,10 @@ class UHFQC_correlation_detector(UHFQC_integrated_average_detector):
         self.value_names = []
         for ch in channels:
             self.value_names += ['w{}'.format(ch)]
-<<<<<<< HEAD
-        # Note that V^2 is in brackets to prevent confusion with unit prefixes
-        if not thresholding:
-            self.value_units = ['V']*len(self.value_names) + \
-                               ['(V^2)']*len(self.correlations)
-        else:
-            self.value_units = ['counts']*len(self.value_names) + \
-                               ['normalized']*len(self.correlations)
-=======
+
         self.value_units = ['V'] * \
             len(self.value_names)+['V^2']*len(self.correlations)
->>>>>>> origin/master
+
         for corr in correlations:
             self.value_names += ['corr ({},{})'.format(corr[0], corr[1])]
 
@@ -1924,14 +1916,10 @@ class DDM_input_average_detector(Hard_Detector):
         self.nr_sweep_points = self.nr_samples
 
     def get_values(self):
-<<<<<<< HEAD
         if self.AWG is not None:
             self.AWG.stop()
         #arming DDM trigger
 
-=======
-        # arming DDM trigger
->>>>>>> origin/master
         self.DDM.ch_pair1_inavg_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
         # starting AWG
