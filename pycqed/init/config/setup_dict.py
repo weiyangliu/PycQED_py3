@@ -37,7 +37,8 @@ data_dir_dict = {'tud276606_FPGA_PC': 'D:\Experiments/CBox_Testing/Data',
                  'La_Vespa': 'D:\\Experiments\\161111_LaVespa_Intel_HR\\Data',
                  'Xiang_PC': 'D:\\data\\IntelDemo',
                  'Serwans_Laptop': 'W:/tnw/NS/qt/Serwan/MuxMon/',
-                 'La_Ducati': 'D:\\Experiments\\1707_Intel_Oct_v3\\Data',
+                 # 'La_Ducati': 'D:\\Experiments\\1707_Intel_Oct_v3\\Data',
+                 'La_Ducati': r'D:\\Experiments\\1707_Pokemon\\Data',
                  # 'La_Ducati': 'D:\\Experiments\\1704_NWv74_Magnet\\Data',
                  'La_Ducati_Jr': 'D:\Experiments/1611_Starmon/Data',
                  'Simulation_PC': 'D:\Experiments/testSingleShotFidelityAnalysis/Data',
@@ -55,6 +56,7 @@ data_dir_dict = {'tud276606_FPGA_PC': 'D:\Experiments/CBox_Testing/Data',
                  # 'Aprilia': r'D\\Test_folder\\Data',
                  # 'Aprilia': r'D:\\Experiments\\1706_SixPort_FlipChip_Die9\\Data'
                  # 'Aprilia': r'D:\\Experiments\\1706_S7_VIO_SE22\\Data'
-                 'Aprilia': r'D:\\Experiments\\1707_IntelOctoboxV1\\Data'
+                 # 'Aprilia': r'D:\\Experiments\\1707_IntelOctoboxV1\\Data'
+                 'Aprilia': r'D:\\Experiments\\1708_S7_VIO_NW41\\Data'
 
                  }
