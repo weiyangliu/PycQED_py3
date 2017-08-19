@@ -251,6 +251,9 @@ class Transmon(Qubit):
                            # in the future add 'tracked_dac', 'tracked_flux',
                            initial_value='latest',
                            parameter_class=ManualParameter)
+        self.add_parameter('peak_finding_alg',
+                           parameter_class=ManualParameter,
+                           vals=vals.Strings(), initial_value='std')
 
     def calculate_frequency(self,
                             dac_voltage=None,
@@ -333,8 +336,12 @@ class Transmon(Qubit):
                 label = 'pulsed-spec'
             else:
                 label = 'spectroscopy'
-            analysis_spec = ma.Qubit_Spectroscopy_Analysis(
-                label=label, close_fig=True)
+            analysis_spec = ma.Qubit_Spectroscopy_Analysis_general(
+                  label=label,
+                  close_fig=True,
+                  peak_finding_alg=self.peak_finding_alg())
+            # analysis_spec = ma.Qubit_Spectroscopy_Analysis(
+            #     label=label, close_fig=True)
 
             if update:
                 if use_max:
