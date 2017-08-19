@@ -6310,10 +6310,13 @@ def Qubit_Spectroscopy_Analysis_general(label='', peak_finding_alg='std', **kw):
     This function is meant to cast the qubit peak finding to any user-defined routine.
     Must return the measurement_analysis instance used.
     """
-    if peak_finding_alg is 'std':
+    if peak_finding_alg == 'std':
         # Follows the procedure used in PycQED_py3 before this routine was introduced
         analysis_spec = Qubit_Spectroscopy_Analysis(
               label=label, **kw)
-    elif peak_finding_alg is 'phase':
+        # print('passed')
+    elif peak_finding_alg == 'phase':
         pass
+    else:
+        raise ValueError('Peak finding algorithm not recognized')
     return analysis_spec
