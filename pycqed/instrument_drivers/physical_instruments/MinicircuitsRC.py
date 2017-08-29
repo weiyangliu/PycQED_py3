@@ -7,6 +7,7 @@ but probably carries over to other models without effort.
 from qcodes.instrument.visa import VisaInstrument
 from qcodes.utils import validators as vals
 
+from pyvisa import VisaIOError
 
 def dec_to_binstring(x, n=4):
     x = int(x)
@@ -34,7 +35,10 @@ class MinicircuitsRFSwitch(VisaInstrument):
 
         # the device sends a single '\n' as a hello, messing everything up...
         self.visa_handle.read_termination = "\n"
-        self.visa_handle.read_raw()
+        try:
+            self.visa_handle.read_raw()
+        except VisaIOError as e:
+            print("Minicircuit Switch did not send telnet handshake")
         self.visa_handle.read_termination = "\n\r"
 
         #this has to be read differently from the device. todo
