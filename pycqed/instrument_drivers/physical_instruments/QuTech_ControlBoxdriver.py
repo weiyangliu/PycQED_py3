@@ -630,6 +630,7 @@ class QuTech_ControlBox(VisaInstrument):
         else:
             raise ValueError('unit: "%s" not understood' % unit)
 
+
         # Check out of bounds
         if awg_nr < 0 or awg_nr > 2:
             raise ValueError

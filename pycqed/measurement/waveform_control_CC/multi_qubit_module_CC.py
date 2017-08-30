@@ -63,6 +63,7 @@ def measure_two_qubit_AllXY(device, q0_name, q1_name,
 def measure_two_qubit_ssro(device, q0_name, q1_name, nr_shots=4092*4,
                            MC=None, no_scaling=False,
                            crosstalk_suppression=False):
+
     # N.B. this function can be replaced with a more general multi-qubit ssro
     if MC is None:
         MC = qc.station.components['MC']
@@ -88,8 +89,11 @@ def measure_two_qubit_ssro(device, q0_name, q1_name, nr_shots=4092*4,
         AWG=device.seq_contr.get_instr(),
         nr_shots=4092,
         integration_length=q0.RO_acq_integration_length(),
+
         channels=[q0.RO_acq_weight_function_I(),
                   q1.RO_acq_weight_function_I(), 2])
+    if no_scaling:
+        d.scaling_factor = 1
 
     old_soft_avg = MC.soft_avg()
     old_live_plot_enabled = MC.live_plot_enabled()

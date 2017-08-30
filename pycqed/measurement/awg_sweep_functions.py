@@ -893,6 +893,9 @@ class AllXY(swf.Hard_Sweep):
                           double_points=self.double_points)
 
 
+
+
+
 class OffOn(swf.Hard_Sweep):
 
     def __init__(self, pulse_pars, RO_pars, upload=True,
@@ -1594,3 +1597,52 @@ class Load_Sequence_Tek(swf.Hard_Sweep):
         if self.upload:
             self.AWG.set_setup_filename(self.sequence_name)
 
+
+
+#sequences for quantum efficiency experiments
+class AllXY_premsmt(swf.Hard_Sweep):
+
+    def __init__(self, pulse_pars, RO_pars0, RO_pars1, preparation='I', upload=True):
+        super().__init__()
+        self.pulse_pars = pulse_pars
+        self.RO_pars0 = RO_pars0
+        self.RO_pars1 = RO_pars1
+        self.upload = upload
+        self.parameter_name = 'AllXY element'
+        self.unit = '#'
+        self.name = 'AllXY_premsmt'
+        self.sweep_points = np.arange(42)
+        self.preparation = preparation
+
+    def prepare(self, **kw):
+        if self.upload:
+            sqs.AllXY_premsmt_seq(pulse_pars=self.pulse_pars,
+                          RO_pars0=self.RO_pars0,
+                          RO_pars1=self.RO_pars1,
+                          preparation=self.preparation)
+
+class Ramsey_premsmt(swf.Hard_Sweep):
+
+    def __init__(self, pulse_pars, RO_pars0, RO_pars1, upload=True, one_sweep_point=False):
+        super().__init__()
+        self.pulse_pars = pulse_pars
+        self.RO_pars0 = RO_pars0
+        self.RO_pars1 = RO_pars1
+        self.upload = upload
+        self.unit = 'degrees'
+        self.parameter_name = 'phase'
+        self.name = 'Ramsey_premsmt'
+        self.one_sweep_point=one_sweep_point
+
+    def prepare(self, **kw):
+        if self.upload:
+            if self.one_sweep_point:
+                sqs.Ramsey_premsmt_seq(phases=[0,1],
+                                       pulse_pars=self.pulse_pars,
+                              RO_pars0=self.RO_pars0,
+                              RO_pars1=self.RO_pars1)
+            else:
+                sqs.Ramsey_premsmt_seq(phases=self.sweep_points,
+                                       pulse_pars=self.pulse_pars,
+                              RO_pars0=self.RO_pars0,
+                              RO_pars1=self.RO_pars1)

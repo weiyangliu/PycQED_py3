@@ -234,7 +234,8 @@ def chevron_seq(q0, q1,
     qasm_file.writelines('X180 {}\n'.format(q0))
     if excite_q1:
         qasm_file.writelines('X180 {}\n'.format(q1))
-    qasm_file.writelines('I {} {}\n'.format(q1, wait_during_flux))
+    qasm_file.writelines(
+        'I {} {}\n'.format(q1, int(wait_during_flux//clock_cycle)))
     if excite_q1:
         # q0 is rotated to ground-state to have better contrast
         # (|0> and |2> instead of |1> and |2>)
@@ -247,7 +248,7 @@ def chevron_seq(q0, q1,
 
 
 def two_qubit_tomo_bell(bell_state, q0, q1,
-                        wait_after_trigger=150e-9, wait_during_flux=200e-9,
+                        wait_after_trigger=10e-9, wait_during_flux=260e-9,
                         clock_cycle=5e-9,
                         RO_target='all'):
     '''
@@ -269,8 +270,11 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
         tomo_list_q0 += [tp + q0 + '\n']
         tomo_list_q1 += [tp + q1 + '\n']
 
+    tomo_list_q0[0] = 'I {} 8\n'.format(q0)
+    tomo_list_q1[0] = 'I {} 8\n'.format(q1)
+
     # Choose a bell state and set the corresponding preparation pulses
-    if bell_state % 10 == 0:
+    if bell_state % 10 == 0:  # |Phi_m>=|00>-|11>
         prep_pulse_q0 = 'Y90 {}\n'.format(q0)
         prep_pulse_q1 = 'Y90 {}\n'.format(q1)
         after_pulse = 'mY90 {}\n'.format(q1)
@@ -278,11 +282,11 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
         prep_pulse_q0 = 'mY90 {}\n'.format(q0)
         prep_pulse_q1 = 'Y90 {}\n'.format(q1)
         after_pulse = 'mY90 {}\n'.format(q1)
-    elif bell_state % 10 == 2:  # |Psi_m>=|01> - |10>
+    elif bell_state % 10 == 2:  # |Psi_m>=|01>-|10>
         prep_pulse_q0 = 'Y90 {}\n'.format(q0)
         prep_pulse_q1 = 'mY90 {}\n'.format(q1)
         after_pulse = 'mY90 {}\n'.format(q1)
-    elif bell_state % 10 == 3:  # |Psi_p>=|01> + |10>
+    elif bell_state % 10 == 3:  # |Psi_p>=|01>+|10>
         prep_pulse_q0 = 'mY90 {}\n'.format(q0)
         prep_pulse_q1 = 'mY90 {}\n'.format(q1)
         after_pulse = 'mY90 {}\n'.format(q1)
@@ -291,9 +295,9 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
 
     # Disable preparation pulse on one or the other qubit for debugging
     if bell_state//10 == 1:
-        prep_pulse_q1 = 'I {}'.format(q1)
+        prep_pulse_q1 = 'I {} 8'.format(q1)
     elif bell_state//10 == 2:
-        prep_pulse_q0 = 'I {}'.format(q0)
+        prep_pulse_q0 = 'I {} 8'.format(q0)
 
     # Define compensation pulses
     # FIXME: needs to be added
@@ -321,17 +325,16 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
             qasm_file.writelines('RO ' + RO_target + '  \n')
 
     # Add calibration pulses
-    cal_points = [['I ', 'I '],
-                  ['X180 ', 'I '],
-                  ['I ', 'X180 '],
-                  ['X180 ', 'X180 ']]
+    cal_points = [['I {} 8\n'.format(q0), 'I {} 8\n'.format(q1)],
+                  ['X180 {}\n'.format(q0), 'I {} 8\n'.format(q1)],
+                  ['I {} 8\n'.format(q0), 'X180 {}\n'.format(q1)],
+                  ['X180 {}\n'.format(q0), 'X180 {}\n'.format(q1)]]
     cal_pulses = []
     # every calibration point is repeated 7 times. This is copied from the
     # script for Tektronix driven qubits. I do not know if this repetition
     # is important or even necessary here.
     for seq in cal_points:
-        cal_pulses += [[seq[0] + q0 + '\n', seq[1] +
-                        q1 + '\n', 'RO ' + RO_target + '\n']] * 7
+        cal_pulses += [[seq[0], seq[1], 'RO ' + RO_target + '\n']] * 7
 
     for seq in cal_pulses:
         qasm_file.writelines('\ninit_all\n')
@@ -348,7 +351,7 @@ def CZ_calibration_seq(q0, q1, RO_target='all',
                        wait_after_trigger=150e-9,
                        wait_during_flux=200e-9,
                        clock_cycle=5e-9,
-                       mw_pulse_duration=60e-9):
+                       mw_pulse_duration=40e-9):
     '''
     Sequence used to calibrate flux pulses for CZ gates.
 
@@ -365,17 +368,16 @@ def CZ_calibration_seq(q0, q1, RO_target='all',
         wait_time   (int): wait time in seconds after triggering the flux
     '''
 
-    filename = join(base_qasm_path, 'chevron_seq.qasm')
+    filename = join(base_qasm_path, 'CZ_calibration_seq.qasm')
     qasm_file = mopen(filename, mode='w')
     qasm_file.writelines('qubit {} \nqubit {} \n'.format(q0, q1))
 
     for case in cases:
-        waitTime = wait_after_trigger
-        # if excite_q1 is True or excite_q1 is 'both_cases':
         qasm_file.writelines('\ninit_all\n')
         qasm_file.writelines('QWG trigger\n')
+        waitTime = wait_after_trigger
         if case == 'excitation':
-            # additional pulse between trigger and flux pulse -> shorter wait
+            # Decrease wait time because there is an additional pulse
             waitTime -= mw_pulse_duration
         qasm_file.writelines(
             'I {} {}\n'.format(q0, int(waitTime//clock_cycle)))
@@ -385,6 +387,8 @@ def CZ_calibration_seq(q0, q1, RO_target='all',
         qasm_file.writelines(
             'I {} {}\n'.format(q0, int(wait_during_flux//clock_cycle)))
         qasm_file.writelines('recX90 {}\n'.format(q0))
+        if case == 'excitation':
+            qasm_file.writelines('X180 {}\n'.format(q1))
 
         qasm_file.writelines('RO {}  \n'.format(RO_target))
 

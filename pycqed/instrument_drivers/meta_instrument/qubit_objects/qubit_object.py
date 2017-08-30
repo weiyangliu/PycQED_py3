@@ -316,6 +316,7 @@ class Transmon(Qubit):
                        f_step=1e6,
                        verbose=True,
                        update=True,
+                       invert=False, #this inverts the magnitude for dip fitting
                        close_fig=True):
         """
         Finds the qubit frequency using either the spectroscopy or the Ramsey
@@ -447,6 +448,11 @@ class Transmon(Qubit):
                            min(a.measured_values[1]))):
                 ampl = a.fit_res[0].params['period'].value/2.
             else:
+                if (a.fit_res[0].params['amplitude'].value <=
+                        a.fit_res[1].params['amplitude'].value):
+                    ampl = abs(a.fit_res[1].params['period'].value)/2
+                else:
+                    ampl = abs(a.fit_res[0].params['period'].value)/2
                 ampl = a.fit_res[1].params['period'].value/2.
         else:
             ampl = amps

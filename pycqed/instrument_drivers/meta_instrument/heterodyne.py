@@ -111,6 +111,7 @@ class HeterodyneInstrument(Instrument):
 
     def prepare(self, get_t_base=True):
         # Uploading the AWG sequence
+
         if self.AWG!=None:
             if (self._awg_seq_filename not in self.AWG.setup_filename() or
                     self._awg_seq_parameters_changed) and self.auto_seq_loading():
@@ -118,7 +119,7 @@ class HeterodyneInstrument(Instrument):
                     st_seqs.generate_and_upload_marker_sequence(
                         5e-9, self.trigger_separation(), RF_mod=False,
                         acq_marker_channels=self.acq_marker_channels())
-                self._awg_seq_parameters_changed = False
+            self._awg_seq_parameters_changed = False
 
         # Preparing the acquisition instruments
         if 'CBox' in self.acquisition_instr():
@@ -183,6 +184,7 @@ class HeterodyneInstrument(Instrument):
         self._acquisition_instr.acquisition_initialize([0, 1], 'rl')
         self.scale_factor_UHFQC = 1/(1.8e9*self.RO_length() *
                                      int(self.nr_averages()))
+        self._UHFQC_awg_parameters_changed = False
 
     def prepare_ATS(self, get_t_base=True):
         if self.AWG != None:
@@ -217,6 +219,14 @@ class HeterodyneInstrument(Instrument):
                 allocated_buffers=buffers_per_acquisition,
                 buffer_timeout=1000)
 
+    def prepare_DDM(self):
+        for i, channel in enumerate([1, 2]):
+            eval("self._acquisition_instr.ch_pair1_weight{}_wint_intlength({})".format(
+                channel, self.RO_length()*500e6))
+        self._acquisition_instr.ch_pair1_tvmode_naverages(self.nr_averages())
+        self._acquisition_instr.ch_pair1_tvmode_nsegments(1)
+        self.scale_factor = 1/(500e6*self.RO_length())/127
+
     def probe(self):
         if 'CBox' in self.acquisition_instr():
             return self.probe_CBox()
@@ -229,6 +239,20 @@ class HeterodyneInstrument(Instrument):
         else:
             raise ValueError("Invalid acquisition instrument {} in {}".format(
                 self.acquisition_instr(), self.__class__.__name__))
+
+    def probe_DDM(self):
+        #t0 = time.time()
+        self._acquisition_instr.ch_pair1_tvmode_enable.set(1)
+        self._acquisition_instr.ch_pair1_run.set(1)
+        dataI = eval(
+            "self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(1))
+        dataQ = eval(
+            "self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(2))
+        dat = (self.scale_factor*dataI+self.scale_factor*1j*dataQ)
+        #t1 = time.time()
+        #print("time for DDM polling\n", t1-t0)
+        return dat
+
 
     def probe_CBox(self):
         if self.single_sideband_demod():
@@ -256,7 +280,6 @@ class HeterodyneInstrument(Instrument):
         if self._awg_seq_parameters_changed or \
            self._UHFQC_awg_parameters_changed:
             self.prepare()
-
         dataset = self._acquisition_instr.acquisition_poll(
             samples=1, acquisition_time=0.001)
         dat = (self.scale_factor_UHFQC*dataset[0][0] +
@@ -311,7 +334,7 @@ class HeterodyneInstrument(Instrument):
         # internally stored to allow setting RF from stored setting
 
     def _get_RF_power(self):
-        return self._RF_power
+        return self.RF.power()
 
     def _set_status(self, val):
         if val == 'On':
@@ -404,6 +427,7 @@ class HeterodyneInstrument(Instrument):
 
     def _get_acq_marker_channels(self):
         return self._acq_marker_channels
+
 
     def finish(self):
         if 'UHFQC' in self.acquisition_instr():
@@ -563,17 +587,22 @@ class LO_modulated_Heterodyne(HeterodyneInstrument):
                 IF=self.f_RO_mod(), weight_function_I=0, weight_function_Q=1)
         # this sets the result to integration and rotation outcome
         self._acquisition_instr.quex_rl_source(2)
+        # only one sample to average over
         self._acquisition_instr.quex_rl_length(1)
         self._acquisition_instr.quex_rl_avgcnt(
-             int(np.log2(self.nr_averages())))
-        self._acquisition_instr.quex_wint_length(int(self.RO_length()*1.8e9))
-        # The AWG program uses userregs/0 to define the number of
+            int(np.log2(self.nr_averages())))
+        self._acquisition_instr.quex_wint_length(
+            int(self.RO_length()*1.8e9))
+        # Configure the result logger to not do any averaging
+        # The AWG program uses userregs/0 to define the number o
         # iterations in the loop
-        self._acquisition_instr.awgs_0_userregs_0(int(self.nr_averages()))
-        self._acquisition_instr.awgs_0_userregs_1(0) # 0 for rl, 1 for iavg
-        self._acquisition_instr.awgs_0_userregs_2(
-            int(self.acquisition_delay()*1.8e9/8))
-        self._acquisition_instr.awgs_0_single(1)
+        self._acquisition_instr.awgs_0_userregs_0(
+            int(self.nr_averages()))
+        self._acquisition_instr.awgs_0_userregs_1(0)  # 0 for rl, 1 for iavg
+        self._acquisition_instr.acquisition_initialize([0, 1], 'rl')
+        self.scale_factor_UHFQC = 1/(1.8e9*self.RO_length() *
+                                     int(self.nr_averages()))
+        self._UHFQC_awg_parameters_changed = False
 
     def probe_CBox(self):
         if self._awg_seq_parameters_changed:
@@ -583,18 +612,6 @@ class LO_modulated_Heterodyne(HeterodyneInstrument):
         d = self.CBox.get_integrated_avg_results()
         return d[0][0]+1j*d[1][0]
 
-    def probe_DDM(self):
-        # t0 = time.time()
-        self._acquisition_instr.ch_pair1_tvmode_enable.set(1)
-        self._acquisition_instr.ch_pair1_run.set(1)
-        dataI = eval(
-            "self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(1))
-        dataQ = eval(
-            "self._acquisition_instr.ch_pair1_weight{}_tvmode_data()".format(2))
-        dat = (self.scale_factor*dataI+self.scale_factor*1j*dataQ)
-        # t1 = time.time()
-        # print("time for DDM polling", t1-t0)
-        return dat
 
     def _set_frequency(self, val):
         self._frequency = val

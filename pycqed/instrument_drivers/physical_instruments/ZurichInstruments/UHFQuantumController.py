@@ -258,6 +258,10 @@ class UHFQC(Instrument):
         self.sigouts_0_enables_3(0)
         self.sigouts_1_enables_7(0)
 
+        #setting the awg outputs to 50 ohm output impedance
+        self.sigouts_0_imp50(True)
+        self.sigouts_1_imp50(True)
+
     def _gen_set_func(self, dev_set_type, cmd_str):
         def set_func(val):
             dev_set_type(cmd_str, val)
@@ -277,7 +281,6 @@ class UHFQC(Instrument):
         Loads an awg sequence onto the UHFQC from a text file.
         File needs to obey formatting specified in the manual.
         """
-        print(filename)
         with open(filename, 'r') as awg_file:
             sourcestring = awg_file.read()
             self.awg_string(sourcestring)
@@ -341,15 +344,9 @@ class UHFQC(Instrument):
     def sync(self):
         self._daq.sync()
 
-    def acquisition_arm(self):
-        # time.sleep(0.01)
-        self._daq.asyncSetInt('/' + self._device + '/awgs/0/single', 1)
+    def acquisition_arm(self, single=True):
+        self._daq.asyncSetInt('/' + self._device + '/awgs/0/single', single)
         self._daq.syncSetInt('/' + self._device + '/awgs/0/enable', 1)
-        # t0=time.time()
-        # time.sleep(0.001)
-        # self._daq.sync()
-        # deltat=time.time()-t0
-        # print('UHFQC syncing took {}'.format(deltat))
 
     def acquisition_get(self, samples, acquisition_time=0.010,
                         timeout=0, channels=set([0, 1]), mode='rl'):
@@ -465,7 +462,6 @@ class UHFQC(Instrument):
         self.acquisition_initialize(channels, mode)
         data = self.acquisition_poll(samples, acquisition_time, timeout)
         self.acquisition_finalize()
-
         return data
 
     def acquisition_initialize(self, channels=set([0, 1]), mode='rl'):

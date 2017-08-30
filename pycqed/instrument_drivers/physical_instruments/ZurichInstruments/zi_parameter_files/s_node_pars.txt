@@ -258,6 +258,18 @@
     4294967295
   ],
   [
+    "sigins/1/autorange",
+    "bool",
+   0,
+   1.0
+  ], 
+ [
+    "sigins/0/autorange",
+    "bool",
+   0,
+   1.0
+  ],
+  [
     "awgs/0/userregs/3",
     "int_64",
     0,

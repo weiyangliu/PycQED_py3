@@ -836,7 +836,7 @@ class Function_Detector(Soft_Detector):
         self.get_function = get_function
         self.result_keys = result_keys
         self.value_names = value_names
-        self.value_units = value_units
+        self.value_unit = value_unit
         self.msmt_kw = msmt_kw
         if self.value_names is None:
             self.value_names = result_keys
@@ -862,6 +862,37 @@ class Function_Detector(Soft_Detector):
         else:
             results = [result[key] for key in self.result_keys]
             return results
+
+
+class Function_Detector_list(Soft_Detector):
+    """
+    Defines a detector function that wraps around an user-defined function.
+    Inputs are:
+        sweep_function, function that is going to be wrapped around
+        result_keys, keys of the dictionary returned by the function
+        value_names, names of the elements returned by the function
+        value_units, units of the elements returned by the function
+        msmt_kw, kw arguments for the function
+    The input function sweep_function must return a dictionary.
+    The contents(keys) of this dictionary are going to be the measured
+    values to be plotted and stored by PycQED
+    """
+
+    def __init__(self, sweep_function, result_keys, value_names=None,
+                 value_unit=None, msmt_kw={}, **kw):
+        super(Function_Detector_list, self).__init__()
+        self.sweep_function = sweep_function
+        self.result_keys = result_keys
+        self.value_names = value_names
+        self.value_units = value_unit
+        self.msmt_kw = msmt_kw
+        if self.value_names is None:
+            self.value_names = result_keys
+        if self.value_units is None:
+            self.value_units = [""] * len(result_keys)
+
+    def acquire_data_point(self, **kw):
+        return self.sweep_function(**self.msmt_kw)
 
 
 class Detect_simulated_hanger_Soft(Soft_Detector):
@@ -1099,6 +1130,8 @@ class SH_mixer_skewness_det(Soft_Detector):
     def finish(self, **kw):
         self.SH.abort()
 
+
+
 # ---------------------------------------------------------------------------
 # CBox v3 detectors
 # ---------------------------------------------------------------------------
@@ -1266,6 +1299,8 @@ class UHFQC_input_average_detector(Hard_Detector):
         self.nr_averages = nr_averages
 
     def get_values(self):
+        if self.AWG is not None:
+            self.AWG.stop()
         self.UHFQC.quex_rl_readout(0)  # resets UHFQC internal readout counters
 
         self.UHFQC.acquisition_arm()
@@ -1277,6 +1312,7 @@ class UHFQC_input_average_detector(Hard_Detector):
                                                arm=False, acquisition_time=0.01)
         data = np.array([data_raw[key]
                          for key in data_raw.keys()])  # *self.scaling_factor
+
 
         return data
 
@@ -1294,6 +1330,7 @@ class UHFQC_input_average_detector(Hard_Detector):
     def finish(self):
         if self.AWG is not None:
             self.AWG.stop()
+        self.UHFQC.acquisition_finalize()
 
 
 class UHFQC_demodulated_input_avg_det(UHFQC_input_average_detector):
@@ -1385,6 +1422,9 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         elif result_logging_mode == 'digitized':
             self.value_units = ['frac']*len(self.channels)
             self.scaling_factor = 1
+        else:
+            self.value_units = ['']*len(self.channels)
+            self.scaling_factor = 1/nr_averages
 
         self.single_int_avg = single_int_avg
         if self.single_int_avg:
@@ -1399,6 +1439,7 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         res_logging_indices = {'lin_trans': 0, 'digitized': 1, 'raw': 2}
         self.result_logging_mode_idx = res_logging_indices[result_logging_mode]
         self.result_logging_mode = result_logging_mode
+
         self.chunk_size = chunk_size
 
         self._set_real_imag(real_imag)
@@ -1470,12 +1511,12 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         else:
             self.nr_sweep_points = len(sweep_points)*self.seg_per_point
         # this sets the result to integration and rotation outcome
-
             if (self.chunk_size is not None and
                     self.chunk_size < self.nr_sweep_points):
                 # Chunk size is defined and smaller than total number of sweep
                 # points -> only acquire one chunk
                 self.nr_sweep_points = self.chunk_size * self.seg_per_point
+
 
         self.UHFQC.awgs_0_userregs_0(
             int(self.nr_averages*self.nr_sweep_points))
@@ -1559,7 +1600,6 @@ class UHFQC_correlation_detector(UHFQC_integrated_average_detector):
         self.UHFQC.awgs_0_userregs_0(
             int(self.nr_averages*self.nr_sweep_points))
         self.UHFQC.awgs_0_userregs_1(0)  # 0 for rl, 1 for iavg
-
         self.UHFQC.acquisition_initialize(channels=self.channels, mode='rl')
 
     def define_correlation_channels(self):
@@ -1585,6 +1625,7 @@ class UHFQC_correlation_detector(UHFQC_integrated_average_detector):
                           .format(ch, corr[0], corr[1]))
                     # correlation mode is turned on in the
                     # set_up_correlation_weights method
+
                     break
             if correlation_channel < 0:
                 raise ValueError('No free channel available for correlation.')
@@ -1662,13 +1703,13 @@ class UHFQC_correlation_detector(UHFQC_integrated_average_detector):
         return data
 
 
+
 class UHFQC_integration_logging_det(Hard_Detector):
 
     '''
     Detector used for integrated average results with the UHFQC
 
     '''
-
     def __init__(self, UHFQC, AWG=None,
                  integration_length: float=1e-6,
                  nr_shots: int=4094,
@@ -1720,6 +1761,7 @@ class UHFQC_integration_logging_det(Hard_Detector):
         # different detector
         self.result_logging_mode_idx = res_logging_indices[result_logging_mode]
         self.result_logging_mode = result_logging_mode
+
 
     def get_values(self):
         if self.AWG is not None:
@@ -1980,6 +2022,7 @@ class UHFQC_single_qubit_statistics_logging_det(UHFQC_statistics_logging_det):
         # Returns only the data for the relevant channel
         return super().acquire_data_point()[0:3]
 
+
 # --------------------------------------------
 # Fake detectors
 # --------------------------------------------
@@ -2138,7 +2181,10 @@ class DDM_input_average_detector(Hard_Detector):
         self.nr_sweep_points = self.nr_samples
 
     def get_values(self):
-        # arming DDM trigger
+        if self.AWG is not None:
+            self.AWG.stop()
+        #arming DDM trigger
+
         self.DDM.ch_pair1_inavg_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
         # starting AWG
@@ -2163,7 +2209,7 @@ class DDM_integrated_average_detector(Hard_Detector):
     '''
 
     def __init__(self, DDM, AWG, integration_length=1e-6, nr_averages=1024, rotate=False,
-                 channels=[1, 2, 3, 4, 5], crosstalk_suppression=False,
+                 channels=[1, 2, 3, 4, 5], cross_talk_suppression=False,
                  **kw):
         super(DDM_integrated_average_detector, self).__init__()
         self.DDM = DDM
@@ -2180,8 +2226,9 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.nr_averages = nr_averages
         self.integration_length = integration_length
         self.rotate = rotate
-        self.crosstalk_suppression = crosstalk_suppression
-        self.scaling_factor = 1/(500e6*integration_length)/127
+
+        self.cross_talk_suppression = cross_talk_suppression
+        self.scaling_factor=1/(500e6*integration_length)/127/127*2
 
     def prepare(self, sweep_points=None):
         if self.AWG is not None:
@@ -2198,7 +2245,9 @@ class DDM_integrated_average_detector(Hard_Detector):
         self.DDM.ch_pair1_tvmode_nsegments(self.nr_sweep_points)
 
     def get_values(self):
-        # arming DDM trigger
+        if self.AWG is not None:
+            self.AWG.stop()
+        #arming DDM trigger
         self.DDM.ch_pair1_tvmode_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
         # starting AWG
@@ -2248,7 +2297,7 @@ class DDM_integration_logging_det(Hard_Detector):
     '''
 
     def __init__(self, DDM, AWG, integration_length=1e-6,
-                 channels=[1, 2], nr_shots=4096, **kw):
+                 channels=[1, 2], nr_shots=4096, thresholded=False, threshold=0, **kw):
         super(DDM_integration_logging_det, self).__init__()
         self.DDM = DDM
         self.name = 'DDM_integration_logging_det'
@@ -2264,7 +2313,9 @@ class DDM_integration_logging_det(Hard_Detector):
         self.AWG = AWG
         self.integration_length = integration_length
         self.nr_shots = nr_shots
-        self.scaling_factor = 1/(500e6*integration_length)/127
+        self.scaling_factor=1/(500e6*integration_length)/127/127*2
+        self.thresholded=thresholded
+        self.threshold=threshold #not used yet
 
     def prepare(self, sweep_points):
         if self.AWG is not None:
@@ -2280,7 +2331,9 @@ class DDM_integration_logging_det(Hard_Detector):
         self.DDM.ch_pair1_logging_nshots(self.nr_shots)
 
     def get_values(self):
-        # arming DDM trigger
+        if self.AWG is not None:
+            self.AWG.stop()
+        #arming DDM trigger
         self.DDM.ch_pair1_logging_enable.set(1)
         self.DDM.ch_pair1_run.set(1)
         # starting AWG
@@ -2289,8 +2342,13 @@ class DDM_integration_logging_det(Hard_Detector):
         # polling the data, function checks that measurement is finished
         data = ['']*len(self.channels)
         for i, channel in enumerate(self.channels):
-            data[i] = eval("self.DDM.ch_pair1_weight{}_logging_int()".format(
-                channel))*self.scaling_factor
+
+            if self.thresholded:
+                data[i] = eval("self.DDM.ch_pair1_weight{}_logging_qstate()".format(channel))
+            else:
+                data[i] = eval("self.DDM.ch_pair1_weight{}_logging_int()".format(channel))*self.scaling_factor
+
+
         return data
 
     def finish(self):
