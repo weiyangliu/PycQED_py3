@@ -1528,7 +1528,7 @@ def calculate_transmon_transitions(EC, EJ, asym=0, reduced_flux=0,
     return transitions[:no_transitions]
 
 
-def fit_EC_EJ(f01, f12):
+def fit_EC_EJ(f01, f12, dim=None):
     '''
     Calculates EC and EJ from f01 and f12 by numerical optimization.
     '''
@@ -1537,7 +1537,7 @@ def fit_EC_EJ(f01, f12):
     EC0 = f01-f12
     EJ0 = (f01+EC0)**2/(8*EC0)
 
-    penaltyfn = lambda Es: calculate_transmon_transitions(*Es)-[f01, f12]
+    penaltyfn = lambda Es: calculate_transmon_transitions(dim=dim,*Es)-[f01, f12]
     (EC, EJ), success = optimize.leastsq(penaltyfn, (EC0, EJ0))
     return EC, EJ
 
