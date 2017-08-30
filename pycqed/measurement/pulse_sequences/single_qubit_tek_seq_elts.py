@@ -68,6 +68,61 @@ def Pulsed_spec_seq(spec_pars, RO_pars, upload=True, return_seq=False):
         station.pulsar.program_awg(seq, *el_list, verbose=False)
     return seq
 
+def Pulsed_spec_3tone_seq(spec_pars, RO_pars, upload=True, return_seq=False):
+    '''
+    Pulsed spectroscopy sequence using the tektronix.
+    Input pars:
+        spec_pars:      dict containing spectroscopy pars
+        RO_pars:        dict containing RO pars
+    '''
+    period = spec_pars['pulse_delay'] + RO_pars['pulse_delay']
+    f_RO_mod = RO_pars['mod_frequency']
+    if f_RO_mod == None:
+        remainder = 0.0
+    else:
+        remainder = period % (1/RO_pars['mod_frequency'])
+
+    if (remainder != 0.0):
+        msg = ('Period of spec seq ({})'.format(period) +
+               'must be multiple of RO modulation period ({})'.format(
+               1/RO_pars['mod_frequency']) +
+               "\nAdding {}s to spec_pars['pulse_delay']".format(
+            1/RO_pars['mod_frequency'] - remainder) +
+            '\nConsider updating parameter')
+        logging.warning(msg)
+        print(msg)
+        spec_pars['pulse_delay'] += 1 / \
+            RO_pars['mod_frequency'] - remainder
+
+    # Nr of pulse reps is set to ensure max nr of pulses and end 10us before
+    # next trigger comes in. Assumes 200us trigger period, also works for
+    # faster trigger rates.
+    period = spec_pars['pulse_delay'] + RO_pars['pulse_delay']
+    nr_of_pulse_reps = int((200e-6-10e-6)//period)
+
+    seq_name = 'Pulsed_spec'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+
+    pulse_dict = {'spec_pulse': spec_pars, 'RO': RO_pars}
+
+    third_tone = deepcopy(pulse_dict['spec_pulse'])
+    third_tone['channel'] = 'ch4_marker2'
+    third_tone['pulse_delay'] = -pulse_dict['spec_pulse']['length']
+    pulse_list = [pulse_dict['spec_pulse'], third_tone, pulse_dict['RO']]*nr_of_pulse_reps
+    print(third_tone)
+    for i in range(1):
+        el = multi_pulse_elt(
+            i, station, pulse_list)
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+    if upload:
+        station.components['AWG'].stop()
+        station.pulsar.program_awg(seq, *el_list, verbose=False)
+    return seq
+
+
 
 def photon_number_splitting_seq(spec_pars, RO_pars, disp_pars, upload=True, return_seq=False):
     '''
