@@ -1962,7 +1962,10 @@ class SSRO_Analysis(MeasurementAnalysis):
                              channels=['I', 'Q'],
                              no_fits=False,
                              print_fit_results=False,
-                             n_bins: int=120, **kw):
+                             n_bins: int=120, 
+                             pge=None,
+                             peg=None,
+                             **kw):
 
         self.add_analysis_datagroup_to_file()
         self.no_fits = no_fits
@@ -3011,7 +3014,8 @@ class Ramsey_Analysis(TD_Analysis):
             damped_osc_mod.set_param_hint('phase',
                                           value=0, vary=True)
             damped_osc_mod.set_param_hint('amplitude',
-                                          value=0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)),
+                                          value=1.,
+                                          # value=0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)),
                                           min=0.0, max=4.0)
             fixed_tau=1e9
             damped_osc_mod.set_param_hint('tau',
@@ -3019,6 +3023,8 @@ class Ramsey_Analysis(TD_Analysis):
                                           vary=False,
                                            min=0,
                                            max=fixed_tau)
+            print('in the right one')
+            print(0.5*(max(self.normalized_data_points)-min(self.normalized_data_points)))
 
 
         else:
@@ -3060,11 +3066,6 @@ class Ramsey_Analysis(TD_Analysis):
                                           value=self.norm_sweep_points[1]*10,
                                           min=self.norm_sweep_points[1],
                                           max=self.norm_sweep_points[1]*1000)
-
-        damped_osc_mod.set_param_hint('tau',
-                                      value=self.norm_sweep_points[1]*10,
-                                      min=self.norm_sweep_points[1],
-                                      max=self.norm_sweep_points[1]*1000)
 
         damped_osc_mod.set_param_hint('exponential_offset',
                                           value=0.5,
@@ -3537,8 +3538,6 @@ class AllXY_Analysis(TD_Analysis):
         if self.make_fig:
             self.make_figures(ideal_data=ideal_data,
                               close_main_fig=close_main_fig, **kw)
-        if close_file:
-            self.data_file.close()
         return self.deviation_total
 
     def make_figures(self, ideal_data, close_main_fig, **kw):
@@ -3581,27 +3580,26 @@ class AllXY_Analysis(TD_Analysis):
         ax1.xaxis.set_ticks(locs)
         ax1.set_xticklabels(labels, rotation=60)
 
-            deviation_text = r'Deviation: %.5f ' % self.deviation_total
-            if self.select_points!=None:
-                deviation_text = deviation_text + self.select_points + ' points'
+        deviation_text = r'Deviation: %.5f ' % self.deviation_total
+        if self.select_points!=None:
+            deviation_text = deviation_text + self.select_points + ' points'
 
-            ax1.text(1, 1.05, deviation_text, fontsize=11,
-                     bbox=self.box_props)
-            if self.select_points==None:
-                figname = 'Amplitude (normalized)'
-            else:
-                figname = 'Amplitude (normalized)' + self.select_points
+        ax1.text(1, 1.05, deviation_text, fontsize=11,
+                 bbox=self.box_props)
+        if self.select_points==None:
+            figname = 'Amplitude (normalized)'
+        else:
+            figname = 'Amplitude (normalized)' + self.select_points
 
-            if not close_main_fig:
-                # Hacked in here, good idea to only show the main fig but can
-                # be optimized somehow
-                self.save_fig(fig1, ylabel=figname,
-                              close_fig=False, **kw)
-            else:
-                self.save_fig(fig1, ylabel=figname, **kw)
+        if not close_main_fig:
+            # Hacked in here, good idea to only show the main fig but can
+            # be optimized somehow
+            self.save_fig(fig1, ylabel=figname,
+                          close_fig=False, **kw)
+        else:
+            self.save_fig(fig1, ylabel=figname, **kw)
             self.save_fig(fig2, ylabel='Amplitude', **kw)
-        if close_file:
-            self.data_file.close()
+        self.data_file.close()
         return self.deviation_total
 
 
