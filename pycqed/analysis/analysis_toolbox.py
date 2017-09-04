@@ -1650,3 +1650,25 @@ def get_datetimestamp(time_var=None):
         time_var = time.localtime()
     return time.strftime('%Y%m%d_%H%M%S', time_var)
 
+
+
+def print_pars_table(n_ts=10,pars=None):
+    ts_list=a_tools.return_last_n_timestamps(n_ts)
+    pdict = {}
+    nparams = []
+    for i,p in enumerate(pars):
+        pdict.update({p:p})
+    opt_dict = {'scan_label':''}
+    # print(ts_list)
+    scans = RA.quick_analysis(t_start=ts_list[-1],t_stop=ts_list[0], options_dict=opt_dict,
+                      params_dict_TD=pdict,numeric_params=nparams)
+
+    pars_line = 'timestamp \t'
+    for p in pars:
+        pars_line = pars_line + p + '\t'
+    print(pars_line)
+    for i,ts in enumerate(scans.TD_timestamps):
+        i_line = '%s \t'%ts
+        for p in pars:
+            i_line = i_line + scans.TD_dict[p][i]+'\t'
+        print(i_line)
