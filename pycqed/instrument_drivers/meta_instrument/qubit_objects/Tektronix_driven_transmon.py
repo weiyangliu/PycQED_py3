@@ -251,7 +251,6 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
     def get_dist_dict(self):
         return self._dist_dict
 
-
     def set_dist_dict(self, dist_dict):
         self._dist_dict = dist_dict
 
@@ -818,7 +817,6 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                                                              nr_samples=nr_samples))
         self.MC.get_instr().set_sweep_points(np.arange(nr_samples))
         self.input_average_detector.nr_samples = nr_samples
-        self.input_average_detector.AWG = self.AWG.get_instr()
         self.MC.get_instr().set_detector_function(self.input_average_detector)
         self.MC.get_instr().run(
             'Measure_transients_{}_0'.format(self.msmt_suffix))
@@ -985,30 +983,34 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self._acquisition_instr = self.find_instrument(acquisition_instr)
         if 'CBox' in acquisition_instr:
-            if self.AWG()!='None':
-              logging.info("setting CBox acquisition")
-              print('starting int avg')
-              self.int_avg_det = det.CBox_integrated_average_detector(self._acquisition_instr,
-                                                                      self.AWG.get_instr(),
-                                                                      nr_averages=self.RO_acq_averages(),
-                                                                      integration_length=self.RO_acq_integration_length(
-                                                                      ),
-                                                                      normalize=True)
-              print('starting int avg rot')
-              self.int_avg_det_rot = det.CBox_integrated_average_detector(self._acquisition_instr,
-                                                                          self.AWG.get_instr(),
-                                                                          nr_averages=self.RO_acq_averages(),
-                                                                          integration_length=self.RO_acq_integration_length(
-                                                                          ),
-                                                                          normalize=True)
-              print('starting int log det')
-              self.int_log_det = det.CBox_integration_logging_det(self._acquisition_instr,
-                                                                  self.AWG.get_instr(),
-                                                                  integration_length=self.RO_acq_integration_length())
 
-              self.input_average_detector = det.CBox_input_average_detector(
-                  self._acquisition_instr,
-                  self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
+            if self.AWG() != 'None':
+                logging.info("setting CBox acquisition")
+                print('starting int avg')
+                self.int_avg_det = det.CBox_integrated_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(),
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length(
+                    ),
+                    normalize=True)
+                print('starting int avg rot')
+                self.int_avg_det_rot = det.CBox_integrated_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(),
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length(
+                    ),
+                    normalize=True)
+                print('starting int log det')
+                self.int_log_det = det.CBox_integration_logging_det(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(),
+                    integration_length=self.RO_acq_integration_length())
+
+                self.input_average_detector = det.CBox_input_average_detector(
+                    self._acquisition_instr,
+                    self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
 
         elif 'UHFQC' in acquisition_instr:
             logging.info("setting UHFQC acquisition")
