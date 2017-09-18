@@ -137,12 +137,17 @@ def nelder_mead(fun, x0,
     return res[0]
 
 
-def SPSA(fun, x0,
-         initial_step=0.1,
-         no_improve_thr=10e-6, no_improv_break=10,
+def SPSA(fun,
+         x0,
+         ctrl_min,
+         ctrl_max,
+         initial_step,
+         no_improve_thr=10e-6,
+         no_improv_break=10,
          maxiter=0,
-         gamma=0.101, alpha=0.602, a=0.2, c=0.3, A=300,
-         p=0.5, ctrl_min=0.,ctrl_max=np.pi,
+         a=0.1,
+         gamma=0.101, alpha=0.602, c=0.01, A=50,
+         p=0.5,
          verbose=False):
     '''
     parameters:
@@ -176,18 +181,75 @@ def SPSA(fun, x0,
     Reference: http://www.jhuapl.edu/SPSA/Pages/References-Intro.htm
     '''
     # init
-    x0 = np.array(x0)  # ensures algorithm also accepts lists
-    dim = len(x0)
+      # ensures algorithm also accepts lists
+    try:
+        dim = len(x0)
+        # print(dim)
+        x0 = np.array(x0)
+    except Exception:
+        dim = 1
+    
     prev_best = fun(x0)
     no_improv = 0
     res = [[x0, prev_best]]
-
+    # print(res)
     x = copy.copy(x0)
+    
 
-    # SPSA iter
+    # SPSA iter init
     iters = 0
+
+# here the calibration of a
+    
+    prev_best = fun(x0)
+    no_improv = 0
+    res = [[x0, prev_best]]
+    # print(res)
+    x = copy.copy(x0)
+    # print('the lines above have finished executing')
+       #tuneup a according to the chosen value of c
+   #add them to the ad_func_pars
+    num_directions = dim*2
+    num_gradient_measurements = 1
+    fluctuation_components = np.zeros(num_directions)
+    for i in range(num_directions):
+        
+        # sample from a bernoulli(rescaled binomial) distribution
+        delta_binomial = np.random.binomial(1, 0.5, dim)
+        delta_binomial[delta_binomial == 0] = -1
+        delta = delta_binomial 
+        if dim == 1:
+            delta = float(delta)
+        # gradient measurement
+    
+    
+        #print('this loop is executing')
+        x_plus = x0+c*delta
+        x_minus = x0-c*delta
+
+        y_plus = fun(x_plus)
+        y_minus = fun(x_minus)
+        #fluctuation[j] = y_plus - y_minus
+        # print(fluctuation[j])
+        # HERE THERE IS A PROBLEM, THIS GETS NAN!
+        #fluctuation_single_direction = np.std(np.absolute(fluctuation))
+        # fluctuation_components[i] =  fluctuation_single_direction
+        fluctuation_components[i] =  y_plus - y_minus
+    # a is the gradient averaged along many directions
+    #sampled from a bernoulli distribution
+    print(fluctuation_components)
+    print(np.mean(np.absolute(fluctuation_components)))
+    a = (initial_step*2*c)/(np.mean(np.absolute(fluctuation_components)))
+    print('long awaited tuneup {}'.format(a))
+    #print("The tuned up value a is {}".format(a))
+
+
+
     while 1:
         # order
+
+
+        # print ('a has been callibrated to {}'.format(a))
         res.sort(key=lambda x: x[1])
         best = res[0][1]
 
@@ -211,24 +273,40 @@ def SPSA(fun, x0,
                 print('No improvement registered for {} rounds,'.format(
                       no_improv_break) + 'concluding succesful convergence')
             break
-        # step 1
-        a_k = a/(iters+A)**alpha
-        c_k = c/iters**gamma
-        # step 2
-        delta = np.where(np.random.rand(dim) > p, 1, -1)
-        # step 3
-        x_plus = x+c_k*delta
-        x_minus = x-c_k*delta
+
+        #step 1: setup gain sequence for c_k
+        
+        a_k = a/(iters + 1 +A)**alpha
+        c_k = c/(iters + 1)**gamma
+        # sample from a bernoulli(rescaled binomial) distribution
+        delta_binomial = np.random.binomial(1, 0.5, dim)
+        delta_binomial[delta_binomial == 0] = -1
+        delta = delta_binomial 
+        if dim == 1:
+            delta = float(delta)
+        # gradient measurement
+        x_plus = np.minimum(x+c_k*delta, ctrl_max)
+        x_minus = np.maximum(x-c_k*delta, ctrl_min)
+        
         y_plus = fun(x_plus)
         y_minus = fun(x_minus)
-        # res.append([x_plus, y_plus])
-        # res.append([x_minus, y_minus])
-        # step 4
-        gradient = (y_plus-y_minus)/(2.*c_k*delta)
-        # step 5
+        
+        res.append([x_plus, y_plus])
+        res.append([x_minus, y_minus])
+        
+        #gradient update
+        gradient = ((y_plus-y_minus)/(2.*c_k))*np.reciprocal(delta)
+        
+        
+        # update x
         x = x-a_k*gradient
-        x = np.where(x < ctrl_min, ctrl_min, x)
-        x = np.where(x > ctrl_max, ctrl_max, x)
+        
+        #compare x_plus and x_minus with ctrl_max and ctrl_min 
+        #if algorithm goes out of bounds
+        #set by ctrl_min and ctrl_max put
+        #x back to ctrl_min or ctrl_max 
+        if dim == 1:
+            x = float(x)
         score = fun(x)
         res.append([x, score])
 

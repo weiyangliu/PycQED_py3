@@ -11,8 +11,10 @@ from qcodes.instrument_drivers.tektronix.AWG5014 import Tektronix_AWG5014
 try:
     from pycqed.instrument_drivers.physical_instruments.ZurichInstruments.\
         UHFQuantumController import UHFQC
-except ModuleNotFoundError:
+except:
     UHFQC = type(None)
+# except ModuleNotFoundError:
+#     UHFQC = type(None)
 
 
 # some pulses use rounding when determining the correct sample at which to
