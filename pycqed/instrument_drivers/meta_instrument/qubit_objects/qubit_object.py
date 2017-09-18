@@ -362,7 +362,7 @@ class Transmon(Qubit):
                 self.measure_ramsey(times,
                                     artificial_detuning=artificial_detuning,
                                     f_qubit=cur_freq,
-                                    label='_{}ns'.format(n*stepsize),
+                                    label='_{}ns'.format(n*stepsize*1e9),
                                     analyze=False)
                 a = ma.Ramsey_Analysis(auto=True, close_fig=close_fig,
                                        close_file=False)

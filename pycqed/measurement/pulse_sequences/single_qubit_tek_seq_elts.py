@@ -366,6 +366,51 @@ def Ramsey_seq(times, pulse_pars, RO_pars,
         return seq_name
 
 
+def Ramsey_RabiSims_seq(times, pulse_pars, RO_pars,
+               cal_points=True,
+               verbose=False,
+               upload=True, return_seq=False):
+    '''
+    Ramsey sequence for a single qubit using the tektronix.
+    SSB_Drag pulse is used for driving, simple modualtion used for RO
+    Input pars:
+        times:               array of times between (start of) pulses (s)
+        pulse_pars:          dict containing the pulse parameters
+        RO_pars:             dict containing the RO parameters
+        artificial_detuning: artificial_detuning (Hz) implemented using phase
+        cal_points:          whether to use calibration points or not
+    '''
+    seq_name = 'Ramsey_sequence'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+    # First extract values from input, later overwrite when generating
+    # waveforms
+    pulses = get_pulse_dict_from_pars(pulse_pars)
+
+    pulse_pars_x2 = deepcopy(pulses['Y90'])
+    pulse_pars_x2['refpoint'] = 'start'
+    for i, tau in enumerate(times):
+        pulse_pars_x2['pulse_delay'] = tau
+
+        if cal_points and (i == (len(times)-4) or i == (len(times)-3)):
+            el = multi_pulse_elt(i, station, [pulses['I'], RO_pars])
+        elif cal_points and (i == (len(times)-2) or i == (len(times)-1)):
+            el = multi_pulse_elt(i, station, [pulses['X180'], RO_pars])
+        else:
+            el = multi_pulse_elt(i, station,
+                                 [pulses['Y90'], pulses['X90'], RO_pars])
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+    if upload:
+        station.components['AWG'].stop()
+        station.pulsar.program_awg(seq, *el_list, verbose=verbose)
+    if return_seq:
+        return seq, el_list
+    else:
+        return seq_name
+
+
 def Echo_seq(times, pulse_pars, RO_pars,
              artificial_detuning=None,
              cal_points=True,
@@ -903,6 +948,7 @@ def Ramsey_premsmt_seq(phases, pulse_pars, RO_pars0, RO_pars1, verbose=False,
     pulses = get_pulse_dict_from_pars(pulse_pars)
 
     pulse_pars_x2 = deepcopy(pulses['X90'])
+    # pulse_pars_x2['pulse_delay'] += 1e-6
     # pulse_pars_x2['refpoint'] = 'start'
     for i, phase in enumerate(phases):
         pulse_pars_x2['phase'] = phase
