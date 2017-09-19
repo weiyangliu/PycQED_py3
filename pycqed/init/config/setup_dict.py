@@ -54,6 +54,6 @@ data_dir_dict = {'tud276606_FPGA_PC': 'D:\Experiments/CBox_Testing/Data',
                  r'Nathans_Laptop': 'D:/nlangford\My Documents\Projects\Rabi Model\Experiment_1504\Data',
                  'Bart_Laptop': 'C:\Experiments/NumericalOptimization/Data',
                  'Qudev_testbench' : r'E:\Control software\data',
-                 'Aprilia': r'D:\\Experiments\\1708_S7_VIO_NW41\\Data',
+                 'Aprilia': r'D:\\Experiments\\1709_Pokemon\\Data',
                  'TUD278337': r'D:\\Experiments\\1709_Pokemon\\Data'
                  }
