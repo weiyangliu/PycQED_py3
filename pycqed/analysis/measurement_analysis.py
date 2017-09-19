@@ -17,7 +17,7 @@ import pylab
 from pycqed.analysis.tools import data_manipulation as dm_tools
 import imp
 import math
-import pygsti
+# import pygsti
 from math import erfc
 from scipy.signal import argrelmax, argrelmin
 from copy import deepcopy
@@ -4339,19 +4339,14 @@ class Qubit_Spectroscopy_Analysis(MeasurementAnalysis):
                              show=False, fit_results_peak=True, **kw):
         def fit_data():
             try:
-                self.data_dist = np.sqrt(
-                    self.measured_values[2]**2 + self.measured_values[3])
-                # self.data_dist = a_tools.calculate_distance_ground_state(
-                #     data_real=self.measured_values[2],
-                #     data_imag=self.measured_values[3])
+                # Here I and Q are used
+                self.data_dist = a_tools.calculate_distance_from_ground_IQ(
+                    self.measured_values[2], self.measured_values[3])
             except:
-                # Quick fix to make it work with pulsed spec which does not
-                # return both I,Q and, amp and phase
-                # only using the amplitude!!
-                self.data_dist = self.measured_values[0]
-                # self.data_dist = a_tools.calculate_distance_ground_state(
-                #     data_real=self.measured_values[0],
-                #     data_imag=self.measured_values[1])
+                # Here amplitude and phase are used
+                self.data_dist = a_tools.calcuate_distance_from_ground_amp_phase(
+                    self.measured_values[0], self.measured_values[1])
+
 
             self.peaks = a_tools.peak_finder(
                 self.sweep_points, a_tools.smooth(self.data_dist))

@@ -1077,7 +1077,7 @@ def calculate_distance_from_ground_IQ(data_real, data_imag,
 
 def calcuate_distance_from_ground_amp_phase(data_amplitude, data_phase,
                         data_amplitude_ground=None, data_phase_ground=None,
-                        precentile=70):
+                        percentile=70):
     '''
     Calculates the distance from |ground> in the IQ plane when amplitude and phase
     data are passed.
