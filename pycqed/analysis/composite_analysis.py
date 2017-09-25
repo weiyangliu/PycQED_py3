@@ -30,9 +30,9 @@ class Standard_MA(object):
     """
 
     def __init__(self, t_start, t_stop=None, options_dict=None,
-                 extract_only=False, do_fitting=False):
+                 extract_only=False, do_fitting=False, remove_timestamps=None):
         '''
-        to be defined
+                        if data are corrupted
         '''
         self.t_start = t_start
         if t_stop is None:
@@ -46,12 +46,17 @@ class Standard_MA(object):
         self.axs = dict()
         self.extract_only = extract_only
         self.do_fitting = do_fitting
+        self.remove_timestamps = remove_timestamps
 
     def extract_data(self):
         self.TD_timestamps = a_tools.get_timestamps_in_range(
 
             self.t_start, self.t_stop, label=self.labels,
             exact_label_match=self.exact_label_match)
+        # remove required timestamps
+        if self.remove_timestamps != None:
+            for current_timestamp in self.remove_timestamps:
+                self.TD_timestamps.remove(current_timestamp)
 
 
         if len(self.TD_timestamps) < 1:
@@ -270,10 +275,12 @@ class quick_analysis(Standard_MA):
                  extract_only=False,
                  auto=True,
                  params_dict_TD=None,
-                 numeric_params=None):
+                 numeric_params=None,
+                 remove_timestamps=None):
         super(quick_analysis, self).__init__(t_start, t_stop=t_stop,
                                              options_dict=options_dict,
-                                             extract_only=extract_only)
+                                             extract_only=extract_only,
+                                             remove_timestamps=remove_timestamps)
         self.params_dict_TD = params_dict_TD
 
         self.numeric_params = numeric_params
