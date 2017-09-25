@@ -177,6 +177,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                            initial_value=.25,
                            vals=vals.Numbers(min_value=-2.25, max_value=2.25),
                            parameter_class=ManualParameter)
+        self.Q_amp180 = self.amp180
         self.add_parameter('amp90_scale',
                            label='pulse amplitude scaling factor', unit='',
                            initial_value=.5,
