@@ -532,28 +532,28 @@ class CBox_driven_transmon(Transmon):
         '''
         self.prepare_for_continuous_wave()
         if MC is None:
-            MC = self.MC
+            MC = self.MC.get_instr()
         MC.set_sweep_functions(
-            [pw.wrap_par_to_swf(self.heterodyne_instr.frequency),
-             pw.wrap_par_to_swf(self.heterodyne_instr.RF_power)])
+            [pw.wrap_par_to_swf(self.heterodyne_instr.get_instr().frequency),
+             pw.wrap_par_to_swf(self.heterodyne_instr.get_instr().RF_power)])
         MC.set_sweep_points(freqs)
         MC.set_sweep_points_2D(powers)
-        MC.set_detector_function(det.Heterodyne_probe(self.heterodyne_instr))
+        MC.set_detector_function(det.Heterodyne_probe(self.heterodyne_instr.get_instr()))
         MC.run(name='Resonator_power_scan'+self.msmt_suffix, mode='2D')
         if analyze:
-            ma.MeasurementAnalysis(auto=True, TwoD=True, close_fig=close_fig)
+            ma.MeasurementAnalysis(auto=True, TwoD=True, close_fig=close_fig, normalize=True)
 
     def measure_resonator_dac(self, freqs, dac_voltages,
                               MC=None, analyze=True, close_fig=True):
         self.prepare_for_continuous_wave()
         if MC is None:
-            MC = self.MC
+            MC = self.MC.get_instr()
         MC.set_sweep_functions(
-            [self.heterodyne_instr.frequency,
-             self.IVVI.parameters['dac{}'.format(self.dac_channel())]])
+            [self.heterodyne_instr.get_instr().frequency,
+             self.IVVI.get_instr().parameters['dac{}'.format(self.dac_channel())]])
         MC.set_sweep_points(freqs)
         MC.set_sweep_points_2D(dac_voltages)
-        MC.set_detector_function(det.Heterodyne_probe(self.heterodyne_instr))
+        MC.set_detector_function(det.Heterodyne_probe(self.heterodyne_instr.get_instr()))
         MC.run(name='Resonator_dac_scan'+self.msmt_suffix, mode='2D')
         if analyze:
             ma.MeasurementAnalysis(auto=True, TwoD=True, close_fig=close_fig)

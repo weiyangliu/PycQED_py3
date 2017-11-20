@@ -162,7 +162,8 @@ class MeasurementAnalysis(object):
                 fig.savefig(
                     self.savename, dpi=self.dpi,format=plot_format,
                     bbox_inches='tight')
-            except:
+            except Exception as e:
+                raise(e)
                 fail_counter = True
         if fail_counter:
             logging.warning('Figure "%s" has not been saved.' % self.savename)
@@ -368,7 +369,7 @@ class MeasurementAnalysis(object):
                         figsize=(3.375,2.25*len(self.value_names)),dpi=self.dpi)
                 else:
                     fig, axs = plt.subplots(
-                        nrows=max(len(self.value_names)), ncols=1,
+                        nrows=len(self.value_names), ncols=1,
                         figsize=(7,4*len(self.value_names)),dpi=self.dpi)
                     # figsize=(min(6*len(self.value_names), 11),
                     #          1.5*len(self.value_names)))
@@ -389,8 +390,8 @@ class MeasurementAnalysis(object):
                     ax = axs
                 elif len(self.value_names) == 2:
                     ax = axs[i % 2]
-                elif len(self.value_names) == 4:
-                    ax = axs[i//2, i % 2]
+                # elif len(self.value_names) == 4:
+                #     ax = axs[i//2, i % 2]
                 else:
                     ax = axs[i]  # If not 2 or 4 just gives a list of plots
                 if i != 0:
@@ -5271,8 +5272,8 @@ class TwoD_Analysis(MeasurementAnalysis):
 
     def run_default_analysis(self, normalize=False, plot_linecuts=True,
                              linecut_log=False, colorplot_log=False,
-                             plot_all=True, save_fig=True,
-                             transpose=False, figsize=None,
+                             plot_all=True, save_fig=True, plot_only_pars=None,
+                             transpose=False, figsize=None, 
                              **kw):
         close_file = kw.pop('close_file', True)
 
@@ -5280,9 +5281,13 @@ class TwoD_Analysis(MeasurementAnalysis):
         self.fig_array = []
         self.ax_array = []
 
+
         for i, meas_vals in enumerate(self.measured_values):
             if (not plot_all) & (i >= 1):
                 break
+            if (plot_only_pars !=None) and (i not in plot_only_pars):
+                continue
+            print(i)
             # Linecuts are above because somehow normalization applies to both
             # colorplot and linecuts otherwise.
             if plot_linecuts:

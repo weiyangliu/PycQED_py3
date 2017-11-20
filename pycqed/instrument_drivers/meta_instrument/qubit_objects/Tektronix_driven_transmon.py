@@ -362,7 +362,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             # self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(
             #     f_RO_mod=self.f_RO_mod(), RO_amp=self.RO_amp(),
             # RO_pulse_length=self.RO_pulse_length(), acquisition_delay=270e-9)
-        elif self.RO_pulse_type.get() is 'Gated_MW_RO_pulse':
+        elif self.RO_pulse_type.get()=='Gated_MW_RO_pulse':
             self.RF_RO_source.get_instr().pulsemod_state('On')
             self.RF_RO_source.get_instr().frequency(self.f_RO.get())
             self.RF_RO_source.get_instr().power(self.RO_pulse_power.get())

@@ -254,7 +254,7 @@ class HeterodyneInstrument(Instrument):
             self.prepare()
 
         dataset = self._acquisition_instr.acquisition_poll(
-            samples=1, acquisition_time=0.001, timeout=10)
+            samples=1, acquisition_time=0.001)
         dat = (self.scale_factor_UHFQC*dataset[0][0] +
                self.scale_factor_UHFQC*1j*dataset[1][0])
         return dat
@@ -276,6 +276,9 @@ class HeterodyneInstrument(Instrument):
         # this is the definition agreed upon in issue 131
         self.RF.frequency(val)
         self.LO.frequency(val-self._f_RO_mod)
+        #get commands to be sure that frequency is set
+        self.RF.frequency()
+        self.LO.frequency()
 
     def _get_frequency(self):
         freq = self.RF.frequency()
