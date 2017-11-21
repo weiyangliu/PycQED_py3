@@ -1875,13 +1875,15 @@ class SSRO_Analysis(MeasurementAnalysis):
                              channels=['I', 'Q'],
                              no_fits=False,
                              print_fit_results=False,
+                             pge=None, peg=None,
                              n_bins: int=120, **kw):
 
         self.add_analysis_datagroup_to_file()
         self.no_fits = no_fits
-        self.pge=pge #fixed fraction of ground state in the excited state histogram (relaxation)
-        self.peg=peg #fixed fraction of excited state in the ground state hitogram (residual population)
+        self.pge = pge #fixed fraction of ground state in the excited state histogram (relaxation)
+        self.peg = peg #fixed fraction of excited state in the ground state hitogram (residual population)
         self.get_naming_and_values()
+        self.n_bins = n_bins
         # plotting histograms of the raw shots on I and Q axis
 
         if len(self.channels) == 1:
@@ -2002,7 +2004,7 @@ class SSRO_Analysis(MeasurementAnalysis):
         cmap = kw.pop('cmap', 'viridis')
         # plotting 2D histograms of mmts with pulse
 
-        n_bins = 120  # the bins we want to have around our data
+        n_bins = self.n_bins  # the bins we want to have around our data
         I_min = min(min(shots_I_0), min(shots_I_1))
         I_max = max(max(shots_I_0), max(shots_I_1))
         Q_min = min(min(shots_Q_0), min(shots_Q_1))
@@ -2396,9 +2398,9 @@ class SSRO_Analysis(MeasurementAnalysis):
         #################################################
         fig, ax = plt.subplots(figsize=(8, 4))
 
-        n0, bins0 = np.histogram(shots_I_0_rot, bins=int(min_len/50),
+        n0, bins0 = np.histogram(shots_I_0_rot, bins=self.n_bins,
                                  normed=True)
-        n1, bins1 = np.histogram(shots_I_1_rot, bins=int(min_len/50),
+        n1, bins1 = np.histogram(shots_I_1_rot, bins=self.n_bins,
                                  normed=True)
 
         pylab.plot(bins1[:-1]+0.5*(bins1[1]-bins1[0]), n1, 'ro')
@@ -2478,6 +2480,16 @@ class SSRO_Analysis(MeasurementAnalysis):
         self.frac1_1 = frac1_1
         self.F_d = F_d
         self.SNR = SNR
+        self.bins0 = bins0
+        self.bins1 = bins1
+        self.n0 = n0
+        self.n1 = n1
+        self.y1 = y1
+        self.y0 = y0
+        self.y1_1 = y1_1
+        self.y0_0 = y0_0
+        self.y1_0 = y1_0
+        self.y0_1 = y0_1
 
 
 class SSRO_discrimination_analysis(MeasurementAnalysis):
@@ -2974,7 +2986,7 @@ class Ramsey_Analysis(TD_Analysis):
                                           min=self.norm_sweep_points[1],
                                           max=self.norm_sweep_points[1]*1000)
 
-        damped_osc_mod.set_param_hint('tau',
+            damped_osc_mod.set_param_hint('tau',
                                       value=self.norm_sweep_points[1]*10,
                                       min=self.norm_sweep_points[1],
                                       max=self.norm_sweep_points[1]*1000)
@@ -3494,25 +3506,25 @@ class AllXY_Analysis(TD_Analysis):
         ax1.xaxis.set_ticks(locs)
         ax1.set_xticklabels(labels, rotation=60)
 
-            deviation_text = r'Deviation: %.5f ' % self.deviation_total
-            if self.select_points!=None:
-                deviation_text = deviation_text + self.select_points + ' points'
+        deviation_text = r'Deviation: %.5f ' % self.deviation_total
+        if self.select_points!=None:
+            deviation_text = deviation_text + self.select_points + ' points'
 
-            ax1.text(1, 1.05, deviation_text, fontsize=11,
-                     bbox=self.box_props)
-            if self.select_points==None:
-                figname = 'Amplitude (normalized)'
-            else:
-                figname = 'Amplitude (normalized)' + self.select_points
+        ax1.text(1, 1.05, deviation_text, fontsize=11,
+                 bbox=self.box_props)
+        if self.select_points==None:
+            figname = 'Amplitude (normalized)'
+        else:
+            figname = 'Amplitude (normalized)' + self.select_points
 
-            if not close_main_fig:
-                # Hacked in here, good idea to only show the main fig but can
-                # be optimized somehow
-                self.save_fig(fig1, ylabel=figname,
-                              close_fig=False, **kw)
-            else:
-                self.save_fig(fig1, ylabel=figname, **kw)
-            self.save_fig(fig2, ylabel='Amplitude', **kw)
+        if not close_main_fig:
+            # Hacked in here, good idea to only show the main fig but can
+            # be optimized somehow
+            self.save_fig(fig1, ylabel=figname,
+                          close_fig=False, **kw)
+        else:
+            self.save_fig(fig1, ylabel=figname, **kw)
+        self.save_fig(fig2, ylabel='Amplitude', **kw)
         if close_file:
             self.data_file.close()
         return self.deviation_total

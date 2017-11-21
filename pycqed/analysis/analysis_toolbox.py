@@ -711,7 +711,7 @@ def compare_instrument_settings(analysis_object_a, analysis_object_b):
 
 
 def get_timestamps_in_range(timestamp_start, timestamp_end=None,
-                            label=None, exact_label_match=True, folder=None):
+                            label=None, exact_label_match=False, folder=None):
     if folder is None:
         folder = datadir
 
@@ -726,7 +726,9 @@ def get_timestamps_in_range(timestamp_start, timestamp_end=None,
         date = datetime_start + datetime.timedelta(days=day)
         datemark = timestamp_from_datetime(date)[:8]
         all_measdirs = [d for d in os.listdir(os.path.join(folder, datemark))]
-
+        # Remove all hidden folders to prevent errors
+        all_measdirs = [d for d in all_measdirs if not d.startswith('.')]
+        print(type(all_measdirs))
         if exact_label_match:
             all_measdirs = [x for x in all_measdirs if label in x]
         else:
@@ -735,20 +737,21 @@ def get_timestamps_in_range(timestamp_start, timestamp_end=None,
         if (date.date() - datetime_start.date()).days == 0:
             # Check if newer than starting timestamp
             timemark_start = timemark_from_datetime(datetime_start)
-            all_measdirs = [dirname for dirname in all_measdirs if int(dirname[:6]) >=
-                            int(timemark_start)]
+            all_measdirs = [dirname for dirname in all_measdirs
+                            if int(dirname[:6]) >= int(timemark_start)]
 
         if (date.date() - datetime_end.date()).days == 0:
             # Check if older than ending timestamp
             timemark_end = timemark_from_datetime(datetime_end)
-            all_measdirs = [dirname for dirname in all_measdirs if int(dirname[:6]) <=
-                            int(timemark_end)]
+            all_measdirs = [dirname for dirname in all_measdirs if
+                            int(dirname[:6]) <= int(timemark_end)]
         timestamps = ['{}_{}'.format(datemark, dirname[:6])
                       for dirname in all_measdirs]
         timestamps.reverse()
         all_timestamps += timestamps
     # Ensures the order of the timestamps is ascending
     all_timestamps.reverse()
+    all_timestamps.sort()
     return all_timestamps
 
 
