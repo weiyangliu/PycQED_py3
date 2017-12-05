@@ -830,3 +830,18 @@ class lutman_par_dB_attenuation(Soft_Sweep):
         self.LutMan.load_pulses_onto_AWG_lookuptable(regenerate_pulses=True)
         self.LutMan.QWG.get_instr().start()
         self.LutMan.QWG.get_instr().getOperationComplete()
+
+
+class UHFQC_pulse_dB_attenuation(Soft_Sweep):
+
+    def __init__(self, UHFQC, **kw):
+        self.set_kw()
+        self.name = 'UHFQC pulse attenuation'
+        self.parameter_name = 'pulse attenuation'
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.UHFQC = UHFQC
+
+
+    def set_parameter(self, val):
+        self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=freq_mod,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9)
