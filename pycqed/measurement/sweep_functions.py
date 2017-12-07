@@ -868,7 +868,9 @@ class UHFQC_pulse_dB_attenuation(Soft_Sweep):
 
 
     def set_parameter(self, val):
-        self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=freq_mod,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9)
+        self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=100e6,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9)
+        time.sleep(1)
+        print('refreshed UHFQC')
 
 
 class two_par_joint_sweep(Soft_Sweep):
