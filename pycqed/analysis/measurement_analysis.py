@@ -179,7 +179,7 @@ class MeasurementAnalysis(object):
                     plt.setp(ax.get_xticklabels(), color=self.tick_labelcolor)
                     plt.setp(ax.get_yticklabels(), color=self.tick_labelcolor)
 
-                # This makes the background around the axes transparent
+                # Thparam axis, param labelis makes the background around the axes transparent
                 fig.patch.set_alpha(0)
                 # FIXME: the axes labels and unit rescaling could also be
                 # repeated here as the last step before saving
@@ -187,10 +187,11 @@ class MeasurementAnalysis(object):
                 fig.savefig(
                     self.savename, dpi=self.dpi, format=plot_format,
                     bbox_inches='tight')
-            except:
-                fail_counter = True
-        if fail_counter:
-            logging.warning('Figure "%s" has not been saved.' % self.savename)
+            except Exception as e:
+                logging.warning(e)
+                raise(e)
+                logging.warning('Figure "%s" has not been saved.' % self.savename)
+
         if close_fig:
             plt.close(fig)
         return
@@ -5337,7 +5338,7 @@ class TwoD_Analysis(MeasurementAnalysis):
 
                 if save_fig:
                     self.save_fig(fig, figname=savename,
-                                  fig_tight=False, **kw)
+                                  **kw)
 
             fig, ax = plt.subplots(figsize=figsize)
             self.fig_array.append(fig)

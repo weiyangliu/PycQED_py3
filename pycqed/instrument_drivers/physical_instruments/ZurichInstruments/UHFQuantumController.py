@@ -745,7 +745,7 @@ class UHFQC(Instrument):
 const TRIGGER1  = 0x000001;
 const WINT_TRIG = 0x000010;
 const IAVG_TRIG = 0x000020;
-const WINT_EN   = 0x1f0000;
+const WINT_EN   = 0x1ff0000;
 setTrigger(WINT_EN);
 var loop_cnt = getUserReg(0);
 var wait_delay = getUserReg(2);
@@ -781,7 +781,7 @@ setTrigger(0);"""
         join = False
         n = 0
         while n < len(array):
-            string += '{:.3f}'.format(array[n])
+            string += '{:.6f}'.format(array[n])
             if ((n+1) % 1024 != 0) and n < len(array)-1:
                 string += ','
 
@@ -804,7 +804,7 @@ setTrigger(0);"""
 const TRIGGER1  = 0x000001;
 const WINT_TRIG = 0x000010;
 const IAVG_TRIG = 0x000020;
-const WINT_EN   = 0x1f0000;
+const WINT_EN   = 0x1ff0000;
 setTrigger(WINT_EN);
 var loop_cnt = getUserReg(0);
 var RO_TRIG;
