@@ -481,7 +481,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
 
         # upload a trigger sequence
-        if self.find_instrument(self.AWG()) != None:
+        if self.AWG() != 'None':
             st_seqs.generate_and_upload_marker_sequence(
                         5e-9, 5e-6, RF_mod=False,
                         acq_marker_channels="{}".format(self.RO_acq_marker_channel()))
@@ -492,7 +492,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         MC.set_sweep_function(swf.Heterodyne_Frequency_Sweep(
             RO_pulse_type=self.RO_pulse_type(),
-            RF_source=None,
+            RF_source=self.heterodyne_instr.get_instr().RF,
             LO_source=self.LO.get_instr(), IF=self.f_RO_mod()))
         MC.set_sweep_points(freqs)
         self.int_avg_det_single._set_real_imag(False)
@@ -517,7 +517,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                                                     update=update,
                                                     upload=force_load)
 
-        if self.find_instrument(self.AWG()) != None:
+        if self.AWG() != 'None':
             st_seqs.generate_and_upload_marker_sequence(
                         5e-9, 5e-6, RF_mod=False,
                         acq_marker_channels="{}".format(self.RO_acq_marker_channel()))
@@ -1011,30 +1011,56 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         elif 'UHFQC' in acquisition_instr:
             logging.info("setting UHFQC acquisition")
-            self.input_average_detector = det.UHFQC_input_average_detector(
-                UHFQC=self._acquisition_instr,
-                AWG=self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
+            if self.AWG() != 'None':
+                self.input_average_detector = det.UHFQC_input_average_detector(
+                    UHFQC=self._acquisition_instr,
+                    AWG=self.AWG.get_instr(), nr_averages=self.RO_acq_averages())
 
-            self.int_avg_det_single = det.UHFQC_integrated_average_detector(
-                UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
-                channels=[self.RO_acq_weight_function_I(),
-                          self.RO_acq_weight_function_Q()],
-                nr_averages=self.RO_acq_averages(),
-                real_imag=True, single_int_avg=True,
-                integration_length=self.RO_acq_integration_length())
+                self.int_avg_det_single = det.UHFQC_integrated_average_detector(
+                    UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    nr_averages=self.RO_acq_averages(),
+                    real_imag=True, single_int_avg=True,
+                    integration_length=self.RO_acq_integration_length())
 
-            self.int_avg_det = det.UHFQC_integrated_average_detector(
-                UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
-                channels=[self.RO_acq_weight_function_I(),
-                          self.RO_acq_weight_function_Q()],
-                nr_averages=self.RO_acq_averages(),
-                integration_length=self.RO_acq_integration_length())
+                self.int_avg_det = det.UHFQC_integrated_average_detector(
+                    UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length())
 
-            self.int_log_det = det.UHFQC_integration_logging_det(
-                UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
-                channels=[self.RO_acq_weight_function_I(),
-                          self.RO_acq_weight_function_Q()],
-                integration_length=self.RO_acq_integration_length())
+                self.int_log_det = det.UHFQC_integration_logging_det(
+                    UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    integration_length=self.RO_acq_integration_length())
+            else:
+                self.input_average_detector = det.UHFQC_input_average_detector(
+                    UHFQC=self._acquisition_instr,
+                    AWG=None, nr_averages=self.RO_acq_averages())
+
+                self.int_avg_det_single = det.UHFQC_integrated_average_detector(
+                    UHFQC=self._acquisition_instr, AWG=None,
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    nr_averages=self.RO_acq_averages(),
+                    real_imag=True, single_int_avg=True,
+                    integration_length=self.RO_acq_integration_length())
+
+                self.int_avg_det = det.UHFQC_integrated_average_detector(
+                    UHFQC=self._acquisition_instr, AWG=None,
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    nr_averages=self.RO_acq_averages(),
+                    integration_length=self.RO_acq_integration_length())
+
+                self.int_log_det = det.UHFQC_integration_logging_det(
+                    UHFQC=self._acquisition_instr, AWG=None,
+                    channels=[self.RO_acq_weight_function_I(),
+                              self.RO_acq_weight_function_Q()],
+                    integration_length=self.RO_acq_integration_length())
 
         elif 'DDM' in acquisition_instr:
             logging.info("setting DDM acquisition")
