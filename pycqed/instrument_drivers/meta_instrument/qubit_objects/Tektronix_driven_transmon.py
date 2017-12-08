@@ -19,12 +19,16 @@ from pycqed.measurement.calibration_toolbox import mixer_carrier_cancellation_50
 from pycqed.measurement.calibration_toolbox import mixer_carrier_cancellation_UHFQC
 from pycqed.measurement.calibration_toolbox import mixer_skewness_calibration_5014
 from pycqed.measurement.optimization import nelder_mead
+from pycqed.measurement.pulse_sequences import standard_sequences as st_seqs
+
+
 
 import pycqed.measurement.pulse_sequences.single_qubit_tek_seq_elts as sq
 from pycqed.instrument_drivers.pq_parameters import InstrumentParameter
 
 from .qubit_object import Transmon
 from .CBox_driven_transmon import CBox_driven_transmon
+
 # It would be better to inherit from Transmon directly and put all the common
 # stuff in there but for now I am inheriting from what I already have
 # MAR april 2016
@@ -59,8 +63,8 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
 
         self.add_parameter('AWG', parameter_class=InstrumentParameter)
 
-        self.add_parameter('heterodyne_instr',
-                           parameter_class=InstrumentParameter)
+        # self.add_parameter('heterodyne_instr',
+        #                    parameter_class=InstrumentParameter)
 
         self.add_parameter('LutMan', parameter_class=InstrumentParameter)
         self.add_parameter('CBox', parameter_class=InstrumentParameter)
@@ -257,27 +261,42 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
     def prepare_for_continuous_wave(self):
         # makes sure the settings of the acquisition instrument are reloaded
         self.acquisition_instr(self.acquisition_instr())
-        self.heterodyne_instr.get_instr().acquisition_instr(self.acquisition_instr())
+        #self.heterodyne_instr.get_instr().acquisition_instr(self.acquisition_instr())
         # Heterodyne tone configuration
         if not self.f_RO():
             RO_freq = self.f_res()
         else:
             RO_freq = self.f_RO()
 
-        self.heterodyne_instr.get_instr()._disable_auto_seq_loading = False
+        #cutting out the heterodyne layer
+        #self.heterodyne_instr.get_instr()._disable_auto_seq_loading = False
+        #self.heterodyne_instr.get_instr().RF.on()
+        #self.heterodyne_instr.get_instr().LO.on()
+        #if hasattr(self.heterodyne_instr.get_instr(), 'mod_amp'):
+            #self.heterodyne_instr.get_instr().set('mod_amp', self.mod_amp_cw.get())
+        #else:
+            #self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
+        #self.heterodyne_instr.get_instr().set('f_RO_mod', self.f_RO_mod.get())
+        #self.heterodyne_instr.get_instr().frequency.set(RO_freq)
+        #self.heterodyne_instr.get_instr().RF.power(self.RO_power_cw())
+        #self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
+        #self.heterodyne_instr.get_instr().nr_averages(self.RO_acq_averages())
 
-        self.heterodyne_instr.get_instr().RF.on()
-        self.heterodyne_instr.get_instr().LO.on()
-        if hasattr(self.heterodyne_instr.get_instr(), 'mod_amp'):
-            self.heterodyne_instr.get_instr().set('mod_amp', self.mod_amp_cw.get())
-        else:
-            self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
-        self.heterodyne_instr.get_instr().set('f_RO_mod', self.f_RO_mod.get())
-        self.heterodyne_instr.get_instr().frequency.set(RO_freq)
-        self.heterodyne_instr.get_instr().RF.power(self.RO_power_cw())
-        self.heterodyne_instr.get_instr().RF_power(self.RO_power_cw())
-        self.heterodyne_instr.get_instr().nr_averages(self.RO_acq_averages())
-        # Turning of TD source
+        #hardcoding a 10 us trigger rate for now
+        if self.AWG() is not 'None':
+            # if (self._awg_seq_filename not in self.AWG.setup_filename() or
+            #         self._awg_seq_parameters_changed) and :
+            self._awg_seq_filename = \
+                    st_seqs.generate_and_upload_marker_sequence(
+                        5e-9, 10e-6, RF_mod=False,
+                        acq_marker_channels=self.RO_acq_marker_channel())
+            self.AWG.get_instr().run()
+        if 'UHFQC' in self.acquisition_instr():
+          self._acquisition_instr.prepare_SSB_weight_and_rotation(IF=self.f_RO_mod())
+          self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=self.f_RO_mod(),RO_amp=self.RO_amp(),RO_pulse_length=2e-6,acquisition_delay=200e-9)
+
+
+        # Turning off TD source
         if self.td_source.get_instr() is not None:
             self.td_source.get_instr().off()
 
@@ -288,10 +307,15 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             self.cw_source.get_instr().off()
             if hasattr(self.cw_source.get_instr(), 'pulsemod_state'):
                 self.cw_source.get_instr().pulsemod_state('off')
-            if hasattr(self.RF_RO_source.get_instr(), 'pulsemod_state'):
-                self.RF_RO_source.get_instr().pulsemod_state('Off')
-        else:
-            logging.warning('No spectrocscopy source (cw_source) specified')
+        if self.RF_RO_source() is not 'None':
+          if hasattr(self.RF_RO_source.get_instr(), 'pulsemod_state'):
+              self.RF_RO_source.get_instr().pulsemod_state('Off')
+          else:
+              logging.warning('No spectrocscopy source (cw_source) specified')
+
+        self.LO.get_instr().frequency(self.f_RO()-self.f_RO_mod())
+
+
 
     def prepare_for_pulsed_spec(self):
         # TODO: fix prepare for pulsed spec
@@ -312,7 +336,9 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         # makes sure the settings of the acquisition instrument are reloaded
         self.acquisition_instr(self.acquisition_instr())
         if self.td_source.get_instr() != None:
+          if hasattr(self.td_source.get_instr(), 'pulsemod_state'):
             self.td_source.get_instr().pulsemod_state('Off')
+        
         self.LO.get_instr().on()
         if self.cw_source.get_instr() != None:
             self.cw_source.get_instr().off()
@@ -475,12 +501,9 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         # sqts.Pulsed_spec_seq(spec_pars, RO_pars)
         if MC is None:
             MC = self.MC.get_instr()
-        MC.set_sweep_function(pw.wrap_par_to_swf(
-                              self.heterodyne_instr.get_instr().frequency, retrieve_value=True))
+        MC.set_sweep_function(swf.Heterodyne_Frequency_Sweep(RO_pulse_type='IQ', LO_source=self.LO.get_instr(), RF_source=None, IF=self.f_RO_mod()))
         MC.set_sweep_points(freqs)
-        MC.set_detector_function(
-            det.Heterodyne_probe(self.heterodyne_instr.get_instr(),
-                                 trigger_separation=self.RO_acq_integration_length()+5e-6, RO_length=self.RO_acq_integration_length()))
+        MC.set_detector_function(self.int_avg_det_single)
         MC.run(name='Resonator_scan'+self.msmt_suffix)
         if analyze:
             ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
@@ -492,78 +515,74 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         self.cw_source.get_instr().on()
         if MC is None:
             MC = self.MC.get_instr()
-        if pulsed:
-            # Redirect to the pulsed spec function
-            return self.measure_pulsed_spectroscopy(freqs=freqs,
-                                                    MC=MC,
-                                                    analyze=analyze,
-                                                    close_fig=close_fig,
-                                                    update=update,
-                                                    upload=force_load)
+        # if pulsed:
+        #     # Redirect to the pulsed spec function
+        #     return self.measure_pulsed_spectroscopy(freqs=freqs,
+        #                                             MC=MC,
+        #                                             analyze=analyze,
+        #                                             close_fig=close_fig,
+        #                                             update=update,
+        #                                             upload=force_load)
 
         MC.set_sweep_function(pw.wrap_par_to_swf(
                               self.cw_source.get_instr().frequency, retrieve_value=True))
         MC.set_sweep_points(freqs)
-        MC.set_detector_function(
-            det.Heterodyne_probe(
-                self.heterodyne_instr.get_instr(),
-                trigger_separation=5e-6 + self.RO_acq_integration_length(),
-                RO_length=self.RO_acq_integration_length()))
+        MC.set_detector_function(self.int_avg_det_single)
         MC.run(name='spectroscopy'+self.msmt_suffix)
 
         if analyze:
             ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
         self.cw_source.get_instr().off()
 
-    def measure_pulsed_spectroscopy(self, freqs, MC=None, analyze=True,
-                                    return_detector=False,
-                                    close_fig=True, upload=True, update=True,
-                                    use_max=False):
-        """
-        Measure pulsed spec with the qubit.
+    # def measure_pulsed_spectroscopy(self, freqs, MC=None, analyze=True,
+    #                                 return_detector=False,
+    #                                 close_fig=True, upload=True, update=True,
+    #                                 use_max=False):
+    #     """
+    #     Measure pulsed spec with the qubit.
 
-            Accepts a manual sequence parameters, which has to be a call to a
-            pulse generation allowing for alternative sequences to be played
-            instead of the standard one
+    #         Accepts a manual sequence parameters, which has to be a call to a
+    #         pulse generation allowing for alternative sequences to be played
+    #         instead of the standard one
 
-        """
+    #     """
 
-        self.prepare_for_pulsed_spec()
-        self.heterodyne_instr.get_instr()._disable_auto_seq_loading = True
+    #     self.prepare_for_pulsed_spec()
+    #     self.heterodyne_instr.get_instr()._disable_auto_seq_loading = True
 
-        self.cw_source.get_instr().pulsemod_state.set('On')
-        self.cw_source.get_instr().power.set(self.spec_pow_pulsed.get())
-        self.cw_source.get_instr().on()
+    #     self.cw_source.get_instr().pulsemod_state.set('On')
+    #     self.cw_source.get_instr().power.set(self.spec_pow_pulsed.get())
+    #     self.cw_source.get_instr().on()
 
-        if MC is None:
-            MC = self.MC.get_instr()
+    #     if MC is None:
+    #         MC = self.MC.get_instr()
 
-        spec_pars, RO_pars = self.get_spec_pars()
-        # Upload the AWG sequence
-        sq.Pulsed_spec_seq(spec_pars, RO_pars)
+    #     spec_pars, RO_pars = self.get_spec_pars()
+    #     # Upload the AWG sequence
+    #     sq.Pulsed_spec_seq(spec_pars, RO_pars)
 
-        self.AWG.get_instr().start()
-        if return_detector:
-            return det.Heterodyne_probe(self.heterodyne_instr.get_instr())
+    #     self.AWG.get_instr().start()
+    #     if return_detector:
+    #         return det.Heterodyne_probe(self.heterodyne_instr.get_instr())
 
-        else:
-            MC.set_sweep_function(pw.wrap_par_to_swf(
-                self.cw_source.get_instr().frequency, retrieve_value=True))
-            MC.set_sweep_points(freqs)
-            MC.set_detector_function(
-                det.Heterodyne_probe(self.heterodyne_instr.get_instr()))
-            MC.run(name='pulsed-spec'+self.msmt_suffix)
-            if analyze or update:
-                ma_obj = ma.Qubit_Spectroscopy_Analysis(
-                    auto=True, label='pulsed', close_fig=close_fig)
-                if use_max:
-                    f_qubit = ma_obj.peaks['peak']
-                else:
-                    f_qubit = ma_obj.fitted_freq
-                if update:
-                    self.f_qubit(f_qubit)
-            self.cw_source.get_instr().off()
-            return f_qubit
+    #     else:
+    #         MC.set_sweep_function(pw.wrap_par_to_swf(
+    #             self.cw_source.get_instr().frequency, retrieve_value=True))
+    #         MC.set_sweep_points(freqs)
+    #         MC.set_detector_function(
+    #             det.Heterodyne_probe(self.heterodyne_instr.get_instr()))
+    #         MC.run(name='pulsed-spec'+self.msmt_suffix)
+    #         if analyze or update:
+    #             ma_obj = ma.Qubit_Spectroscopy_Analysis(
+    #                 auto=True, label='pulsed', close_fig=close_fig)
+    #             if use_max:
+    #                 f_qubit = ma_obj.peaks['peak']
+    #             else:
+    #                 f_qubit = ma_obj.fitted_freq
+    #             if update:
+    #                 self.f_qubit(f_qubit)
+    #         self.cw_source.get_instr().off()
+    #         return f_qubit
 
     def measure_rabi(self, amps=np.linspace(-.5, .5, 31), n=1,
                      MC=None, analyze=True, close_fig=True,
@@ -1000,6 +1019,15 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
                 UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
                 channels=[self.RO_acq_weight_function_I(),
                           self.RO_acq_weight_function_Q()],
+                nr_averages=self.RO_acq_averages(),
+                integration_length=self.RO_acq_integration_length())
+
+            self.int_avg_det_single = det.UHFQC_integrated_average_detector(
+                UHFQC=self._acquisition_instr, AWG=self.AWG.get_instr(),
+                channels=[self.RO_acq_weight_function_I(),
+                          self.RO_acq_weight_function_Q()],
+                real_imag=False,
+                single_int_avg=True,
                 nr_averages=self.RO_acq_averages(),
                 integration_length=self.RO_acq_integration_length())
 
