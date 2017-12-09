@@ -271,6 +271,11 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         else:
             RO_freq = self.f_RO()
 
+
+        if self.RO_pulse_type.get() == 'Gated_MW_RO_pulse':
+            self.heterodyne_instr.get_instr().RF.power(self.RO_power_cw())
+            self.heterodyne_instr.get_instr().on()
+
         self.LO.get_instr().frequency.set(RO_freq - self.f_RO_mod.get())
         self.LO.get_instr().on()
 
