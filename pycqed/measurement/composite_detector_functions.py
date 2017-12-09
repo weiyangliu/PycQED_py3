@@ -1145,15 +1145,12 @@ class Qubit_Spectroscopy(det.Soft_Detector):
         self.HM.set_sources('Off')
         self.nested_MC.remove()
 
-
 class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
 
     '''
     Performs a set of measurements that finds f_resonator, f_qubit, and
     tracks them.
-
     Uses functions on the qubit object.
-
     If the sweep points are handed it uses those in predicting frequencies,
     if no sweep points are given it assumes linear spacing between sweep points.
     '''
@@ -1337,10 +1334,8 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
         f_resonator = self.qubit.find_resonator_frequency(
             MC=self.nested_MC,
             freqs=freqs_res, update=False,
-            use_min=self.resonator_use_min)*1e9  # to correct for fit
-        # FIXME: remove the 1e9 after reloading the qubit object
+            use_min=self.resonator_use_min)
 
-        # FIXME not returned in newest version
         # self.resonator_frequency = f_resonator  # in 2nd loop value is updated
         # f_resonator_stderr = resonator_scan['f_resonator_stderr']
         # Q_resonator = resonator_scan['quality_factor']
@@ -1355,6 +1350,7 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
                   span=(frequencies['f_qubit_end'] -
                         frequencies['f_qubit_start'])))
 
+        self.qubit.f_res(f_resonator)
         self.qubit.f_RO(f_resonator)
         freqs_qub = np.arange(frequencies['f_qubit_start'],
                               frequencies['f_qubit_end'],
@@ -1364,8 +1360,13 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
             freqs=freqs_qub,
             MC=self.nested_MC,
             pulsed=self.pulsed)
-        a = ma.Qubit_Spectroscopy_Analysis(label=self.qubit.msmt_suffix)
-        f_qubit, std_err_f_qubit = a.get_frequency_estimate()
+        if self.pulsed:
+            label = 'pulsed-spec'
+        else:
+            label = 'spectroscopy'
+        a = ma.Qubit_Spectroscopy_Analysis(label=label)
+        f_qubit, std_err_f_qubit = a.fitted_freq, a.fitted_freq_std
+        # f_qubit, std_err_f_qubit = a.get_frequency_estimate()
         # f_qubit = qubit_scan['f_qubit']
         # f_qubit_stderr = qubit_scan['f_qubit_stderr']
         # qubit_linewidth = qubit_scan['qubit_linewidth']
@@ -1373,13 +1374,13 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
         self.qubit_frequency = f_qubit
         print('Measured Qubit frequency: ', f_qubit)
 
-        self.qubit.set_current_frequency(f_qubit)
+        self.qubit.f_qubit(f_qubit)
         # self.resonator_linewidth = f_resonator / Q_resonator
         # self.qubit_linewidth = qubit_linewidth
 
-        if self.loopcnt == 1:
-            self.resonator_span = max(min(5*self.resonator_linewidth, 0.005),
-                                      self.resonator_span)
+        # if self.loopcnt == 1:
+        #     self.resonator_span = max(min(5*self.resonator_linewidth, 0.005),
+        #                               self.resonator_span)
 
         # print('Resonator width = {linewidth}, span = {span}'.format(
         #     linewidth=self.resonator_linewidth, span=self.resonator_span))
@@ -1398,7 +1399,6 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
     def finish(self, **kw):
         # self.HM.set_sources('Off')
         pass
-
 
 class FluxTrack(det.Soft_Detector):
     '''
