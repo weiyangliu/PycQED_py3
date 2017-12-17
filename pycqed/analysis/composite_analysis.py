@@ -48,6 +48,7 @@ class Standard_MA(object):
         self.do_fitting = do_fitting
 
     def extract_data(self):
+        print(self.labels)
         self.TD_timestamps = a_tools.get_timestamps_in_range(
             self.t_start, self.t_stop, label=self.labels,
             exact_label_match=self.exact_label_match)

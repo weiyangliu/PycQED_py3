@@ -286,10 +286,10 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         if self.AWG() is not 'None':
             # if (self._awg_seq_filename not in self.AWG.setup_filename() or
             #         self._awg_seq_parameters_changed) and :
-            self._awg_seq_filename = \
-                    st_seqs.generate_and_upload_marker_sequence(
-                        5e-9, 10e-6, RF_mod=False,
-                        acq_marker_channels=self.RO_acq_marker_channel())
+            # self._awg_seq_filename = \
+            #         st_seqs.generate_and_upload_marker_sequence(
+            #             5e-9, 10e-6, RF_mod=False,
+            #             acq_marker_channels=self.RO_acq_marker_channel())
             self.AWG.get_instr().run()
         if 'UHFQC' in self.acquisition_instr():
           self._acquisition_instr.prepare_SSB_weight_and_rotation(IF=self.f_RO_mod())

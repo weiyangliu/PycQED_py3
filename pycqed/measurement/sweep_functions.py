@@ -78,7 +78,7 @@ class Heterodyne_Frequency_Sweep(Soft_Sweep):
         self.LO_source.frequency()
         if 'gated' in self.RO_pulse_type.lower():
             self.RF_source.frequency(val)
-
+            self.RF_source.frequency()
 
 class Heterodyne_Frequency_Sweep_simple(Soft_Sweep):
     # Same as above but less input arguments
@@ -870,7 +870,7 @@ class UHFQC_pulse_dB_attenuation(Soft_Sweep):
     def set_parameter(self, val):
         self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=100e6,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9)
         time.sleep(1)
-        print('refreshed UHFQC')
+        #print('refreshed UHFQC')
 
 
 class two_par_joint_sweep(Soft_Sweep):

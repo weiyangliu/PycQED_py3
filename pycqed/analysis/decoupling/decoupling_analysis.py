@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 class DecouplingAnalysis:
 
     def __init__(self, N, scan_start, scan_stop, qubit_scan_labels,
-                 dac_mapping, num_points):
+                 dac_mapping, num_points, virtual_dac=False):
         assert(N == len(qubit_scan_labels))
         self.N = N
         self.scan_start = scan_start
@@ -30,6 +30,7 @@ class DecouplingAnalysis:
                                             self.num_points),
                                            dtype=np.bool)
         self.filter_mask_vector[:, :, :] = False
+        self.virtual_dac=virtual_dac
 
     def extract_data(self):
         self.spec_scans = [None] * self.N
@@ -40,12 +41,15 @@ class DecouplingAnalysis:
 
         # adds the dac channels to the extraction dictionary
         for d in self.dac_mapping:
-            pdict.update({'dac%d' % d: 'IVVI.dac%d' % d})
+            if self.virtual_dac:
+                pdict.update({'dac%d' % d: 'FC.flux%d' % d})
+            else:
+                pdict.update({'dac%d' % d: 'IVVI.dac%d' % d})
             nparams.append('dac%d' % d)
 
         # extracts the data
         for i, q_label in enumerate(self.qubit_scan_labels):
-            opt_dict = {'scan_label': ['spec', q_label],
+            opt_dict = {'scan_label': q_label,
                        'exact_label_match':True}
 
             self.spec_scans[i] = RA.quick_analysis(t_start=self.scan_start,
