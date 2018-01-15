@@ -103,7 +103,8 @@ def Qubit_dac_to_freq(dac_voltage, f_max, E_c,
     if V_per_phi0 is None and dac_flux_coefficient is None:
         raise ValueError('Please specify "V_per_phi0".')
 
-    if dac_flux_coefficient is not None:
+    if (dac_flux_coefficient is not None) and (dac_flux_coefficient !=0):
+        print(dac_flux_coefficient)
         logging.warning('"dac_flux_coefficient" deprecated. Please use the '
                         'physically meaningful "V_per_phi0" instead.')
         V_per_phi0 = np.pi/dac_flux_coefficient
@@ -671,6 +672,7 @@ PolyBgHangerAmplitudeModel = lmfit.Model(PolyBgHangerFuncAmplitude)
 HangerComplexModel = lmfit.Model(HangerFuncComplex)
 SlopedHangerComplexModel = lmfit.Model(SlopedHangerFuncComplex)
 QubitFreqDacModel = lmfit.Model(QubitFreqDac)
+QubitDacFreq = lmfit.Model(Qubit_dac_to_freq)
 QubitFreqFluxModel = lmfit.Model(QubitFreqFlux)
 TwinLorentzModel = lmfit.Model(TwinLorentzFunc)
 LorentzianModel = lmfit.Model(Lorentzian)
