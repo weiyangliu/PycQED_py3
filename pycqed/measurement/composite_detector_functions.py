@@ -1365,7 +1365,7 @@ class Tracked_Qubit_Spectroscopy(det.Soft_Detector):
         else:
             label = 'spectroscopy'
         a = ma.Qubit_Spectroscopy_Analysis(label=label)
-        f_qubit, std_err_f_qubit = a.fitted_freq, a.fitted_freq_std
+        f_qubit= a.fitted_freq
         # f_qubit, std_err_f_qubit = a.get_frequency_estimate()
         # f_qubit = qubit_scan['f_qubit']
         # f_qubit_stderr = qubit_scan['f_qubit_stderr']
