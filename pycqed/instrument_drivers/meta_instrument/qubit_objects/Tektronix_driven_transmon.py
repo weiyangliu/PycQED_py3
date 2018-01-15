@@ -271,8 +271,9 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         else:
             RO_freq = self.f_RO()
 
-
         if self.RO_pulse_type.get() == 'Gated_MW_RO_pulse':
+            self.heterodyne_instr.get_instr().RF.frequency(RO_freq)
+            self.heterodyne_instr.get_instr().RF.pulsemod_state('Off')
             self.heterodyne_instr.get_instr().RF.power(self.RO_power_cw())
             self.heterodyne_instr.get_instr().on()
 
@@ -328,6 +329,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         if self.td_source.get_instr() != None:
             self.td_source.get_instr().power.set(self.td_source_pow.get())
 
+
         # # makes sure dac range is used optimally, 20% overhead for mixer skew
         # # use 60% of based on linear range in mathematica
 
@@ -355,12 +357,12 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         p.channel_opt(self.fluxing_channel(), 'high', 2)
         p.channel_opt(self.fluxing_channel(), 'low', -2)
 
-        if self.RO_pulse_type() is 'MW_IQmod_pulse_tek':
+        if self.RO_pulse_type() == 'MW_IQmod_pulse_tek':
             self.AWG.get_instr().set(self.RO_I_channel.get()+'_offset',
                                      self.RO_I_offset.get())
             self.AWG.get_instr().set(self.RO_Q_channel.get()+'_offset',
                                      self.RO_Q_offset.get())
-        elif self.RO_pulse_type() is 'MW_IQmod_pulse_UHFQC':
+        elif self.RO_pulse_type() == 'MW_IQmod_pulse_UHFQC':
             eval('self._acquisition_instr.sigouts_{}_offset({})'.format(
                 self.RO_I_channel(), self.RO_I_offset()))
             eval('self._acquisition_instr.sigouts_{}_offset({})'.format(
@@ -370,16 +372,13 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             # self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(
             #     f_RO_mod=self.f_RO_mod(), RO_amp=self.RO_amp(),
             # RO_pulse_length=self.RO_pulse_length(), acquisition_delay=270e-9)
-        elif self.RO_pulse_type.get() is 'Gated_MW_RO_pulse':
+        elif self.RO_pulse_type.get() == 'Gated_MW_RO_pulse':
+            # print("I'm here")
             self.RF_RO_source.get_instr().pulsemod_state('On')
             self.RF_RO_source.get_instr().frequency(self.f_RO.get())
             self.RF_RO_source.get_instr().power(self.RO_pulse_power.get())
             self.RF_RO_source.get_instr().frequency(self.f_RO())
             self.RF_RO_source.get_instr().on()
-            if 'UHFQC' in self.acquisition_instr():
-                # self._acquisition_instr.awg_sequence_acquisition()
-                # temperarliy removed for debugging
-                pass
 
     def calibrate_mixer_offsets(self, signal_hound, offs_type='pulse',
                                 update=True):
