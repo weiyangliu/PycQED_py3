@@ -639,7 +639,7 @@ class Transmon(Qubit):
             ampl = a.fit_res[1].params['period'].value/2.
 
         if update:
-            self.Q_amp180.set(ampl)
+            self.amp180.set(ampl)
         return ampl
 
     def calibrate_pulse_amplitude_flipping(self,
@@ -671,7 +671,7 @@ class Transmon(Qubit):
         success = False
         fine = False
         for k in range(max_iterations):
-            old_Q_amp180 = self.Q_amp180()
+            old_Q_amp180 = self.amp180()
             if not fine:
                 number_of_flips = 2*np.arange(60)
             if fine:
@@ -691,11 +691,11 @@ class Transmon(Qubit):
                     print('Qubit drive scaling %.3f ' % Q_amp180_scale_factor
                           + 'is too low, capping at 0.9')
 
-            self.Q_amp180(np.round(Q_amp180_scale_factor * self.Q_amp180(), 7))
+            self.amp180(np.round(Q_amp180_scale_factor * self.amp180(), 7))
 
             if verbose:
                 print('Q_amp180_scale_factor: {:.4f}, new Q_amp180: {}'.format(
-                      Q_amp180_scale_factor, self.Q_amp180()))
+                      Q_amp180_scale_factor, self.amp180()))
 
             if (abs(Q_amp180_scale_factor-1) < fine_accuracy) and (not fine):
                 if verbose:
@@ -710,9 +710,9 @@ class Transmon(Qubit):
 
         # If converged?
         if success and verbose:
-            print('Drive calibration set to {}'.format(self.Q_amp180()))
+            print('Drive calibration set to {}'.format(self.amp180()))
         if not update or not success:
-            self.Q_amp180(old_Q_amp180)
+            self.amp180(old_Q_amp180)
         return success
 
     def find_pulse_amplitude(self, amps=np.linspace(-.5, .5, 31),
@@ -781,7 +781,7 @@ class Transmon(Qubit):
                 if verbose:
                     print('Found amplitude', ampl, '\n')
         if update:
-            self.Q_amp180.set(ampl)
+            self.amp180.set(ampl)
         return ampl
 
     def find_amp90_scaling(self, scales=0.5,
@@ -799,7 +799,7 @@ class Transmon(Qubit):
         using flipping sequences.
         '''
         if MC is None:
-            MC = self.MC
+            MC = self.MC.get_instr()
         if np.size(scales) != 1:
             self.measure_rabi_amp90(scales=scales, n=1, MC=MC, analyze=False)
             a = ma.Rabi_Analysis(close_fig=close_fig)
