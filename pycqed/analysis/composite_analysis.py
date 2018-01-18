@@ -229,7 +229,8 @@ class Standard_MA(object):
         plot_cmap = pdict.get('cmap', 'YlGn')
 
         plot_xvals_step = plot_xvals[1]-plot_xvals[0]
-        plot_yvals_step = plot_yvals[1, 0]-plot_yvals[0, 0]
+        # print(plot_yvals)
+        plot_yvals_step = plot_yvals[1][0]-plot_yvals[0][0]
 
         fig_clim = pdict['zrange']
         out = flex_color_plot_vs_x(ax=axs, cmap=plot_cmap, normalize=False,
@@ -242,8 +243,8 @@ class Standard_MA(object):
         axs.set_xlabel(plot_xlabel)
         axs.set_xlim(xmin, xmax)
 
-        ymin, ymax = plot_yvals.min()-plot_yvals_step / \
-            2., plot_yvals.max()+plot_yvals_step/2.
+        ymin, ymax = min_listarray(plot_yvals)-plot_yvals_step / \
+            2., max_listarray(plot_yvals)+plot_yvals_step/2.
         axs.set_ylabel(plot_ylabel)
         axs.set_ylim(ymin, ymax)
 
@@ -318,3 +319,17 @@ class quick_analysis_list(Standard_MA):
 
     def process_data(self):
         pass
+
+def min_listarray(listarray):
+    mn = min(listarray[0])
+    for l in listarray[1:]:
+        if min(l)<mn:
+            mn = min(l)
+    return mn
+
+def max_listarray(listarray):
+    mn = max(listarray[0])
+    for l in listarray[1:]:
+        if max(l)>mn:
+            mn = max(l)
+    return mn
