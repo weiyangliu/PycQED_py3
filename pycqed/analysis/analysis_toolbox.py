@@ -22,6 +22,7 @@ from .tools.data_manipulation import *
 from .tools.plotting import *
 import colorsys as colors
 from matplotlib import cm
+from pycqed.analysis import composite_analysis as RA
 
 datadir = get_default_datadir()
 print('Data directory set to:', datadir)
@@ -1929,3 +1930,25 @@ def get_color_list(max_num, cmap='viridis'):
     if isinstance(cmap, str):
         cmap = cm.get_cmap(cmap)
     return [cmap(cmap)(i) for i in np.linspace(0.0, 1.0, max_num)]
+
+
+def print_pars_table(n_ts=10,pars=None):
+    ts_list= return_last_n_timestamps(n_ts)
+    pdict = {}
+    nparams = []
+    for i,p in enumerate(pars):
+        pdict.update({p:p})
+    opt_dict = {'scan_label':'','exact_label_match':True}
+    # print(ts_list)
+    scans = RA.quick_analysis(t_start=ts_list[-1],t_stop=ts_list[0], options_dict=opt_dict,
+                      params_dict_TD=pdict,numeric_params=nparams)
+
+    pars_line = 'timestamp \t'
+    for p in pars:
+        pars_line = pars_line + p + '\t'
+    print(pars_line)
+    for i,ts in enumerate(scans.TD_timestamps):
+        i_line = '%s \t'%ts
+        for p in pars:
+            i_line = i_line + scans.TD_dict[p][i]+'\t'
+        print(i_line)
