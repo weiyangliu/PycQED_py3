@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 class DecouplingAnalysis:
 
     def __init__(self, N, scan_start, scan_stop, qubit_scan_labels,
-                 dac_mapping, num_points):
+                 dac_mapping, num_points, virtual_dac=False):
         assert(N == len(qubit_scan_labels))
         self.N = N
         self.scan_start = scan_start
@@ -30,6 +30,7 @@ class DecouplingAnalysis:
                                             self.num_points),
                                            dtype=np.bool)
         self.filter_mask_vector[:, :, :] = False
+        self.virtual_dac=virtual_dac
 
     def extract_data(self):
         self.spec_scans = [None] * self.N
@@ -40,12 +41,16 @@ class DecouplingAnalysis:
 
         # adds the dac channels to the extraction dictionary
         for d in self.dac_mapping:
-            pdict.update({'dac%d' % d: 'IVVI.dac%d' % d})
+            if self.virtual_dac:
+                pdict.update({'dac%d' % d: 'FC.flux%d' % d})
+            else:
+                pdict.update({'dac%d' % d: 'IVVI.dac%d' % d})
             nparams.append('dac%d' % d)
 
         # extracts the data
         for i, q_label in enumerate(self.qubit_scan_labels):
-            opt_dict = {'scan_label': ['spec', q_label]}
+            opt_dict = {'scan_label': q_label,
+                       'exact_label_match':True}
 
             self.spec_scans[i] = RA.quick_analysis(t_start=self.scan_start,
                                                    t_stop=self.scan_stop,
@@ -75,6 +80,7 @@ class DecouplingAnalysis:
                 z_vector = self.spec_scans[q].TD_dict[
                     'amp'][start_slice:stop_slice]
 
+                # print(z_vector)
                 pk_vec = get_peaks(dac_vector,
                                    freq_vector,
                                    z_vector)
@@ -211,11 +217,12 @@ def plot_scan_flux(spec_scan_obj, ax, xvals, yvals, zvals, idx_dac):
 
 
 def get_peaks(dac_vector, f_vector, z_vector):
-    plot_z = np.zeros(np.array(z_vector).shape)
+    plot_z = []
     int_interval = np.arange(20)
     for i in range(len(dac_vector)):
-        plot_z[i][:] = a_tools.smooth(
-            z_vector[i][:], 11)-np.mean(z_vector[i][1:10])
+        smoothed_vec = a_tools.smooth(z_vector[i][:], 11)
+        mn = np.mean(z_vector[i][1:10])
+        plot_z.append(smoothed_vec - mn)
     peaks = np.zeros(len(dac_vector))
     for i in range(len(dac_vector)):
         p_dict = a_tools.peak_finder(f_vector[i][1:-2], plot_z[i][1:-2])
