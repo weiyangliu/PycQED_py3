@@ -720,6 +720,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         Optionally specifying T1 also shows the T1 limited fidelity.
         '''
         self.prepare_for_timedomain()
+        length_1Qgate = 4.* self.gauss_sigma.get()
         if MC is None:
             MC = self.MC.get_instr()
         MC.set_sweep_function(awg_swf.Randomized_Benchmarking(
@@ -730,7 +731,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
         MC.run('RB_{}seeds'.format(nr_seeds)+self.msmt_suffix)
         ma.RB_double_curve_Analysis(
             close_main_fig=close_fig, T1=T1,
-            pulse_delay=self.pulse_delay.get())
+            pulse_delay=length_1Qgate)
 
     def measure_ssro(self, no_fits=False,
                      return_detector=False,
