@@ -293,7 +293,7 @@ class Tektronix_driven_transmon(CBox_driven_transmon):
             self.AWG.get_instr().run()
         if 'UHFQC' in self.acquisition_instr():
           self._acquisition_instr.prepare_SSB_weight_and_rotation(IF=self.f_RO_mod())
-          self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=self.f_RO_mod(),RO_amp=self.RO_amp(),RO_pulse_length=2e-6,acquisition_delay=200e-9)
+          self._acquisition_instr.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=self.f_RO_mod(),RO_amp=self.RO_amp(),RO_pulse_length=2e-6,acquisition_delay=185e-9)
 
 
         # Turning off TD source
