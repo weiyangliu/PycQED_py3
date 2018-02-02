@@ -10,7 +10,8 @@ VNA_instr = None
 def acquire_single_linear_frequency_span(file_name, start_freq=None,
                                          stop_freq=None, center_freq=None,
                                          span=None, nbr_points=101, power=-20,
-                                         bandwidth=100, measure='S21'):
+                                         bandwidth=100, measure='S21',
+                                         analyze=True):
     """
     Acquires a single trace from the VNA.
     Inputs:
@@ -60,7 +61,8 @@ def acquire_single_linear_frequency_span(file_name, start_freq=None,
 
     MC_instr.run(name=file_name)
 #     ma.Homodyne_Analysis(auto=True, label=file_name, fitting_model='hanger')
-    ma.VNA_Analysis(auto=True, label=file_name)
+    if analyze == True:
+        ma.VNA_Analysis(auto=True, label=file_name)
 
 
 def acquire_current_trace(file_name):

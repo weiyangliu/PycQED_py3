@@ -70,6 +70,7 @@ class Flux_Control(Instrument):
         self._do_set_flux_vector(new_flux)
 
     def _get_flux(self, id_flux):
+        self._do_get_flux_vector()
         val = self._flux_vector
         return val[id_flux]
 
