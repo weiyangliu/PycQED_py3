@@ -52,7 +52,15 @@
     "vector_g"
   ],
   [
+<<<<<<< HEAD
     "awgs/0/sequencer/pc",
+=======
+    "awgs/0/dio/data",
+    "vector_g"
+  ],
+  [
+    "awgs/0/sequencer/next",
+>>>>>>> master
     "float"
   ],
   [
