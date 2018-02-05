@@ -6353,7 +6353,7 @@ class DoubleFrequency(TD_Analysis):
             '  \t'+r'$\tau _2$: {:.2f}$\mu$s'.format(tau2*1e6))
 
         ax.text(0.4, 0.95, textstr,
-                transform=ax.transAxes, fontsize=11,
+                transform=ax.transAxes, fontsize=8,
                 verticalalignment='top', bbox=self.box_props)
         plot_x = x
 
@@ -6362,7 +6362,7 @@ class DoubleFrequency(TD_Analysis):
         ax.set_xlabel(r'Time ($\mu s$)')
         ax.plot(plot_x*1e6, y, 'bo')
         ax.plot(plot_x[:-4]*1e6, self.fit_plot, 'r-')
-        fig.tight_layout()
+        # fig.tight_layout()
         self.save_fig(fig, **kw)
         self.data_file.close()
         return self.fit_res
@@ -6401,7 +6401,7 @@ class DoubleFrequency(TD_Analysis):
         return fit_res
 
     def save_fig(self, fig, figname='_DoubleFreq_', xlabel='x', ylabel='y',
-                 fig_tight=True, **kw):
+                 fig_tight=False, **kw):
         plot_formats = kw.pop('plot_formats', ['png'])
         fail_counter = False
         close_fig = kw.pop('close_fig', True)
