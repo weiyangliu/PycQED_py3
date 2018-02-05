@@ -24,7 +24,12 @@
     "vector_g"
   ],
   [
-    "awgs/0/sweep/awgtrigs/1",
+    "awgs/0/dio/data",
+    "vector_g"
+  ],
+  [
+    "awgs/0/sequencer/next",
+
     "float"
   ],
   [
