@@ -207,8 +207,10 @@ def load_settings_onto_instrument_v2(instrument, load_from_instr: str=None,
             success = True
         except Exception as e:
             logging.warning(e)
-            older_than = os.path.split(folder)[0][-8:] \
-                + '_' + os.path.split(folder)[1][:6]
+            # This check makes this snippet a bit more robust
+            if folder is not None:
+                older_than = os.path.split(folder)[0][-8:] \
+                    + '_' + os.path.split(folder)[1][:6]
             folder = None
             success = False
         count += 1
@@ -220,7 +222,7 @@ def load_settings_onto_instrument_v2(instrument, load_from_instr: str=None,
 
     for parname, par in ins_group['parameters'].items():
         try:
-            if instrument.parameters[parname].has_set:
+            if hasattr(instrument.parameters[parname], 'set'):
                 instrument.set(parname, par['value'])
         except Exception as e:
             print('Could not set parameter: "{}" to "{}" '

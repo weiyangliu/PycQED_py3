@@ -78,13 +78,16 @@ ccl.enable()
 """
 Let's upload our microcode to the control store
 """
-ccl.upload_microcode('./microcode_example.txt')
 
+ccl.upload_microcode('./qisa_test_assembly/cs.txt')
+# One can check what the python driver has as the last
+# uploaded microcode using dump_microcode:
+ccl.CCL_microcode.dump_microcode()
 
 """
 Let's next upload our instructions
 """
-ccl.upload_instructions('./qisa_test_assembly/test_s_mask.qisa')
+ccl.eqasm_program('./qisa_test_assembly/test_s_mask.qisa')
 
 
 """
@@ -110,11 +113,12 @@ We then upload our instructions, below are the names of several example
 files.
 """
 # A generic test
-ccl.upload_instructions('./qisa_test_assembly/test_assembly.qisa')
+ccl.eqasm_program('./qisa_test_assembly/test_assembly.qisa')
 # An example that allows playing with the vsm channel delay for viewing
 # it on the scope.
-ccl.upload_instructions('./qisa_test_assembly/vsm_delay.qisa')
+ccl.eqasm_program('./qisa_test_assembly/vsm_delay.qisa')
 
+# It is also possible
 
 """
 And we run again...

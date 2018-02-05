@@ -89,7 +89,7 @@ class CBox_v3_driven_transmon(Transmon):
                            parameter_class=InstrumentParameter)
 
         # Overwriting some pars from the parent class
-        self.RO_acq_marker_channel._vals = vals.Ints(1, 7)
+        self.RO_acq_marker_channel.vals = vals.Ints(1, 7)
         self.RO_acq_marker_channel(7)  # initial value
         # adding marker channels
         self.add_parameter('RO_acq_pulse_marker_channel',
@@ -1249,7 +1249,7 @@ class CBox_v3_driven_transmon(Transmon):
         if analyze:
             a = ma.Ramsey_Analysis(auto=True, close_fig=True)
             if update:
-                self.T2_star(a.T2_star)
+                self.T2_star(a.T2_star['T2_star'])
             if verbose:
                 fitted_freq = a.fit_res.params['frequency'].value
                 print('Artificial detuning: {:.2e}'.format(

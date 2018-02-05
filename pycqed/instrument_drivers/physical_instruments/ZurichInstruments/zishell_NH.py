@@ -44,7 +44,7 @@ import zhinst.utils as utils
 from numpy import *
 
 from plotly.graph_objs import *
-
+import logging
 # with open("zishell.py") as f:
 #    code = compile(f.read(), "zishell.py", 'exec')
 #    exec(code, global_vars, local_vars)
@@ -72,6 +72,13 @@ class ziShellConnectError(ziShellError):
 
 class ziShellModuleError(ziShellError):
     """Exception raised when a module has not been started."""
+    pass
+
+
+class ziShellCompilationError(ziShellError):
+    """
+    Exception raised when the zi AWG-8 compiler encounters an error.
+    """
     pass
 
 
@@ -934,7 +941,8 @@ class ziShellDevice:
         self.daq.getAsEvent(path)
         tmp = self.daq.poll(0.5, 500, 4, True)
         if path in tmp:
-            return tmp[path]
+            # The [0]['vector'] is to get strip of the vector stuff around it
+            return tmp[path][0]['vector']
         else:
             return None
 
@@ -999,6 +1007,7 @@ class ziShellDevice:
         self.daq.sync()
 
     def configure_awg_from_file(self, filename):
+        raise NotImplementedError('Use "configure_awg_from_string" instead')
         if not self.daq:
             raise(ziShellDAQError())
 
@@ -1009,18 +1018,79 @@ class ziShellDevice:
         self.awgModule.set('awgModule/compiler/start', 1)
         self.awgModule.set('awgModule/elf/file', '')
 
-    def configure_awg_from_string(self, string):
-        if not self.daq:
-            raise(ziShellDAQError())
+    def configure_awg_from_string(self, awg_nr: int, program_string: str,
+                                  timeout: float=15):
+        """
+        Uploads a program string to one of the AWGs in the AWG8.
 
-        if not self.awgModule:
-            raise(ziShellModuleError())
+        This function is tested to work and give the correct error messages
+        when compilation fails.
+        """
+        t0 = time.time()
+        success_and_ready = False
+        # This check (and while loop) is added as a workaround for #9
+        while not success_and_ready:
+            print('Disabling codeword triggering')
+            self.seti('awgs/' + str(awg_nr) + '/dio/valid/polarity', 0)
+            self.seti('awgs/' + str(awg_nr) + '/dio/strobe/slope', 0)
 
-        self.awgModule.set('awgModule/compiler/sourcestring', string)
-        self.awgModule.set('awgModule/compiler/start', 1)
-        self.awgModule.set('awgModule/elf/file', '')
-        # while self.awgModule.get('awgModule/progress')['progress'][0] < 1.0:
-        #    time.sleep(0.1)
+            print('Configuring AWG_nr {}.'.format(awg_nr))
+            if not self.daq:
+                raise(ziShellDAQError())
+
+            if not self.awgModule:
+                raise(ziShellModuleError())
+
+            self.awgModule.set('awgModule/index', awg_nr)
+            self.awgModule.set('awgModule/compiler/sourcestring', program_string)
+
+
+            succes_msg = 'File successfully uploaded'
+            # Success is set to False when either a timeout or a bad compilation
+            # message is encountered.
+            success = True
+            # while ("compilation not completft1ed"):
+            while len(self.awgModule.get('awgModule/compiler/sourcestring')
+                      ['compiler']['sourcestring'][0]) > 0:
+                time.sleep(0.01)
+                comp_msg = (self.awgModule.get(
+                    'awgModule/compiler/statusstring')['compiler']
+                    ['statusstring'][0])
+                if (time.time()-t0 >= timeout):
+                    success = False
+                    # print('Timeout encountered during compilation.')
+                    raise TimeoutError()
+                    break
+
+            if not comp_msg.endswith(succes_msg):
+                success = False
+
+            print('Reenabling codeword triggering')
+            self.seti('awgs/' + str(awg_nr) + '/dio/valid/polarity', 2)
+            self.seti('awgs/' + str(awg_nr) + '/dio/strobe/slope', 2)
+
+            if not success:
+                print("Compilation failed, printing program:")
+                for i, line in enumerate(program_string.splitlines()):
+                    print(i+1, '\t', line)
+                print('\n')
+                raise ziShellCompilationError(comp_msg)
+
+
+            # This check (and while loop) is added as a workaround for #9
+            if self.geti('awgs/'+str(awg_nr)+'/ready')!= 1:
+                logging.warning('AWG not ready')
+                success_and_ready = False
+                print('not ready')
+            else:
+                success_and_ready = True
+                print('ready')
+
+        print('AWG {} ready: {}'.format(awg_nr,
+                                     self.geti('awgs/'+str(awg_nr)+'/ready')))
+        t1 = time.time()
+        print(self.awgModule.get('awgModule/compiler/statusstring')
+              ['compiler']['statusstring'][0] + ' in {:.2f}s'.format(t1-t0))
 
     def read_from_scope(self, timeout=1.0, enable=True):
         if not self.daq:
