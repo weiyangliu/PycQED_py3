@@ -19,7 +19,7 @@ import datetime
 import json
 import logging
 from qcodes.plots.pyqtgraph import QtPlot
-
+from pycqed.measurement.pulse_sequences import fluxing_sequences
 
 class Distortion_corrector():
 
@@ -64,7 +64,7 @@ class Distortion_corrector():
         # Files
         self.filename = ''
         # where traces and plots are saved
-        self.data_dir = self.kernel_object.kernel_dir()
+        # self.data_dir = self.kernel_object.kernel_dir()
         self._iteration = 0
         self.auto_save_plots = auto_save_plots
 
@@ -1382,9 +1382,8 @@ class RT_distortion_corrector_5014(Distortion_corrector):
     #   - check TODOs in this file
     #   - waveform length will become parameter in QWG_flux_lutman
     #       -> adapt this class to handle that
-    def __init__(self, kernel, AWG, oscilloscope, measure_scope_trace,
-                 square_amp: float,
-                 nr_plot_points: int=1000):
+    def __init__(self, flux_lutman, AWG, measure_scope_trace, square_amp: float,
+                 nr_plot_points: int=1000, ):
         '''
         Instantiates an object.
         Note: Sampling rate of the scope is assumed to be 5 GHz. Sampling rate
@@ -1403,11 +1402,13 @@ class RT_distortion_corrector_5014(Distortion_corrector):
                     changed in self.nr_plot_points.
         '''
 
-        self.scope = oscilloscope
         self.measure_scope_trace = measure_scope_trace
         self.AWG = AWG
-        super().__init__(kernel_object=kernel, square_amp=square_amp,
-                         nr_plot_points=nr_plot_points)
+        self.flux_lutman = flux_lutman
+        super().__init__(
+            kernel_object=flux_lutman.instr_distortion_kernel.get_instr(),
+            square_amp=square_amp, sampling_rate=1e9,
+            nr_plot_points=nr_plot_points)
 
         self.raw_waveform = []
         self.raw_time_pts = []
@@ -1421,24 +1422,21 @@ class RT_distortion_corrector_5014(Distortion_corrector):
         '''
         # Upload waveform
         if upload:
-            from pycqed.measurement.pulse_sequences import fluxing_sequences
-
-            distortions_dict = {
-                'ch_list': ['ch3'],
-                'ch3': self.kernel_object.get_corrections_kernel()
-            }
             self.AWG.stop()
+
+            # needs to be overwritten by a new method, that takes the lutman as
+            # an argument, and calls it to pre-distort the waveform
             pulse_pars = {'pulse_type': 'SquarePulse',
                           'pulse_delay': .1e-6,
                           'channel': 'ch3',
                           'amplitude': self.square_amp,
                           'length': 8e-6,
                           'dead_time_length': 2e-6}
-            fluxing_sequences.single_pulse_seq(pulse_pars=pulse_pars,
-                                               distortion_dict=distortions_dict)
+            fluxing_sequences.DistPulse_FluxLutman(pulse_pars=pulse_pars,
+                                                   flux_lutman=self.flux_lutman)
             self.AWG.start()
             self.AWG.run()
-
+        # measure waveform part
         if verbose:
             print('Measuring trace...')
         self.raw_time_pts, self.raw_waveform = self.measure_scope_trace()
@@ -1449,7 +1447,8 @@ class RT_distortion_corrector_5014(Distortion_corrector):
         # self.data_dir = a.folder
 
         # Normalize waveform and find rising edge
-        self.waveform = self.detect_edge_and_normalize_wf(self.raw_waveform)
+        self.waveform = self.detect_edge_and_normalize_wf(self.raw_waveform,
+                                                          edge_level=0.05)
         # Sampling rate hardcoded to 5 GHz
         self.time_pts = np.arange(len(self.waveform)) / 5e9
 
