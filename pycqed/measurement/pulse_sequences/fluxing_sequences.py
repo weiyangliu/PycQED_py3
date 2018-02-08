@@ -14,14 +14,14 @@ from pycqed.utilities.general import add_suffix_to_dict_keys
 from pycqed.measurement.waveform_control import pulsar
 from pycqed.measurement.waveform_control.element import calculate_time_correction
 from pycqed.measurement.pulse_sequences.standard_elements import multi_pulse_elt
-from pycqed.measurement.pulse_sequences.standard_elements import distort_and_compensate
+from pycqed.measurement.pulse_sequences.standard_elements import distort_and_compensate, distort_and_compensate_fluxlutman
 
 from importlib import reload
 reload(pulse)
 from pycqed.measurement.waveform_control import pulse_library
 reload(pulse_library)
 
-station = qc.station
+station = None
 
 
 def single_pulse_seq(pulse_pars=None,
@@ -81,6 +81,59 @@ def single_pulse_seq(pulse_pars=None,
             el = distort_and_compensate(
                 el, distortion_dict)
             el_list[i] = el
+        seq.append_element(el, trigger_wait=True)
+    station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
+    if return_seq:
+        return seq, el_list
+    else:
+        return seq
+
+
+def DistPulse_FluxLutman(pulse_pars=None,
+                         verbose=False,
+                         flux_lutman=None,
+                         return_seq=False):
+    '''
+
+    '''
+    if pulse_pars is None:
+        pulse_pars = {'pulse_type': 'SquarePulse',
+                      'pulse_delay': .1e-6,
+                      'channel': 'ch3',
+                      'amplitude': 0.5,
+                      'length': .1e-6,
+                      'dead_time_length': 10e-6}
+    minus_pulse_pars = {'pulse_type': 'SquarePulse',
+                        'pulse_delay': 3e-6 + pulse_pars['length'] + pulse_pars['pulse_delay'],
+                        'channel': pulse_pars['channel'],
+                        'amplitude': -pulse_pars['amplitude'],
+                        'length': pulse_pars['length'],
+                        'dead_time_length': 10e-6}
+
+    dead_time_pulse = {'pulse_type': 'SquarePulse',
+                       'pulse_delay': (minus_pulse_pars['length']),
+                       'channel': pulse_pars['channel'],
+                       'amplitude': 0,
+                       'length': pulse_pars['dead_time_length']}
+
+    trig_marker = {'pulse_type': 'SquarePulse',
+                   'pulse_delay': 0.,
+                   'channel': 'ch1_marker1',
+                   'amplitude': 1.,
+                   'length': .1e-6}
+    flux_channel = pulse_pars['channel']
+    seq_name = 'DistPulse_seq'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+    for i, iter in enumerate([0, 1]):  # seq has to have at least 2 elts
+        pulse_list = [pulse_pars, trig_marker, minus_pulse_pars,
+                      dead_time_pulse]
+        el = multi_pulse_elt(i, station, pulse_list)
+        # el = distort_and_compensate_fluxlutman(el,
+        #                                        flux_lutman,
+        #                                        flux_channel)
+        el_list.append(el)
         seq.append_element(el, trigger_wait=True)
     station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
     if return_seq:

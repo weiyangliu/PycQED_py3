@@ -258,3 +258,16 @@ def distort_and_compensate(element, distortion_dict):
             outputs_dict[ch], kernelvec)[:length]
         element.distorted_wfs[ch] = outputs_dict[ch][:len(t_vals)]
     return element
+
+def distort_and_compensate_fluxlutman(element, fluxlutman, flux_channel):
+    """
+    Distorts an element using the flux lutman.
+    """
+    # get the waveform
+    t_vals, outputs_dict = element.waveforms()
+    # get the channels that need to be distorted
+    element._channels[flux_channel]['distorted'] = True
+    length = len(outputs_dict[ch])
+    # distort it by calling fluxlutman.distort_waveform()
+    dist_wv = fluxlutman.distort_waveform(outputs_dict[flux_channel])
+    element.distorted_wfs[flux_channel] = dist_wv[:len(t_vals)]
