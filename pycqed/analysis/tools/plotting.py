@@ -178,11 +178,11 @@ def annotate_point_pair(ax, text, xy_start, xy_end, xycoords='data',
 def get_color_order(i, max_num, cmap='viridis'):
     # take a blue to red scale from 0 to max_num
     # uses HSV system, H_red = 0, H_green = 1/3 H_blue=2/3
-    # return colors.hsv_to_rgb(2.*float(i)/(float(max_num)*3.), 1., 1.)
-    print('It is recommended to use the updated function "get_color_cycle".')
-    if isinstance(cmap, str):
-        cmap = cm.get_cmap(cmap)
-    return cmap((i/max_num) % 1)
+    return colors.hsv_to_rgb(2.*float(i)/(float(max_num)*3.), 1., 1.)
+    # print('It is recommended to use the updated function "get_color_cycle".')
+    # if isinstance(cmap, str):
+    #     cmap = cm.get_cmap(cmap)
+    # return cmap((i/max_num) % 1)
 
 
 def get_color_from_cmap(i, max_num):
