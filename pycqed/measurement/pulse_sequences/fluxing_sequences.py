@@ -15,6 +15,7 @@ from pycqed.measurement.waveform_control import pulsar
 from pycqed.measurement.waveform_control.element import calculate_time_correction
 from pycqed.measurement.pulse_sequences.standard_elements import multi_pulse_elt
 from pycqed.measurement.pulse_sequences.standard_elements import distort_and_compensate, distort_and_compensate_fluxlutman
+import pycqed.measurement.pulse_sequences.standard_elements as std_el
 
 from importlib import reload
 reload(pulse)
@@ -117,22 +118,26 @@ def DistPulse_FluxLutman(pulse_pars=None,
                        'length': pulse_pars['dead_time_length']}
 
     trig_marker = {'pulse_type': 'SquarePulse',
-                   'pulse_delay': 0.,
+                   'pulse_delay': pulse_pars['pulse_delay'],
                    'channel': 'ch1_marker1',
                    'amplitude': 1.,
-                   'length': .1e-6}
+                   'length': .1e-6,
+                   'refpoint': 'start'}
     flux_channel = pulse_pars['channel']
+    print(flux_channel)
     seq_name = 'DistPulse_seq'
     seq = sequence.Sequence(seq_name)
     station.pulsar.update_channel_settings()
     el_list = []
     for i, iter in enumerate([0, 1]):  # seq has to have at least 2 elts
+        # pulse_list = [pulse_pars, trig_marker]
         pulse_list = [pulse_pars, trig_marker, minus_pulse_pars,
                       dead_time_pulse]
         el = multi_pulse_elt(i, station, pulse_list)
-        # el = distort_and_compensate_fluxlutman(el,
-        #                                        flux_lutman,
-        #                                        flux_channel)
+        # print(el.waveforms())
+        el = distort_and_compensate_fluxlutman(el,
+                                                      flux_lutman,
+                                                      flux_channel)
         el_list.append(el)
         seq.append_element(el, trigger_wait=True)
     station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
@@ -1499,6 +1504,25 @@ def BusT1(operation_dict, q0,
         station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
 
     return seq, el_list
+
+
+
+def distort_and_compensate_fluxlutman(element, fluxlutman, flux_channel):
+    """
+    Distorts an element using the flux lutman.
+    """
+    # get the waveform
+    t_vals, outputs_dict = element.waveforms()
+    import matplotlib.pyplot as plt
+    # plt.plot(outputs_dict[flux_channel])
+    # get the channels that need to be distorted
+    element.chan_distorted[flux_channel] = True
+    length = len(outputs_dict[flux_channel])
+    # distort it by calling fluxlutman.distort_waveform()
+    dist_wv = fluxlutman.distort_waveform(outputs_dict[flux_channel])
+    # plt.plot(dist_wv)
+    element.distorted_wfs[flux_channel] = dist_wv[:length]
+    return element
 
 
 def FluxTrack(operation_dict, q0,

@@ -266,8 +266,8 @@ def distort_and_compensate_fluxlutman(element, fluxlutman, flux_channel):
     # get the waveform
     t_vals, outputs_dict = element.waveforms()
     # get the channels that need to be distorted
-    element._channels[flux_channel]['distorted'] = True
+    element.chan_distorted[flux_channel] = True
     length = len(outputs_dict[ch])
     # distort it by calling fluxlutman.distort_waveform()
     dist_wv = fluxlutman.distort_waveform(outputs_dict[flux_channel])
-    element.distorted_wfs[flux_channel] = dist_wv[:len(t_vals)]
+    element.distorted_wfs.update({flux_channel: dist_wv[:len(t_vals)]})
