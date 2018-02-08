@@ -10,11 +10,13 @@
 
 import logging
 import numpy as np
+import scipy
 from pycqed.analysis.fitting_models import Qubit_freq_to_dac
 
 
 def gauss_pulse(amp: float, sigma_length: float, nr_sigma: int=4,
                 sampling_rate: float=2e8, axis: str='x', phase: float=0,
+                phase_unit: str='deg',
                 motzoi: float=0, delay: float=0,
                 subtract_offset: str='average'):
     '''
@@ -35,6 +37,8 @@ def gauss_pulse(amp: float, sigma_length: float, nr_sigma: int=4,
             added to the pulse, otherwise this argument is ignored.
         phase (float):
             Phase of the pulse.
+        phase_unit (str):
+            Unit of the phase (can be either "deg" or "rad")
         motzoi (float):
             DRAG-pulse parameter.
         delay (float):
@@ -87,8 +91,7 @@ def gauss_pulse(amp: float, sigma_length: float, nr_sigma: int=4,
     if axis == 'y':
         phase += 90
 
-    pulse_I = np.cos(2*np.pi*phase/360)*G - np.sin(2*np.pi*phase/360)*D
-    pulse_Q = np.sin(2*np.pi*phase/360)*G + np.cos(2*np.pi*phase/360)*D
+    pulse_I, pulse_Q = rotate_wave(G, D, phase=phase, unit=phase_unit)
 
     return pulse_I, pulse_Q
 
@@ -96,8 +99,8 @@ def gauss_pulse(amp: float, sigma_length: float, nr_sigma: int=4,
 def single_channel_block(amp, length, sampling_rate=2e8, delay=0):
     '''
     Generates a block pulse.
-        length in s
         amp in V
+        length in s
         sampling_rate in Hz
         empty delay in s
     '''
@@ -107,7 +110,7 @@ def single_channel_block(amp, length, sampling_rate=2e8, delay=0):
 
     block = amp * np.ones(int(pulse_samples))
     Zeros = np.zeros(int(delay_samples))
-    pulse = list(Zeros)+list(block)
+    pulse = np.array(list(Zeros)+list(block))
     return pulse
 
 
@@ -132,14 +135,26 @@ def block_pulse(amp, length, sampling_rate=2e8, delay=0, phase=0):
     pulse_Q = list(Zeros)+list(block_Q)
     return pulse_I, pulse_Q
 
-####################
-# Pulse modulation #
-####################
+
+def block_pulse_vsm(amp, length, sampling_rate=2e8, delay=0, phase=0):
+    """
+    4-channel compatible version of the vsm block pulse.
+    """
+    I, Q = block_pulse(amp=amp, length=length, sampling_rate=sampling_rate,
+                       delay=delay, phase=phase)
+    zeros = np.zeros(len(I))
+    return I, zeros, zeros, Q
 
 
-def mod_pulse(pulse_I, pulse_Q, f_modulation,
-              Q_phase_delay=0, sampling_rate=2e8):
+############################################################
+# Pulse modulation  and correction functions               #
+############################################################
+
+
+def mod_pulse(pulse_I, pulse_Q, f_modulation: float,
+              Q_phase_delay: float=0, sampling_rate: float=2e8):
     '''
+    Single sideband modulation (SSB) of an input pulse_I, pulse_Q
     inputs are in s and Hz.
     Q_phase_delay is in degree
 
@@ -166,9 +181,10 @@ def mod_pulse(pulse_I, pulse_Q, f_modulation,
     return pulse_I_mod, pulse_Q_mod
 
 
-def simple_mod_pulse(pulse_I, pulse_Q, f_modulation,
-                     Q_phase_delay=0, sampling_rate=2e8):
+def simple_mod_pulse(pulse_I, pulse_Q, f_modulation: float,
+                     Q_phase_delay: float =0, sampling_rate: float=2e8):
     '''
+    Double sideband modulation (DSB) of an input pulse_I, pulse_Q
     inputs are in s and Hz.
     Q_phase_delay is in degree
 
@@ -192,16 +208,103 @@ def simple_mod_pulse(pulse_I, pulse_Q, f_modulation,
     return pulse_I_mod, pulse_Q_mod
 
 
-def martinis_flux_pulse(length, lambda_coeffs, theta_f,
-                        f_01_max,
-                        g2,
-                        E_c,
-                        dac_flux_coefficient,
-                        f_interaction=None,
-                        f_bus=None,
-                        asymmetry=0,
-                        sampling_rate=1e9,
-                        return_unit='V'):
+def mixer_predistortion_matrix(alpha, phi):
+    '''
+    predistortion matrix correcting for a mixer with amplitude
+    mismatch "mixer_alpha" and skewness "phi"
+
+    M = [ 1            tan(phi) ]
+        [ 0   1/mixer_alpha * sec(phi)]
+
+    Notes on the procedure for acquiring this matrix can be found in
+    PycQED/docs/notes/MixerSkewnessCalibration_LDC_150629.pdf
+    '''
+    predistortion_matrix = np.array(
+        [[1,  np.tan(phi*2*np.pi/360)],
+         [0, 1/alpha * 1/np.cos(phi*2*np.pi/360)]])
+    return predistortion_matrix
+
+
+def rotate_wave(wave_I, wave_Q, phase: float, unit: str = 'deg'):
+    """
+    Rotate a wave in the complex plane
+        wave_I (array) : real component
+        wave_Q (array) : imaginary component
+        phase (float)  : desired rotation angle
+        unit     (str) : either "deg" or "rad"
+    returns:
+        (rot_I, rot_Q) : arrays containing the rotated waves
+    """
+    if unit == 'deg':
+        angle = np.deg2rad(phase)
+    elif unit == 'rad':
+        angle = angle
+    else:
+        raise ValueError('unit must be either "deg" or "rad"')
+    rot_I = np.cos(angle)*wave_I - np.sin(angle)*wave_Q
+    rot_Q = np.sin(angle)*wave_I + np.cos(angle)*wave_Q
+    return rot_I, rot_Q
+
+
+#####################################################
+# Modulated standard waveforms
+#####################################################
+
+def mod_gauss(amp, sigma_length, f_modulation, axis='x', phase=0,
+              nr_sigma=4,
+              motzoi=0, sampling_rate=2e8,
+              Q_phase_delay=0, delay=0):
+    '''
+    Simple modulated gauss pulse. All inputs are in s and Hz.
+    '''
+    pulse_I, pulse_Q = gauss_pulse(amp, sigma_length, nr_sigma=nr_sigma,
+                                   sampling_rate=sampling_rate, axis=axis,
+                                   phase=phase,
+                                   motzoi=motzoi, delay=delay)
+    pulse_I_mod, pulse_Q_mod = mod_pulse(pulse_I, pulse_Q, f_modulation,
+                                         sampling_rate=sampling_rate,
+                                         Q_phase_delay=Q_phase_delay)
+    return pulse_I_mod, pulse_Q_mod
+
+
+def mod_gauss_VSM(amp, sigma_length, f_modulation, axis='x', phase=0,
+                  nr_sigma=4,
+                  motzoi=0, sampling_rate=2e8,
+                  Q_phase_delay=0, delay=0):
+    '''
+    4-channel VSM compatible DRAG pulse
+    '''
+    G, D = gauss_pulse(amp, sigma_length, nr_sigma=nr_sigma,
+                       sampling_rate=sampling_rate, axis=axis,
+                       phase=0,  # should always be 0
+                       motzoi=motzoi, delay=delay)
+    # The identity wave is used because the wave needs to be split up
+    # to the VSM
+    I = np.zeros(len(G))
+    G_I, G_Q = rotate_wave(G, I, phase=phase, unit='deg')
+    # D is in the Q quadrature because it should be 90 deg out of phase
+    D_I, D_Q = rotate_wave(I, D, phase=phase, unit='deg')
+    G_I_mod, G_Q_mod = mod_pulse(G_I, G_Q, f_modulation,
+                                 sampling_rate=sampling_rate,
+                                 Q_phase_delay=Q_phase_delay)
+    D_I_mod, D_Q_mod = mod_pulse(D_I, D_Q, f_modulation,
+                                 sampling_rate=sampling_rate,
+                                 Q_phase_delay=Q_phase_delay)
+    return G_I_mod, G_Q_mod, D_I_mod, D_Q_mod
+
+
+#####################################################
+# Flux pulses
+#####################################################
+
+def martinis_flux_pulse(length: float, lambda_2: float, lambda_3: float,
+                        theta_f: float,
+                        f_01_max: float, J2: float,
+                        V_offset: float=0, V_per_phi0: float=1,
+                        E_c: float=250e6, f_bus: float =None,
+                        f_interaction: float =None,
+                        asymmetry: float =0, sampling_rate: float =1e9,
+                        return_unit: str='V'):
     """
     Returns the pulse specified by Martinis and Geller
     Phys. Rev. A 90 022307 (2014).
@@ -211,95 +314,7 @@ def martinis_flux_pulse(length, lambda_coeffs, theta_f,
     note that the lambda coefficients are rescaled to ensure that the center
     of the pulse has a value corresponding to theta_f.
 
-    length          (float)
-    lambda_coeffs   (list of floats)
-    theta_f         (float) final angle of the interaction. This determines the
-                    Voltage for the centerpoint of the waveform.
-
-    f_01_max        (float) qubit sweet spot frequency (Hz).
-    g2              (float) coupling between 11-02 (Hz),
-                            approx sqrt(2) g1 (the 10-01 coupling).
-    E_c             (float) Charging energy of the transmon (Hz).
-        N.B. specify either f_interaction or f_bus
-    f_interaction   (float) interaction frequency (Hz).
-    f_bus           (float) frequency of the bus (Hz).
-    dac_flux_coefficient  (float) conversion factor for AWG voltage to flux (1/V)
-    asymmetry       (float) qubit asymmetry
-
-    sampling_rate   (float)
-    return_unit     (enum: ['V', 'eps', 'f01', 'theta']) whether to return the pulse
-                    expressed in units of theta: the reference frame of the
-                    interaction, units of epsilon: detuning to the bus
-                    eps=f12-f_bus
-    """
-    lambda_coeffs = np.array(lambda_coeffs)
-    nr_samples = int(np.round((length)*sampling_rate))  # rounds the nr samples
-    length = nr_samples/sampling_rate  # gives back the rounded length
-    t_step = 1/sampling_rate
-    t = np.arange(0, length, t_step)
-    if f_interaction is None:
-        f_interaction = f_bus + E_c
-    theta_0 = np.arctan(2*g2/(f_01_max-f_interaction))
-    # you can not have weaker coupling than the initial coupling
-    assert(theta_f > theta_0)
-    odd_coeff_lambda_sum = np.sum(lambda_coeffs[::2])
-    delta_theta = theta_f - theta_0
-    # add a square pulse that reaches theta_f, for this, lambda0 is used
-    lambda0 = 1-lambda_coeffs[0]  # only use lambda_coeffs[0] for scaling, this
-    # enables fixing the square to 0 in optimizations by setting
-    # lambda_coeffs[0]=1
-    th_scale_factor = delta_theta/(lambda0+odd_coeff_lambda_sum)
-    mart_pulse_theta = np.ones(nr_samples)*theta_0
-    mart_pulse_theta += th_scale_factor*np.ones(nr_samples)*lambda0
-
-    for i, lambda_coeff in enumerate(lambda_coeffs):
-        n = i+1
-        mart_pulse_theta += th_scale_factor * \
-            lambda_coeff*(1-np.cos(n*2*np.pi*t/length))/2
-    # adding square pulse scaling with lambda0 satisfying the condition
-    # lamb0=1-lambda_1
-    if return_unit == 'theta':
-        return mart_pulse_theta
-
-    # Convert theta to detuning to the bus frequency
-    mart_pulse_eps = (2*g2)/(np.tan(mart_pulse_theta))
-    if return_unit == 'eps':
-        return mart_pulse_eps
-
-    # pulse parameterized in the f01 frequency
-    mart_pulse_f01 = mart_pulse_eps + f_interaction
-    if return_unit == 'f01':
-        return mart_pulse_f01
-    mart_pulse_V = Qubit_freq_to_dac(
-        frequency=mart_pulse_f01,
-        f_max=f_01_max, E_c=E_c,
-        dac_sweet_spot=0,
-        dac_flux_coefficient=dac_flux_coefficient,
-        asymmetry=asymmetry, branch='positive')
-    return mart_pulse_V
-
-
-def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
-                           f_01_max,
-                           J2,
-                           V_offset=0,
-                           V_per_phi0=1,
-                           E_c=250e6,
-                           f_bus=None,
-                           f_interaction=None,
-                           asymmetry=0,
-                           sampling_rate=1e9,
-                           return_unit='V'):
-    """
-    Returns the pulse specified by Martinis and Geller
-    Phys. Rev. A 90 022307 (2014).
-
-    \theta = \theta _0 + \sum_{n=1}^\infty  (\lambda_n*(1-\cos(n*2*pi*t/t_p))/2
-
-    note that the lambda coefficients are rescaled to ensure that the center
-    of the pulse has a value corresponding to theta_f.
-
-    length          (float)
+    length          (float) lenght of the waveform (s)
     lambda_2
     lambda_3
 
@@ -312,21 +327,22 @@ def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
     E_c             (float) Charging energy of the transmon (Hz).
     f_bus           (float) frequency of the bus (Hz).
     f_interaction   (float) interaction frequency (Hz).
-    dac_flux_coefficient  (float) conversion factor for AWG voltage to
-                    flux (1/V)
     asymmetry       (float) qubit asymmetry
 
-    sampling_rate   (float)
+    sampling_rate   (float) sampling rate of the AWG (Hz)
     return_unit     (enum: ['V', 'eps', 'f01', 'theta']) whether to return the
                     pulse expressed in units of theta: the reference frame of
                     the interaction, units of epsilon: detuning to the bus
                     eps=f12-f_bus
     """
     # Define number of samples and time points
-    nr_samples = int(np.round((length)*sampling_rate))
-    length = nr_samples/sampling_rate  # gives back the rounded length
-    t_step = 1/sampling_rate
-    t = np.arange(0, length, t_step)
+    # Pulse is generated at a denser grid to allow for good interpolation
+    nr_samples = int(np.round((length)*sampling_rate * 10))
+    rounded_length = nr_samples/(10 * sampling_rate)
+    tau_step = 1/(10 * sampling_rate)  # denser points
+    # tau is a virtual time/proper time
+    taus = np.arange(0, rounded_length-tau_step/2, tau_step)
+    # -tau_step/2 is to make sure final pt is excluded
 
     # Derived parameters
     if f_interaction is None:
@@ -345,9 +361,11 @@ def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
 
     # Calculate the wave
     theta_wave = np.ones(nr_samples) * theta_i
-    theta_wave += lambda_1 * (1 - np.cos(2 * np.pi * t / length))
-    theta_wave += lambda_1 * lambda_2 * (1 - np.cos(4 * np.pi * t / length))
-    theta_wave += lambda_1 * lambda_3 * (1 - np.cos(6 * np.pi * t / length))
+    theta_wave += lambda_1 * (1 - np.cos(2 * np.pi * taus / rounded_length))
+    theta_wave += (lambda_1 * lambda_2 *
+                   (1 - np.cos(4 * np.pi * taus / rounded_length)))
+    theta_wave += (lambda_1 * lambda_3 *
+                   (1 - np.cos(6 * np.pi * taus / rounded_length)))
 
     # Clip wave to [theta_i, pi] to avoid poles in the wave expressed in freq
     theta_wave_clipped = np.clip(theta_wave, theta_i, np.pi-.01)
@@ -356,13 +374,25 @@ def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
             'Martinis flux wave form has been clipped to [{}, 180 deg]'
             .format(theta_i))
 
+    # Transform from proper time to real time
+    t = np.array([np.trapz(np.sin(theta_wave)[:i+1], dx=1/(10*sampling_rate))
+                  for i in range(len(theta_wave))])
+
+    # Interpolate pulse at physical sampling distance
+    t_samples = np.arange(0, length, 1/sampling_rate)
+    # Scaling factor for time-axis to get correct pulse length again
+    scale = t[-1]/t_samples[-1]
+    interp_wave = scipy.interpolate.interp1d(
+        t/scale, theta_wave_clipped, bounds_error=False,
+        fill_value=0)(t_samples)
+
     # Return in the specified units
     if return_unit == 'theta':
         # Theta is returned in radians here
-        return theta_wave_clipped
+        return interp_wave
 
     # Convert to detuning from f_interaction
-    delta_f_wave = 2 * J2 / np.tan(theta_wave_clipped)
+    delta_f_wave = 2 * J2 / np.tan(interp_wave)
     if return_unit == 'eps':
         return delta_f_wave
 
@@ -380,28 +410,13 @@ def martinis_flux_pulse_v2(length, lambda_2, lambda_3, theta_f,
         V_per_phi0=V_per_phi0,
         asymmetry=asymmetry,
         branch='positive')
+
+    # why sometimes the last sample is nan is not known,
+    # but we will surely figure it out someday.
+    # (Brian and Adriaan, 14.11.2017)
+    voltage_wave = np.nan_to_num(voltage_wave)
+
     return voltage_wave
-
-
-def mod_gauss(amp, sigma_length, f_modulation, axis='x', phase=0,
-              nr_sigma=4,
-              motzoi=0, sampling_rate=2e8,
-              Q_phase_delay=0, delay=0):
-    '''
-    Simple gauss pulse maker for CBOX. All inputs are in s and Hz.
-    '''
-    pulse_I, pulse_Q = gauss_pulse(amp, sigma_length, nr_sigma=nr_sigma,
-                                   sampling_rate=sampling_rate, axis=axis,
-                                   phase=phase,
-                                   motzoi=motzoi, delay=delay)
-    pulse_I_mod, pulse_Q_mod = mod_pulse(pulse_I, pulse_Q, f_modulation,
-                                         sampling_rate=sampling_rate,
-                                         Q_phase_delay=Q_phase_delay)
-    return pulse_I_mod, pulse_Q_mod
-
-
-def mixer_predistortion_matrix(alpha, phi):
-    predistortion_matrix = np.array(
-        [[1,  np.tan(phi*2*np.pi/360)],
-         [0, 1/alpha * 1/np.cos(phi*2*np.pi/360)]])
-    return predistortion_matrix
+############################################################################
+#
+############################################################################

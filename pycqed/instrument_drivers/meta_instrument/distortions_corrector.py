@@ -1382,7 +1382,8 @@ class RT_distortion_corrector_5014(Distortion_corrector):
     #   - check TODOs in this file
     #   - waveform length will become parameter in QWG_flux_lutman
     #       -> adapt this class to handle that
-    def __init__(self, kernel, AWG, oscilloscope, square_amp: float,
+    def __init__(self, kernel, AWG, oscilloscope, measure_scope_trace,
+                 square_amp: float,
                  nr_plot_points: int=1000):
         '''
         Instantiates an object.
@@ -1403,6 +1404,7 @@ class RT_distortion_corrector_5014(Distortion_corrector):
         '''
 
         self.scope = oscilloscope
+        self.measure_scope_trace = measure_scope_trace
         self.AWG = AWG
         super().__init__(kernel_object=kernel, square_amp=square_amp,
                          nr_plot_points=nr_plot_points)
@@ -1439,7 +1441,7 @@ class RT_distortion_corrector_5014(Distortion_corrector):
 
         if verbose:
             print('Measuring trace...')
-        self.raw_time_pts, self.raw_waveform = self.scope.measure_trace()
+        self.raw_time_pts, self.raw_waveform = self.measure_scope_trace()
 
         # Measurement should be implemented using measurement_control
         # self.data_dir should be set to data dir of last measurement
