@@ -10,7 +10,6 @@ from pycqed.measurement.waveform_control_CC import qasm_compiler as qcx
 import pycqed.measurement.waveform_control_CC.qasm_compiler_helpers as qch
 
 
-
 class Sweep_function(object):
 
     '''
@@ -52,6 +51,41 @@ class Soft_Sweep(Sweep_function):
 
 ##############################################################################
 
+class Elapsed_Time_Sweep(Soft_Sweep):
+    """
+    A sweep function to do a measurement periodically.
+    Set the sweep points to the times at which you want to probe the
+    detector function.
+    """
+
+    def __init__(self, sweep_control='soft',
+                 as_fast_as_possible: bool=False, **kw):
+        super().__init__()
+        self.sweep_control = sweep_control
+        self.name = 'Elapsed_Time_Sweep'
+        self.parameter_name = 'Time'
+        self.unit = 's'
+        self.as_fast_as_possible = as_fast_as_possible
+        self.time_first_set = None
+
+
+    def set_parameter(self, val):
+        if self.time_first_set is None:
+            self.time_first_set = time.time()
+            return 0
+        elapsed_time = time.time() - self.time_first_set
+        if self.as_fast_as_possible:
+            return elapsed_time
+
+        if elapsed_time > val:
+            logging.warning('Elapsed time {:.2f}s larger than desired {:2f}s'
+                            .format(elapsed_time, val))
+            return elapsed_time
+
+        while (time.time() - self.time_first_set) < val:
+            pass  # wait
+        elapsed_time = time.time() - self.time_first_set
+        return elapsed_time
 
 class Heterodyne_Frequency_Sweep(Soft_Sweep):
 
@@ -80,15 +114,36 @@ class Heterodyne_Frequency_Sweep(Soft_Sweep):
             self.RF_source.frequency(val)
 
 
+class Heterodyne_Frequency_Sweep_simple(Soft_Sweep):
+    # Same as above but less input arguments
+
+    def __init__(self, MW_LO_source, IF,
+                 sweep_points=None,
+                 **kw):
+        super().__init__()
+        self.name = 'Heterodyne frequency'
+        self.parameter_name = 'Frequency'
+        self.unit = 'Hz'
+        self.sweep_points = sweep_points
+        self.MW_LO_source = MW_LO_source
+        self.IF = IF
+
+    def set_parameter(self, val):
+        # RF = LO + IF
+        self.MW_LO_source.frequency(val-self.IF)
+
+
 class None_Sweep(Soft_Sweep):
 
     def __init__(self, sweep_control='soft', sweep_points=None,
+                 name: str='None_Sweep', parameter_name: str='pts',
+                 unit: str='arb. unit',
                  **kw):
         super(None_Sweep, self).__init__()
         self.sweep_control = sweep_control
-        self.name = 'None_Sweep'
-        self.parameter_name = 'pts'
-        self.unit = 'arb. unit'
+        self.name = name
+        self.parameter_name = parameter_name
+        self.unit = unit
         self.sweep_points = sweep_points
 
     def set_parameter(self, val):
@@ -241,6 +296,7 @@ class Hard_Sweep(Sweep_function):
         super(Hard_Sweep, self).__init__()
         self.sweep_control = 'hard'
         self.parameter_name = 'None'
+        self.name = 'Hard_Sweep'
         self.unit = 'a.u.'
 
     def start_acquistion(self):
@@ -266,6 +322,42 @@ class QASM_Sweep(Hard_Sweep):
         if self.upload:
             qumis_file = qta.qasm_to_asm(self.filename, self.op_dict)
             self.CBox.load_instructions(qumis_file.name)
+
+
+class OpenQL_Sweep(Hard_Sweep):
+
+    def __init__(self, openql_program, CCL,
+                 parameter_name: str ='Points', unit: str='a.u.',
+                 upload: bool=True):
+        super().__init__()
+        self.name = 'OpenQL_Sweep'
+        self.openql_program = openql_program
+        self.CCL = CCL
+        self.upload = upload
+        self.parameter_name = parameter_name
+        self.unit = unit
+
+    def prepare(self, **kw):
+        if self.upload:
+            self.CCL.eqasm_program(self.openql_program.filename)
+
+
+class OpenQL_File_Sweep(Hard_Sweep):
+
+    def __init__(self, filename: str, CCL,
+                 parameter_name: str ='Points', unit: str='a.u.',
+                 upload: bool=True):
+        super().__init__()
+        self.name = 'OpenQL_Sweep'
+        self.filename = filename
+        self.CCL = CCL
+        self.upload = upload
+        self.parameter_name = parameter_name
+        self.unit = unit
+
+    def prepare(self, **kw):
+        if self.upload:
+            self.CCL.eqasm_program(self.filename)
 
 
 class QASM_Sweep_v2(Hard_Sweep):
@@ -408,6 +500,7 @@ class Multi_QASM_Sweep(QASM_Sweep_v2):
     '''
     Sweep function that combines multiple QASM sweeps into one sweep.
     '''
+
     def __init__(self, exp_per_file: int, hard_repetitions: int,
                  soft_repetitions: int, qasm_list, config: dict, detector,
                  CBox, parameter_name: str='Points', unit: str='a.u.',
@@ -464,7 +557,7 @@ class QuMis_Sweep(Hard_Sweep):
     def __init__(self, filename, CBox,
                  parameter_name='Points', unit='a.u.', upload=True):
         super().__init__()
-        self.name = 'QASM_Sweep'
+        self.name = 'QuMis_Sweep'
         self.filename = filename
         self.upload = upload
         self.CBox = CBox
@@ -472,8 +565,8 @@ class QuMis_Sweep(Hard_Sweep):
         self.unit = unit
 
     def prepare(self, **kw):
-        self.CBox.trigger_source('internal')
         if self.upload:
+            self.CBox.trigger_source('internal')
             self.CBox.load_instructions(self.filename)
 
 
@@ -752,3 +845,195 @@ class QWG_lutman_custom_wave_chunks(Soft_Sweep):
             self.LutMan.load_custom_pulse_onto_AWG_lookuptable(
                 self.wave_func(paramVal), append_compensation=True,
                 pulse_name=pulseName, codeword=self.codewords[i])
+
+
+class lutman_par_dB_attenuation_QWG(Soft_Sweep):
+
+    def __init__(self, LutMan, LutMan_parameter, **kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.LutMan_parameter = LutMan_parameter
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(10**(val/20))
+        self.LutMan.load_pulses_onto_AWG_lookuptable(regenerate_pulses=True)
+        self.LutMan.QWG.get_instr().start()
+        self.LutMan.QWG.get_instr().getOperationComplete()
+
+class lutman_par_dB_attenuation_UHFQC(Soft_Sweep):
+
+    def __init__(self, LutMan, LutMan_parameter, run=False, single=True,**kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.LutMan_parameter = LutMan_parameter
+        self.run=run
+        self.single = single
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(10**(val/20))
+        if self.run:
+            self.LutMan.UHFQC.awgs_0_enable(False)
+        self.LutMan.load_pulse_onto_AWG_lookuptable('M_square',regenerate_pulses=True)
+        if self.run:
+            self.LutMan.UHFQC.acquisition_arm(single=self.single)
+
+
+class lutman_par_UHFQC_dig_trig(Soft_Sweep):
+    def __init__(self, LutMan, LutMan_parameter, single=True, run=False,**kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = LutMan_parameter.unit
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.LutMan_parameter = LutMan_parameter
+        self.run = run
+        self.single = single
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(val)
+        if self.run:
+            self.LutMan.AWG.get_instr().awgs_0_enable(False)
+        self.LutMan.load_DIO_triggered_sequence_onto_UHFQC()
+        if self.run:
+            self.LutMan.AWG.get_instr().acquisition_arm(single=self.single)
+
+
+class lutman_par_dB_attenuation_UHFQC_dig_trig(Soft_Sweep):
+    def __init__(self, LutMan, LutMan_parameter, run=False, **kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.LutMan_parameter = LutMan_parameter
+        self.run = run
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(10**(val/20))
+        if self.run:
+            self.LutMan.AWG.get_instr().awgs_0_enable(False)
+        self.LutMan.load_DIO_triggered_sequence_onto_UHFQC()
+        if self.run:
+            self.LutMan.AWG.get_instr().acquisition_arm(single=self.single)
+
+
+class two_par_joint_sweep(Soft_Sweep):
+    """
+    Allows jointly sweeping two parameters while preserving their
+    respective ratios.
+    """
+    def __init__(self, par_A, par_B, preserve_ratio: bool=True, **kw):
+        self.set_kw()
+        self.name = par_A.name
+        self.parameter_name = par_A.name
+        self.unit = par_A.unit
+        self.sweep_control = 'soft'
+
+        self.par_A = par_A
+        self.par_B = par_B
+        if preserve_ratio:
+            try:
+                self.par_ratio = self.par_B.get()/self.par_A.get()
+            except NotImplementedError:
+                self.par_ratio = (self.par_B.get_latest()/
+                                  self.par_A.get_latest())
+        else:
+            self.par_ratio = 1
+
+    def set_parameter(self, val):
+        self.par_A.set(val)
+        self.par_B.set(val*self.par_ratio)
+
+
+class FLsweep(Soft_Sweep):
+    """
+    Special sweep function for AWG8 flux pulses, includes "hack" program
+    required because of bad triggering of DIO pulses.
+    """
+    def __init__(self, lm, par, waveform_name, realtime_loading=True,
+                 other_waveform=None, **kw):
+        super().__init__(**kw)
+        self.lm = lm
+        self.par = par
+        self.waveform_name = waveform_name
+        self.parameter_name = par.name
+        self.unit = par.unit
+        self.name = par.name
+        self.realtime_loading = realtime_loading
+        self.other_waveform = other_waveform
+
+    def prepare(self):
+        awg_hack_program = """
+        while (1) {
+          waitDIOTrigger();
+          playWave("dev8005_wave_ch1_cw002", "dev8005_wave_ch2_cw002");
+        }
+        """
+        awg_hack_program_cz = """
+        while (1) {
+          waitDIOTrigger();
+          playWave("dev8005_wave_ch1_cw001", "dev8005_wave_ch2_cw001");
+        }
+        """
+        awg_hack_program_multi_cz = """
+        while (1) {
+          waitDIOTrigger();
+          playWave("dev8005_wave_ch1_cw004", "dev8005_wave_ch2_cw004");
+        }
+        """
+        awg = self.lm.AWG.get_instr()
+        self.lm.load_waveform_onto_AWG_lookuptable(
+            self.waveform_name, regenerate_waveforms=True)
+        if 'multi' in self.waveform_name:
+            awg.configure_awg_from_string(0, awg_hack_program_multi_cz)
+        elif 'z' in self.waveform_name:
+            awg.configure_awg_from_string(0, awg_hack_program_cz)
+        else:
+            awg.configure_awg_from_string(0, awg_hack_program)
+
+        awg.configure_codeword_protocol()
+        awg.start()
+
+    def set_parameter(self, val):
+        self.par(val)
+        if self.realtime_loading:
+            self.lm.load_waveform_realtime(
+                self.waveform_name, other_waveform=self.other_waveform)
+        else:
+            awg = self.lm.AWG.get_instr()
+            awg_hack_program = """
+            while (1) {
+              waitDIOTrigger();
+              playWave("dev8005_wave_ch1_cw002", "dev8005_wave_ch2_cw002");
+            }
+            """
+            awg_hack_program_cz = """
+            while (1) {
+              waitDIOTrigger();
+              playWave("dev8005_wave_ch1_cw001", "dev8005_wave_ch2_cw001");
+            }
+            """
+            awg_hack_program_multi_cz = """
+            while (1) {
+              waitDIOTrigger();
+              playWave("dev8005_wave_ch1_cw004", "dev8005_wave_ch2_cw004");
+            }
+            """
+            self.lm.load_waveform_onto_AWG_lookuptable(
+                self.waveform_name, regenerate_waveforms=True)
+            if 'z' in self.waveform_name:
+                awg.configure_awg_from_string(0, awg_hack_program_cz)
+            else:
+                awg.configure_awg_from_string(0, awg_hack_program)
+            awg.configure_codeword_protocol()
+            awg.start()
