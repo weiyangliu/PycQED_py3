@@ -73,7 +73,7 @@ class Scope_Trace_analysis(ba.BaseDataAnalysis):
         # Detect the rising edge and shift the time axis
         self.proc_data_dict['square_length'] = self.options_dict.get('square_length', 1e-6)
         r_edge_idx = detect_threshold_crossing(
-            self.proc_data_dict['yvals'], 0.05)
+            self.proc_data_dict['yvals'], 0.1)
         edge_time = self.proc_data_dict['xvals'][r_edge_idx]
 
         print(edge_time)

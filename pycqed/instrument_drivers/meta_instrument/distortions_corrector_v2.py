@@ -923,6 +923,7 @@ class RT_distortion_corrector_5014(Distortion_corrector):
 
             # needs to be overwritten by a new method, that takes the lutman as
             # an argument, and calls it to pre-distort the waveform
+            self.AWG.ch3_amp(2)
             pulse_pars = {'pulse_type': 'SquarePulse',
                           'pulse_delay': .1e-6,
                           'channel': 'ch3',
