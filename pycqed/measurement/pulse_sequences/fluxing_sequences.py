@@ -1506,25 +1506,6 @@ def BusT1(operation_dict, q0,
     return seq, el_list
 
 
-
-def distort_and_compensate_fluxlutman(element, fluxlutman, flux_channel):
-    """
-    Distorts an element using the flux lutman.
-    """
-    # get the waveform
-    t_vals, outputs_dict = element.waveforms()
-    import matplotlib.pyplot as plt
-    # plt.plot(outputs_dict[flux_channel])
-    # get the channels that need to be distorted
-    element.chan_distorted[flux_channel] = True
-    length = len(outputs_dict[flux_channel])
-    # distort it by calling fluxlutman.distort_waveform()
-    dist_wv = fluxlutman.distort_waveform(outputs_dict[flux_channel])
-    # plt.plot(dist_wv)
-    element.distorted_wfs[flux_channel] = dist_wv[:length]
-    return element
-
-
 def FluxTrack(operation_dict, q0,
               pulse_lengths=np.arange(0, 120e-9, 2e-9),
               verbose=False,
@@ -1596,3 +1577,184 @@ def FluxTrack(operation_dict, q0,
         station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
 
     return seq, el_list
+
+
+def chevron_seq_fluxlutman(swap_amp, q0, operation_dict,
+                pulse_lengths=np.arange(0, 120e-9, 2e-9),
+                flux_channel = 'ch3',
+                verbose=False,
+                flux_lutman=None,
+                upload=True,
+                cal_points=True):
+    '''
+    Chevron sequence where length of the "SWAP" operation is varied
+        X180 - SWAP(l) - RO
+
+
+    verbose=False:        (bool) used for verbosity printing in the pulsar
+    distortion_dict=None: (dict) flux_pulse predistortion kernels
+    upload=True:          (bool) uploads to AWG, set False for testing purposes
+    cal_points=True:      (bool) wether to use calibration points
+    '''
+
+    seq_name = 'Chevron_seq'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+    # sequencer_config = operation_dict['sequencer_config']
+
+    swap_pars = {'pulse_type': 'SquarePulse',
+                 'pulse_delay': .1e-6,
+                 'channel': flux_channel,
+                 'amplitude': swap_amp,
+                 'length': .1e-6}
+    operation_dict.update({'chevron_pulse': swap_pars})
+    #make pulse delay = dead time.
+    dead_time = 10e-6
+    compensation_pars = {'pulse_type': 'SquarePulse',
+                         'pulse_delay': dead_time,
+                         'channel': flux_channel,
+                         'amplitude': -1*swap_amp,
+                         'length': .1e-6,
+                         'refpoint': 'start'}
+
+    operation_dict.update({'chevron_pulse': swap_pars})
+    operation_dict.update({'compensation_pulse': compensation_pars})
+
+    # seq has to have at least 2 elts
+    for i, pulse_length in enumerate(pulse_lengths):
+        pulse_swap = deepcopy(swap_pars)
+        pulse_compensation = deepcopy(compensation_pars)
+        # this converts negative pulse lenghts to negative pulse amplitudes
+        pulse_swap['length'] = pulse_length
+        pulse_compensation['length'] = pulse_length
+        #don't undersatnd the line below
+        if pulse_length < 0:
+            pulse_swap['amplitude'] = -pulse_swap['amplitude']
+            pulse_compensation['amplitude'] = -pulse_compensation['amplitude']
+        operation_dict['chevron_pulse'] = pulse_swap
+        operation_dict['compensation_pulse'] = pulse_compensation
+
+        pulse_combinations = ['X180 '+ q0,'chevron_pulse','RO ' + q0, 'compensation_pulse']
+
+        #nothing touched below
+        if cal_points and (i == (len(pulse_lengths)-4) or
+                           i == (len(pulse_lengths)-3)):
+            pulse_combinations = ['RO '+q0]
+        elif cal_points and (i == (len(pulse_lengths)-2) or
+                             i == (len(pulse_lengths)-1)):
+            pulse_combinations = ['X180 ' + q0, 'RO ' + q0]
+
+        pulses = []
+        for p in pulse_combinations:
+            pulses += [operation_dict[p]]
+
+        el = multi_pulse_elt(i, station, pulses)
+        el = distort_and_compensate_fluxlutman(el,
+                                               flux_lutman,
+                                               flux_channel)
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+    if upload:
+        station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
+
+    return seq, el_list
+
+def cryo_scope_fluxlutman(pulse_lengths,
+                          q0, operation_dict,
+                          flux_amp=1,
+                          tau=1e-6,
+                          flux_channel='ch3',
+                          verbose=False,
+                          flux_lutman=None,
+                          upload=True,
+                          cal_points=True):
+    seq_name = 'Cryo_scope'
+    seq = sequence.Sequence(seq_name)
+    station.pulsar.update_channel_settings()
+    el_list = []
+# defining flux pulses
+    flux_pars = {'pulse_type': 'SquarePulse',
+                 'pulse_delay': .1e-6,
+                 'channel': flux_channel,
+                 'amplitude': flux_amp,
+                 'length': .1e-6}
+    operation_dict.update({'flux_pulse': flux_pars})
+    #make pulse delay = dead time.
+    dead_time = 10e-6
+    compensation_pars = {'pulse_type': 'SquarePulse',
+                         'pulse_delay': dead_time,
+                         'channel': flux_channel,
+                         'amplitude': -1*flux_amp,
+                         'length': .1e-6,
+                         'refpoint': 'start'}
+    operation_dict.update({'compensation_pulse': compensation_pars})
+
+# defining ramsey pulses
+    # creates two alternatives for second pulse
+    Ramsey_pulse_pars_x2a = deepcopy(operation_dict['X90 ' + q0])
+    Ramsey_pulse_pars_x2b = deepcopy(operation_dict['Y90 ' + q0])
+    Ramsey_pulse_pars_x2a['refpoint'] = 'start'
+    Ramsey_pulse_pars_x2a['refpoint'] = 'start'
+    Ramsey_pulse_pars_x2a['pulse_delay'] = tau
+    Ramsey_pulse_pars_x2b['pulse_delay'] = tau
+    operation_dict.update({'second_pulse_Y90 ' + q0: Ramsey_pulse_pars_x2b})
+    operation_dict.update({'second_pulse_X90 ' + q0: Ramsey_pulse_pars_x2a})
+
+    for i, pulse_length in enumerate(pulse_lengths):
+        # this converts negative pulse lenghts to negative pulse amplitudes
+        operation_dict['flux_pulse']['length'] = pulse_length
+        operation_dict['compensation_pulse']['length'] = pulse_length
+        if pulse_length < 0:
+            operation_dict['flux_pulse']['amplitude'] = -operation_dict['flux_pulse']['amplitude']
+            operation_dict['compensation_pulse']['amplitude'] = -operation_dict['compensation_pulse']['amplitude']
+
+        # prepares pulse_list for sequence
+        if (i%2 == 0):
+            pulse_combination = ['X90 ' + q0,'flux_pulse', 'second_pulse_X90 ' + q0,
+                                  'RO ' + q0, 'compensation_pulse']
+        else:
+            pulse_combination = ['X90 ' + q0,'flux_pulse', 'second_pulse_Y90 ' + q0,
+                                  'RO ' + q0, 'compensation_pulse']
+        #n calibration points
+        if cal_points and (i == (len(pulse_lengths)-4) or
+                           i == (len(pulse_lengths)-3)):
+            pulse_combination = ['RO '+q0]
+        elif cal_points and (i == (len(pulse_lengths)-2) or
+                             i == (len(pulse_lengths)-1)):
+            pulse_combination = ['X180 ' + q0, 'RO ' + q0]
+
+         # actual sequence
+        pulses = []
+        for p in pulse_combination:
+            pulses += [operation_dict[p]]
+
+        # only for non-calibration points
+        el = multi_pulse_elt(i, station, pulses)
+        el = distort_and_compensate_fluxlutman(el,
+                                                   flux_lutman,
+                                                   flux_channel)
+        el_list.append(el)
+        seq.append_element(el, trigger_wait=True)
+
+    if upload:
+        station.pulsar.program_awgs(seq, *el_list, verbose=verbose)
+
+    return seq, el_list
+
+def distort_and_compensate_fluxlutman(element, fluxlutman, flux_channel):
+    """
+    Distorts an element using the flux lutman.
+    """
+    # get the waveform
+    t_vals, outputs_dict = element.waveforms()
+    import matplotlib.pyplot as plt
+    # plt.plot(outputs_dict[flux_channel])
+    # get the channels that need to be distorted
+    element.chan_distorted[flux_channel] = True
+    length = len(outputs_dict[flux_channel])
+    # distort it by calling fluxlutman.distort_waveform()
+    dist_wv = fluxlutman.distort_waveform(outputs_dict[flux_channel])
+    # plt.plot(dist_wv)
+    element.distorted_wfs[flux_channel] = dist_wv[:length]
+    return element
