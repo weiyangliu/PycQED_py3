@@ -870,23 +870,20 @@ class CBox_v3_driven_transmon(Transmon):
         self.CBox.get_instr().load_instructions(qumis_file.name)
         self.CBox.get_instr().run_mode('run')
 
-        # Create a new sweep function that sweeps two frequencies.
-        # use only if the RO pulse type is the CW-RF scan, else only sweep the
-        # LO
-
         # MC.set_sweep_function(self.heterodyne_instr.frequency)
+        if 'gated' in self.RO_pulse_type().lower():
+            RF_source = self.RF_RO_source.get_instr()
+        else:
+            RF_source = None
         MC.set_sweep_function(swf.Heterodyne_Frequency_Sweep(
             RO_pulse_type=self.RO_pulse_type(),
-            RF_source=self.RF_RO_source.get_instr(),
+            RF_source=RF_source,
             LO_source=self.LO.get_instr(), IF=self.f_RO_mod()))
         MC.set_sweep_points(freqs)
-        # make sure we use the right acquision detector. Mind the new UHFQC
-        # spec mode
 
         # FIXME: setting polar coords should be fixed properly
         self.int_avg_det_single._set_real_imag(False)
         MC.set_detector_function(self.int_avg_det_single)
-        # det.Heterodyne_probe(self.heterodyne_instr)
         MC.run(name='Resonator_scan'+self.msmt_suffix)
         if analyze:
             ma.MeasurementAnalysis(auto=True, close_fig=close_fig)
@@ -2706,6 +2703,7 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
         self.add_parameter('LO', parameter_class=InstrumentParameter)
         self.add_parameter('cw_source', parameter_class=InstrumentParameter)
         self.add_parameter('td_source', parameter_class=InstrumentParameter)
+        self.add_parameter('RF_RO_source', parameter_class=InstrumentParameter)
         self.add_parameter('IVVI', parameter_class=InstrumentParameter)
 
         self.add_parameter('QWG', parameter_class=InstrumentParameter)
@@ -2746,6 +2744,10 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
             docstring=('length of the block pulse if spec_pulse_type' +
                        'is "block", gauss_width if spec_pulse_type is gauss.'),
             initial_value=100e-9)
+        self.add_parameter('RO_acq_pulse_marker_channel',
+                           vals=vals.Ints(1, 7),
+                           initial_value=6,
+                           parameter_class=ManualParameter)
 
     def measure_rabi(self, amps=np.linspace(-.5, .5, 21), n=1,
                      MC=None, analyze=True, close_fig=True,
@@ -2997,7 +2999,7 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
                     'wait {}\n'.format(RO_depletion_clocks)
 
         elif (('ATS' in acq_instr) or ('UHFQC' in acq_instr)):
-            if 'gated' in self.RO_pulse_type():
+            if 'gated' in self.RO_pulse_type().lower():
                 measure_instruction = self._gated_RO_marker_instr()
                 operation_dict['RO {}'.format(self.name)][
                     'instruction'] = measure_instruction

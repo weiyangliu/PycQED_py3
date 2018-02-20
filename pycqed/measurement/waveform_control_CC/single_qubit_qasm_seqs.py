@@ -22,10 +22,12 @@ def CW_tone():
 
 
 def CW_RO_sequence(qubit_name, trigger_separation, clock_cycle=1e-9):
+    # clock cycle of 1 ns is RIGHT for qasm. Qumis clock-cylce of 5ns comes later!
+    # in the qasm_to_asm call
     # N.B.! this delay is not correct because it does not take the
     # trigger length into account
-    delay = np.round(trigger_separation/clock_cycle)
-
+    delay = np.round((trigger_separation)/clock_cycle) - 5
+    # delay = 1000000
     filename = join(base_qasm_path, 'CW_RO_sequence.qasm')
     qasm_file = mopen(filename, mode='w')
     qasm_file.writelines('qubit {} \n'.format(qubit_name))
