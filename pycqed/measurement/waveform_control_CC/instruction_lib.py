@@ -8,7 +8,7 @@ import numpy as np
 
 def trigg_cw(channel):
     cw = ['0']*7
-    cw[channel-1] = '1'
+    cw[int(channel)-1] = '1'
     cw = ''.join(cw)
     return cw
 
