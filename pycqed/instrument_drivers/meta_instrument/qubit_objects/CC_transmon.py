@@ -291,6 +291,12 @@ class CBox_v3_driven_transmon(Transmon):
                            vals=vals.Arrays(),
                            label='Optimized weights for Q channel',
                            parameter_class=ManualParameter)
+#new params
+        self.add_parameter('resonator_id', initial_value=0,
+                           unit='s',
+                           docstring=('Assigns a resonator id for the RO LUTMan.'),
+                           parameter_class=ManualParameter,
+                           vals=vals.Ints(min_value=0))
 
     def upload_qasm_file(self, qasm_file):
         qasm_fn = qasm_file.name
@@ -393,14 +399,16 @@ class CBox_v3_driven_transmon(Transmon):
                 UHFQC.awg_sequence_acquisition()
             elif 'iqmod' in self.RO_pulse_type().lower():
                 RO_lm = self.RO_LutMan.get_instr()
-                RO_lm.M_length(self.RO_pulse_length())
-                RO_lm.M_amp(self.RO_amp())
-                RO_lm.M_length(self.RO_pulse_length())
-                RO_lm.M_modulation(self.f_RO_mod())
+                reso_id = self.resonator_id()
+
+                RO_lm.set('M_length_R%d'%reso_id, self.RO_pulse_length())
+                RO_lm.set('M_amp_R%d'%reso_id, self.RO_amp())
+                RO_lm.set('M_length_R%d'%reso_id, self.RO_pulse_length())
+                RO_lm.set('M_modulation_R%d'%reso_id, self.f_RO_mod())
                 RO_lm.acquisition_delay(self.RO_acq_marker_delay())
 
                 if 'multiplexed' not in self.RO_pulse_type().lower():
-                    RO_lm.load_pulse_onto_AWG_lookuptable('M_square')
+                    RO_lm.load_single_pulse_sequence_onto_UHFQC('M_square_R%d'%reso_id)
 
         #####################################
         # Setting The integration weights
@@ -2995,8 +3003,11 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
                     'instruction'] = measure_instruction
             else:
                 measure_instruction = self._triggered_RO_marker_instr()
-                operation_dict['RO {}'.format(self.name)][
-                    'instruction'] = measure_instruction
+                operation_dict['RO {}'.format(self.name)] = {
+                    'instruction': measure_instruction,
+                    'duration': (RO_pulse_delay_clocks
+                                 + RO_acq_marker_del_clocks
+                                 + RO_depletion_clocks)}
         else:
             raise NotImplementedError('Unknown acquisition device.')
 
