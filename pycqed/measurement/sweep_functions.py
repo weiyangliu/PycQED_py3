@@ -846,6 +846,26 @@ class QWG_lutman_custom_wave_chunks(Soft_Sweep):
                 self.wave_func(paramVal), append_compensation=True,
                 pulse_name=pulseName, codeword=self.codewords[i])
 
+class lutman_par_attenuation_UHFQC_QECVQE(Soft_Sweep):
+
+    def __init__(self, LutMan, LutMan_parameter, run=False, single=True,**kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.LutMan_parameter = LutMan_parameter
+        self.run=run
+        self.single = single
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(val)
+        if self.run:
+            self.LutMan.AWG.get_instr().awgs_0_enable(False)
+        self.LutMan.load_single_pulse_sequence_onto_UHFQC('M_square_R0')
+        if self.run:
+            self.LutMan.AWG.get_instr().acquisition_arm(single=self.single)
 
 class lutman_par_dB_attenuation_QWG(Soft_Sweep):
 
