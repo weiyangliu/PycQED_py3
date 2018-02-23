@@ -297,6 +297,10 @@ class CBox_v3_driven_transmon(Transmon):
                            docstring=('Assigns a resonator id for the RO LUTMan.'),
                            parameter_class=ManualParameter,
                            vals=vals.Ints(min_value=0))
+        self.add_parameter('RO_RF_pulse_power', initial_value=-60,
+                           unit='dBm',
+                           parameter_class=ManualParameter,
+                           vals=vals.Numbers(min_value=-90, max_value=25))
 
     def upload_qasm_file(self, qasm_file):
         qasm_fn = qasm_file.name
@@ -898,6 +902,17 @@ class CBox_v3_driven_transmon(Transmon):
             # Redirect to the pulsed spec function
             return self.measure_pulsed_spectroscopy(freqs,
                                                     MC, analyze, close_fig)
+        # if it is not pulsed, then it is CW!
+
+        # Loading the right qumis instructions for RO
+        CW_RO_sequence = sqqs.CW_RO_sequence(self.name,
+                                             self.RO_acq_period_cw())
+        CW_RO_sequence_asm = qta.qasm_to_asm(CW_RO_sequence.name,
+                                             self.get_operation_dict())
+        qumis_file = CW_RO_sequence_asm
+        self.CBox.get_instr().load_instructions(qumis_file.name)
+        self.CBox.get_instr().run_mode('run')
+
         MC.set_sweep_function(self.cw_source.get_instr().frequency)
         MC.set_sweep_points(freqs)
         self.int_avg_det_single._set_real_imag(False)
@@ -2812,11 +2827,19 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
             return a
 
     def prepare_for_timedomain(self):
+        # this is hardcoded for pair1 of channels
+        self.prepare_readout()
+        if "gated" in self.RO_pulse_type().lower():
+            RF = self.RF_RO_source.get_instr()
+            RF.pulsemod_state('On')
+            RF.power(self.RO_RF_pulse_power())
+
         self.acquisition_instrument(self.acquisition_instrument())
         self.MC.get_instr().soft_avg(self.RO_soft_averages())
         self.LO.get_instr().on()
         self.cw_source.get_instr().off()
         self.td_source.get_instr().on()
+        self.QWG.get_instr().ch_pair1_sideband_frequency(self.f_pulse_mod())
         # Set source to fs =f-f_mod such that pulses appear at f = fs+f_mod
         self.td_source.get_instr().frequency.set(self.f_qubit.get()
                                                  - self.f_pulse_mod.get())
@@ -2829,16 +2852,6 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
         self.LO.get_instr().frequency.set(f_RO - self.f_RO_mod.get())
 
         self.td_source.get_instr().power.set(self.td_source_pow.get())
-
-        # Mixer offsets correction
-        # self.CBox.get_instr().set('AWG{:.0g}_dac0_offset'.format(self.awg_nr.get()),
-        #               self.mixer_offs_drive_I.get())
-        # self.CBox.get_instr().set('AWG{:.0g}_dac1_offset'.format(self.awg_nr.get()),
-        #               self.mixer_offs_drive_Q.get())
-        # self.CBox.get_instr().set('AWG{:.0g}_dac0_offset'.format(self.RO_awg_nr.get()),
-        #               self.mixer_offs_RO_I.get())
-        # self.CBox.get_instr().set('AWG{:.0g}_dac1_offset'.format(self.RO_awg_nr.get()),
-        #               self.mixer_offs_RO_Q.get())
 
         # RO pars
         if 'CBox' in self.acquisition_instrument():
@@ -2860,13 +2873,15 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
             self.CBox.get_instr().lin_trans_coeffs(
                 np.reshape(rotation_matrix(self.RO_rotation_angle(), as_array=True), (4,)))
 
-        self.load_QWG_pulses()
+        # FIXME: disabled loading, as it may not be the right strategy for a VQE
+        # self.load_QWG_pulses()
 
     def load_QWG_pulses(self):
         # NOTE: this is currently hardcoded to use ch1 and ch2 of the QWG
 
         t0 = time.time()
-        self.QWG.reset()
+        QWG = self.QWG.get_instr()
+        self.QWG.get_instr().reset()
 
         # Sets the QWG channel amplitudes
         for ch in [1, 2, 3, 4]:
@@ -2939,38 +2954,38 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
         operation_dict['X180 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0000000, 2 \nwait 2\n' +
-                'trigger 1000000, 2  \nwait {}\n'.format(  # 1001001
+                'trigger 0000001, 2  \nwait {}\n'.format(  # 1001001
                     pulse_period_clocks-2)}
         operation_dict['Y180 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
-                'trigger 0100000, 2 \nwait 2\n' +
-                'trigger 1100000, 2  \nwait {}\n'.format(
+                'trigger 0000010, 2 \nwait 2\n' +
+                'trigger 0000011, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
         operation_dict['X90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
-                'trigger 0010000, 2 \nwait 2\n' +
-                'trigger 1010000, 2  \nwait {}\n'.format(
+                'trigger 0000100, 2 \nwait 2\n' +
+                'trigger 0000101, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
         operation_dict['Y90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
-                'trigger 0110000, 2 \nwait 2\n' +
-                'trigger 1110000, 2  \nwait {}\n'.format(
+                'trigger 0000110, 2 \nwait 2\n' +
+                'trigger 0000111, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
         operation_dict['mX90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0001000, 2 \nwait 2\n' +
-                'trigger 1001000, 2  \nwait {}\n'.format(
+                'trigger 0001001, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
         operation_dict['mY90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
-                'trigger 0101000, 2 \nwait 2\n' +
-                'trigger 1101000, 2  \nwait {}\n'.format(
+                'trigger 0001010, 2 \nwait 2\n' +
+                'trigger 0001011, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
 
         operation_dict['SpecPulse {}'.format(self.name)] = {
             'duration': spec_pulse_clocks, 'instruction':
-                'trigger 0011000, 2 \nwait 2\n' +
-                'trigger 1011000, 2  \nwait {}\n'.format(
+                'trigger 0001100, 2 \nwait 2\n' +
+                'trigger 0011001, 2  \nwait {}\n'.format(
                     spec_pulse_clocks-2)}
 
         # RO part
@@ -3001,8 +3016,11 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
         elif (('ATS' in acq_instr) or ('UHFQC' in acq_instr)):
             if 'gated' in self.RO_pulse_type().lower():
                 measure_instruction = self._gated_RO_marker_instr()
-                operation_dict['RO {}'.format(self.name)][
-                    'instruction'] = measure_instruction
+                operation_dict['RO {}'.format(self.name)] = {
+                    'instruction': measure_instruction,
+                    'duration': (RO_pulse_delay_clocks
+                                 + RO_acq_marker_del_clocks
+                                 + RO_depletion_clocks)}
             else:
                 measure_instruction = self._triggered_RO_marker_instr()
                 operation_dict['RO {}'.format(self.name)] = {

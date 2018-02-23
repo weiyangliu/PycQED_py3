@@ -321,7 +321,9 @@ class QASM_Sweep(Hard_Sweep):
         self.CBox.trigger_source('internal')
         if self.upload:
             qumis_file = qta.qasm_to_asm(self.filename, self.op_dict)
+            print(qumis_file)
             self.CBox.load_instructions(qumis_file.name)
+            self.CBox.run_mode('run')
 
 
 class OpenQL_Sweep(Hard_Sweep):
