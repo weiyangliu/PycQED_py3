@@ -70,7 +70,7 @@ def mopen(filename, mode='w'):
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
-    file = open(filename, mode='w')
+    file = open(filename, mode=mode)
     return file
 
 
