@@ -136,6 +136,7 @@ class DeviceCCL(Instrument):
         # prepares by loading the awg_hack_program
         q0 = self.qubits()[0]
         fl_lutman = self.find_instrument(q0).instr_LutMan_Flux.get_instr()
+        fl_lutman.load_waveforms_onto_awg_lookuptable()
         awg = fl_lutman.AWG.get_instr()
 
         awg_hack_program_cz = """
@@ -499,6 +500,7 @@ class DeviceCCL(Instrument):
 
     def measure_conditional_oscillation(self, q0: str, q1: str,
                                         prepare_for_timedomain=True, MC=None,
+                                        wait_time_ns: int=0,
                                         verbose=True):
         """
         Measures the "conventional cost function" for the CZ gate that
@@ -515,8 +517,9 @@ class DeviceCCL(Instrument):
 
         # These are hardcoded angles in the mw_lutman for the AWG8
         angles = np.arange(0, 341, 20)
-        p = mqo.conditional_oscillation_seq(q0idx, q1idx, platf_cfg=self.cfg_openql_platform_fn(),
-                                   angles=angles,
+        p = mqo.conditional_oscillation_seq(q0idx, q1idx,
+                                            platf_cfg=self.cfg_openql_platform_fn(),
+                                   angles=angles, wait_time=wait_time_ns,
                                    CZ_disabled=False)
         s = swf.OpenQL_Sweep(openql_program=p,
                              CCL=self.instr_CC.get_instr(),

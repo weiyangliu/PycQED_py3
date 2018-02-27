@@ -265,11 +265,14 @@ class Dummy_Shots_Detector(Hard_Detector):
 
     def prepare(self, sweep_points):
         self.sweep_points = sweep_points
-        self.times_called += 1
 
     def get_values(self):
         x = self.sweep_points
-        dat = x[:self.max_shots]
+
+        start_idx = self.times_called*self.max_shots%len(x)
+
+        dat = x[start_idx:start_idx+self.max_shots]
+        self.times_called += 1
         return dat
 
 
@@ -878,7 +881,7 @@ class Function_Detector(Soft_Detector):
     """
     Defines a detector function that wraps around an user-defined function.
     Inputs are:
-        get_function (fun) : function used for acquiring values
+        get_function (callable) : function used for acquiring values
         value_names (list) : names of the elements returned by the function
         value_units (list) : units of the elements returned by the function
         result_keys (list) : keys of the dictionary returned by the function
@@ -887,14 +890,22 @@ class Function_Detector(Soft_Detector):
             values or parameters. If they are parameters the output of the
             get method will be used for each get_function evaluation.
 
+        prepare_function (callable): function used as the prepare method
+        prepare_kw (dict)   : kwargs for the prepare function
+        always_prepare (bool) : if True calls prepare every time data is
+            acquried
+
     The input function get_function must return a dictionary.
     The contents(keys) of this dictionary are going to be the measured
     values to be plotted and stored by PycQED
     """
 
     def __init__(self, get_function, value_names=None,
-                 detector_control='soft',
-                 value_units=None, msmt_kw={}, result_keys=None, **kw):
+                 detector_control: str='soft',
+                 value_units: list=None, msmt_kw:dict ={},
+                 result_keys: list=None,
+                 prepare_function=None, prepare_function_kw: dict={},
+                 always_prepare: bool=False, **kw):
         super().__init__()
         self.get_function = get_function
         self.result_keys = result_keys
@@ -906,6 +917,15 @@ class Function_Detector(Soft_Detector):
             self.value_names = result_keys
         if self.value_units is None:
             self.value_units = ['a.u.'] * len(self.value_names)
+
+        self.prepare_function = prepare_function
+        self.prepare_function_kw = prepare_function_kw
+        self.always_prepare = always_prepare
+
+    def prepare(self, **kw):
+        if self.prepare_function is not None:
+            self.prepare_function(**self.prepare_function_kwargs)
+
 
     def acquire_data_point(self, **kw):
         measurement_kwargs = {}
@@ -1626,6 +1646,18 @@ class UHFQC_integrated_average_detector(Hard_Detector):
                 # points -> only acquire one chunk
                 self.nr_sweep_points = self.chunk_size * self.seg_per_point
 
+
+        # Optionally perform extra actions on prepare
+        # This snippet is placed here so that it has a chance to modify the
+        # nr_sweep_points in a UHFQC detector
+        if self.prepare_function_kwargs is not None:
+            if self.prepare_function is not None:
+                self.prepare_function(**self.prepare_function_kwargs)
+        else:
+            if self.prepare_function is not None:
+                self.prepare_function()
+
+
         self.UHFQC.awgs_0_userregs_0(
             int(self.nr_averages*self.nr_sweep_points))
         self.UHFQC.awgs_0_userregs_1(0)  # 0 for rl, 1 for iavg (input avg)
@@ -1639,13 +1671,7 @@ class UHFQC_integrated_average_detector(Hard_Detector):
         self.UHFQC.quex_rl_source(self.result_logging_mode_idx)
         self.UHFQC.acquisition_initialize(channels=self.channels, mode='rl')
 
-        # Optionally perform extra actions on prepare
-        if self.prepare_function_kwargs is not None:
-            if self.prepare_function is not None:
-                self.prepare_function(**self.prepare_function_kwargs)
-        else:
-            if self.prepare_function is not None:
-                self.prepare_function()
+
 
     def finish(self):
         if self.AWG is not None:
