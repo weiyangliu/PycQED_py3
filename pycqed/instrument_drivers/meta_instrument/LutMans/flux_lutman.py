@@ -407,3 +407,32 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
                 length_samples=int(self.cfg_max_wf_length() *
                                    self.sampling_rate()))
         return distorted_waveform
+
+
+class QWG_Flux_LutMan(AWG8_Flux_LutMan):
+
+    def __init__(self, name, **kw):
+        super().__init__(name, **kw)
+        self._wave_dict_dist = dict()
+        self.sampling_rate(1e9)
+
+    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+                                           regenerate_waveforms: bool=False):
+        """
+        Loads a specific waveform to the AWG
+        """
+        if regenerate_waveforms:
+            # only regenerate the one waveform that is desired
+            gen_wf_func = getattr(self, '_gen_{}'.format(waveform_name))
+            self._wave_dict[waveform_name] = gen_wf_func()
+
+        waveform = self._wave_dict[waveform_name]
+        codeword = self.LutMap()[waveform_name]
+
+        if self.cfg_append_compensation():
+            waveform = self.add_compensation_pulses(waveform)
+
+        if self.cfg_distort():
+            waveform = self.distort_waveform(waveform)
+            self._wave_dict_dist[waveform_name] = waveform
+        self.AWG.get_instr().set(codeword, waveform)
