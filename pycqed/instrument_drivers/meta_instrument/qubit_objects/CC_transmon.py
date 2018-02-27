@@ -301,6 +301,12 @@ class CBox_v3_driven_transmon(Transmon):
                            unit='dBm',
                            parameter_class=ManualParameter,
                            vals=vals.Numbers(min_value=-90, max_value=25))
+        self.add_parameter('pulse_I_channel', initial_value='ch1',
+                           vals=vals.Strings(),
+                           parameter_class=ManualParameter)
+        self.add_parameter('pulse_Q_channel', initial_value='ch2',
+                           vals=vals.Strings(),
+                           parameter_class=ManualParameter)
 
     def upload_qasm_file(self, qasm_file):
         qasm_fn = qasm_file.name
@@ -2764,7 +2770,7 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
                            initial_value=6,
                            parameter_class=ManualParameter)
 
-    def measure_rabi(self, amps=np.linspace(-.5, .5, 21), n=1,
+    def measure_rabi(self, amps=np.linspace(-1.125, 1.125, 101), n=1,
                      MC=None, analyze=True, close_fig=True,
                      verbose=False):
         self.prepare_for_timedomain()
@@ -2772,27 +2778,43 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
             MC = self.MC.get_instr()
         if n != 1:
             raise NotImplementedError('QASM/QuMis sequence for n>1')
-
         # Generating the qumis file
         single_pulse_elt = sqqs.single_elt_on(self.name)
         single_pulse_asm = qta.qasm_to_asm(single_pulse_elt.name,
                                            self.get_operation_dict())
         qumis_file = single_pulse_asm
         self.CBox.get_instr().load_instructions(qumis_file.name)
+        QWG.get_instr().reset()
 
         for ch in [1, 2, 3, 4]:
-            self.QWG.set('ch{}_amp'.format(ch), .45)
-        ch_amp = swf.QWG_lutman_par(self.Q_LutMan,
-                                    self.Q_LutMan.get_instr().Q_amp180)
+            self.QWG.get_instr().set('ch{}_amp'.format(ch), 1.)
+        G,D = qwg_lut_lib.wf.gauss_pulse(amp=1.,sigma_length=5e-9,sampling_rate=1e9)
+        QWG_instr = self.QWG.get_instr()
+        QWG_instr.set('wave_ch1_cw001',G)
+        QWG_instr.set('wave_ch2_cw001',D)
+        QWG_instr.get_instr().ch1_state(True)
+        QWG_instr.get_instr().ch2_state(True)
 
-        d = self.int_avg_det
-        d.detector_control = 'soft'  # FIXME THIS overwrites something!
 
+        # call lutman for upload
+
+        # FIXME: this is because upload in lutman resets QWG.
+        QWG_instr.ch_pair1_sideband_frequency(self.f_pulse_mod())
+
+
+        QWG_instr.stop()
+        QWG_instr.run_mode('CODeword')
+        QWG_instr.start()
         self.CBox.get_instr().run_mode('run')
-        MC.set_sweep_function(ch_amp)
-        MC.set_sweep_points(amps)
-        MC.set_detector_function(d)
 
+
+        MC.set_sweep_function(swf.QWG_pair_amp(QWG=QWG,
+                                               channel_I=self.pulse_I_channel(),
+                                               channel_Q=self.pulse_I_channel()))
+        MC.set_sweep_points(amps)
+        d = self.int_avg_det_single
+        d.real_imag = True
+        MC.set_detector_function(d)
         MC.run('Rabi-n{}'.format(n)+self.msmt_suffix)
         d.detector_control = 'hard'
         if analyze:
@@ -2852,6 +2874,8 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
         self.LO.get_instr().frequency.set(f_RO - self.f_RO_mod.get())
 
         self.td_source.get_instr().power.set(self.td_source_pow.get())
+        for ch in [1,2,3,4]:
+            self.QWG.get_instr().set('ch{}_amp'.format(ch),self.Q_amp180())
 
         # RO pars
         if 'CBox' in self.acquisition_instrument():
@@ -2953,39 +2977,39 @@ class QWG_driven_transmon(CBox_v3_driven_transmon):
             'duration': pulse_period_clocks, 'instruction': 'wait {} \n'}
         operation_dict['X180 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
-                'trigger 0000000, 2 \nwait 2\n' +
-                'trigger 0000001, 2  \nwait {}\n'.format(  # 1001001
+                'trigger 0000010, 2 \nwait 2\n' +
+                'trigger 0000011, 2  \nwait {}\n'.format(  # 1001001
                     pulse_period_clocks-2)}
         operation_dict['Y180 {}'.format(self.name)] = {
-            'duration': pulse_period_clocks, 'instruction':
-                'trigger 0000010, 2 \nwait 2\n' +
-                'trigger 0000011, 2  \nwait {}\n'.format(
-                    pulse_period_clocks-2)}
-        operation_dict['X90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0000100, 2 \nwait 2\n' +
                 'trigger 0000101, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
-        operation_dict['Y90 {}'.format(self.name)] = {
+        operation_dict['X90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0000110, 2 \nwait 2\n' +
                 'trigger 0000111, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
-        operation_dict['mX90 {}'.format(self.name)] = {
+        operation_dict['Y90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0001000, 2 \nwait 2\n' +
                 'trigger 0001001, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
-        operation_dict['mY90 {}'.format(self.name)] = {
+        operation_dict['mX90 {}'.format(self.name)] = {
             'duration': pulse_period_clocks, 'instruction':
                 'trigger 0001010, 2 \nwait 2\n' +
                 'trigger 0001011, 2  \nwait {}\n'.format(
                     pulse_period_clocks-2)}
+        operation_dict['mY90 {}'.format(self.name)] = {
+            'duration': pulse_period_clocks, 'instruction':
+                'trigger 0001100, 2 \nwait 2\n' +
+                'trigger 0001101, 2  \nwait {}\n'.format(
+                    pulse_period_clocks-2)}
 
         operation_dict['SpecPulse {}'.format(self.name)] = {
             'duration': spec_pulse_clocks, 'instruction':
-                'trigger 0001100, 2 \nwait 2\n' +
-                'trigger 0011001, 2  \nwait {}\n'.format(
+                'trigger 0001110, 2 \nwait 2\n' +
+                'trigger 0001111, 2  \nwait {}\n'.format(
                     spec_pulse_clocks-2)}
 
         # RO part

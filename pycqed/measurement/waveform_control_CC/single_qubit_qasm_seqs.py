@@ -187,7 +187,14 @@ def Ramsey(qubit_name, times, clock_cycle=1e-9,
                                  qubit_name))
             qasm_file.writelines('Idx {:d} \n'.format(int(cl)))
             if artificial_detuning is not None:
-                qasm_file.writelines('R90_phi {} {}\n'.format(
+
+
+                if artificial_detuning == 0:
+                    qasm_file.writelines('X90 {}     \n'.format(
+                                     qubit_name))
+
+                else:
+                    qasm_file.writelines('R90_phi {} {}\n'.format(
                     qubit_name, phases[i]))
             else:
                 qasm_file.writelines('X90 {}     \n'.format(

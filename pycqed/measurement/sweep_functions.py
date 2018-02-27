@@ -1059,3 +1059,23 @@ class FLsweep(Soft_Sweep):
                 awg.configure_awg_from_string(0, awg_hack_program)
             awg.configure_codeword_protocol()
             awg.start()
+class QWG_pair_amp(Soft_Sweep):
+
+    def __init__(self, QWG, channel_I, channel_Q,**kw):
+        self.set_kw()
+        self.name = 'QWG Amp'
+        self.parameter_name = 'QWG Amp'
+        self.unit = 'V'
+        self.sweep_control = 'soft'
+        self.QWG = QWG
+        self.channel_I = channel_I
+        self.channel_Q = channel_Q
+
+
+    def set_parameter(self, val):
+        self.QWG.stop()
+        #this is done to give generality to
+        #ch1>>channel_I and ch2>>channel_Q mapping
+        self.QWG.set('%s_amp' % self.channel_I, val)
+        self.QWG.set('%s_amp' % self.channel_Q, val)
+        self.QWG.start()

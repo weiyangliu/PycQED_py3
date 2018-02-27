@@ -3,6 +3,7 @@ import numpy as np
 from qcodes.instrument.parameter import ManualParameter
 from qcodes.utils import validators as vals
 from pycqed.measurement.waveform_control_CC import waveform as wf
+import pycqed.instrument_drivers.meta_instrument.QWG_LookuptableManager as qwg_lut_lib
 
 
 class Base_MW_LutMan(Base_LutMan):
@@ -232,9 +233,119 @@ class CBox_MW_LutMan(Base_MW_LutMan):
 
 class QWG_MW_LutMan(Base_MW_LutMan):
 
-    def __init__(self, name, **kw):
+    def __init__(self, name, Channel_I, Channel_Q, **kw):
         self._num_channels = 4
+        self.channel_I = channel_I
+        self.channel_Q = channel_Q
         super().__init__(name, **kw)
+
+    def generate_standard_waveforms(self, waveform_name: str,
+                                    regenerate_waveforms: bool=False,
+                                    self.mixer_apply_predistortion_matrix():bool = False):
+        if regenerate_waveforms:
+            self.generate_standard_waveforms()
+        # define a wave_dictionary
+        self.__wave_dict = {}
+        # create the pulses Microwave pulses
+        G_amp = self.Q_amp180()/self.QWG.get_instr().get('ch{}_amp'.format(1))
+        # Amplitude is set using the channel amplitude (at least for now)
+        G, D = qwg_lut_lib.gauss_pulse(G_amp, self.Q_gauss_width(),
+                              motzoi=self.Q_motzoi(),
+                              sampling_rate=1e9)
+        self._wave_dict['I'] = self.wf_func(
+            amp=0, sigma_length=self.mw_gauss_width(),
+            f_modulation=f_modulation,
+            sampling_rate=self.sampling_rate(), phase=0,
+            motzoi=0)
+        self._wave_dict['X180'] = qwg_lut_lib.gauss_pulse(G_amp,
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=0,
+                                                          sampling_rate=1e9)
+        self._wave_dict['Y180'] = qwg_lut_lib.gauss_pulse(G_amp,
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=90,
+                                                          sampling_rate=1e9)
+        self._wave_dict['X90'] = qwg_lut_lib.gauss_pulse(G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=0,
+                                                          sampling_rate=1e9)
+        self._wave_dict['Y90'] = qwg_lut_lib.gauss_pulse(G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=90,
+                                                          sampling_rate=1e9)
+        self._wave_dict['mX90'] = qwg_lut_lib.gauss_pulse(G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=0,
+                                                          sampling_rate=1e9)
+        self._wave_dict['mY90'] = qwg_lut_lib.gauss_pulse(G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=90,
+                                                          sampling_rate=1e9)
+
+        self._wave_dict['RPhi180'] = qwg_lut_lib.gauss_pulse(G_amp,
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=self.mw_phi(),
+                                                          sampling_rate=1e9)
+        self._wave_dict['RPhi90'] = qwg_lut_lib.gauss_pulse(G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=self.mw_phi(),
+                                                          sampling_rate=1e9)
+         self._wave_dict['RPhi90'] = qwg_lut_lib.gauss_pulse(-1*G_amp*self.mw_amp90_scale(),
+                                                          self.Q_gauss_width(),
+                                                          motzoi=self.Q_motzoi(),
+                                                          phase=self.mw_phi(),
+                                                          sampling_rate=1e9)
+
+
+        if self.mixer_apply_predistortion_matrix():
+            self._wave_dict = self.apply_mixer_predistortion_corrections(
+                self._wave_dict)
+        # store them in the dictionary
+        return self._wave_dict
+
+
+    def load_waveform_onto_AWG_lookuptable(self):
+        # here you can use self.Q_amp180() and self.motzoi() to properly produce the gaussians
+        self.QWG.get_instr().stop()
+        #!#!#!#!#! reset QWG
+
+        #!#!#!#!#! here grab pulses from dictionary saved abive
+        #the codewords are not correct
+        #also do this dynamically
+        self.QWG.get_instr().set('wave_{}_cw001'.format(self.channel_I),self._wave_dict['X180'][0])
+        self.QWG.get_instr().set('wave_{}_cw001'.format(self.channel_Q),self._wave_dict['X180'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['Y180'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['Y180'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw003'.format(self.channel_I),self._wave_dict['X90'][0])
+        self.QWG.get_instr().set('wave_{}_cw003'.format(self.channel_Q),self._wave_dict['X90'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw004'.format(self.channel_I),self._wave_dict['Y90'][0])
+        self.QWG.get_instr().set('wave_{}_cw004'.format(self.channel_Q),self._wave_dict['Y90'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['mX90'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['mX90'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['mY90'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['mY90'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['RPhi180'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['RPhi180'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['RPhi90'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['RPhi90'][1])
+
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_I),self._wave_dict['mRPhi90'][0])
+        self.QWG.get_instr().set('wave_{}_cw002'.format(self.channel_Q),self._wave_dict['mRPhi90'][1])
 
 
 class AWG8_MW_LutMan(Base_MW_LutMan):
