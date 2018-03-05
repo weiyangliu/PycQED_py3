@@ -95,7 +95,7 @@ class CryoscopeAnalyzer:
         """
         self.time = time
         self.data = complex_data
-        self.norm_data = normalize_sincos(self.data, window_size=61)
+        self.norm_data = normalize_sincos(self.data, window_size=norm_window_size)
         self.demod_freq = demod_freq
         self.derivative_window_length = derivative_window_length
         self.demod_smooth = demod_smooth
@@ -341,7 +341,7 @@ class DacArchAnalysis:
             guess_f *= self.sampling_rate
 
             nd_real_imag = np.hstack([nd.real, nd.imag])
-
+            # print(guess_f,guess_ph)
             fit, err = so.curve_fit(sincos_model_real_imag,
                                     self.times, nd_real_imag,
                                     p0=[guess_f, guess_ph])
@@ -428,27 +428,28 @@ class DacArchAnalysis:
 
         return roots[real_mask][np.argmin(dist_from_range)].real
 
-    def plot_freqs(self, ax=None, title='', **kw):
-        if ax is None:
-            ax = plt.gca()
-        ax.set_title(title)
-        ax.plot(self.amps, self.freqs, ".-")
-        set_xlabel(ax, "Amplitude") #a.u.
-        set_ylabel(ax, 'Detuning', 'Hz')
+    def plot_freqs(self):
+        plt.plot(self.amps, self.freqs, ".-")
+        ax = plt.gca()
+        formatter = matplotlib.ticker.EngFormatter(unit='Hz')
+        ax.yaxis.set_major_formatter(formatter)
+        plt.xlabel("Amplitude")
+        plt.ylabel("Detuning")
 
         aa = np.linspace(min(self.amps), max(self.amps), 50)
 
-        ax.plot(aa, np.polyval(self.poly_fit, aa))
+        plt.plot(aa, np.polyval(self.poly_fit, aa))
 
-    def plot_ffts(self, ax=None, title='', nyquist_unwrap=False, **kw):
-        if ax is None:
-            ax = plt.gca()
+    def plot_ffts(self, nyquist_unwrap=False):
+
         if nyquist_unwrap:
             raise NotImplementedError
-        ax.set_title(title)
+
         ffts = np.fft.fft(self.norm_data)
 
         freqs = np.arange(len(ffts[0])) * self.sampling_rate / len(ffts[0])
+
+        print("shape freqs", freqs.shape)
 
         def shift_helper(x):
             diff = np.diff(x) / 2
@@ -456,14 +457,22 @@ class DacArchAnalysis:
             xshift = np.hstack((x, x[-1])) - diff
             return xshift
 
+        print(np.diff(shift_helper(self.amps)))
+
         aa, ff = np.meshgrid(shift_helper(self.amps), shift_helper(freqs))
 
-        plt.pcolormesh(aa, ff, np.abs(ffts).T)
-        set_xlabel(ax, "Amplitude") #a.u.
-        set_ylabel(ax, 'Detuning', 'Hz')
+        # saving for playaround
+        self.color_plot_data = [aa, ff, ffts]
 
-        ax.scatter(self.amps, self.freqs % self.sampling_rate, color="C1")
+        plt.pcolormesh(aa, ff, np.abs(ffts).T)
+        plt.xlabel("Amplitude")
+        plt.ylabel("Frequency")
+        ax = plt.gca()
+        formatter = matplotlib.ticker.EngFormatter(unit='Hz')
+        ax.yaxis.set_major_formatter(formatter)
+
+        plt.scatter(self.amps, self.freqs % self.sampling_rate, color="C1")
 
         aa = np.linspace(min(self.amps), max(self.amps), 300)
 
-        ax.plot(aa, np.polyval(self.poly_fit, aa) % self.sampling_rate, ".r")
+        plt.plot(aa, np.polyval(self.poly_fit, aa) % self.sampling_rate, ".r")

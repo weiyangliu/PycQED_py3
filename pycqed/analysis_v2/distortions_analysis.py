@@ -115,6 +115,13 @@ class Scope_Trace_analysis(ba.BaseDataAnalysis):
         deviation = np.sqrt(np.sum((diff_to_exp)**2))/len(diff_to_exp)
         self.proc_data_dict['diff_to_exp'] = diff_to_exp
 
+        # overriding meaningless deviation quantity
+        mask = np.where(self.proc_data_dict['expected_wf']>0.02,True,False)
+        masked_exp = self.proc_data_dict['expected_wf'][mask]
+        masked_yvals = self.proc_data_dict['yvals'][mask]
+        dif = masked_exp - masked_yvals
+        deviation = np.mean(np.abs(dif))
+
         self.proc_data_dict['deviation'] = deviation
 
 

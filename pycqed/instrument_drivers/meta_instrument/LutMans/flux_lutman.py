@@ -547,4 +547,6 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
         if self.cfg_distort():
             waveform = self.distort_waveform(waveform)
             self._wave_dict_dist[waveform_name] = waveform
+        self.AWG.get_instr().stop()
         self.AWG.get_instr().set(codeword, waveform)
+        self.AWG.get_instr().start()

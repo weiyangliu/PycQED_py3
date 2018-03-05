@@ -666,7 +666,7 @@ def flux_timing_seq(qubit_name, taus,
             # Calibration point for |1>
             qasm_file.writelines('X180 {} \n'.format(qubit_name))
         else:
-            qasm_file.writelines('flux square {}\n'.format(qubit_name))
+            qasm_file.writelines('SWAP {}\n'.format(qubit_name))
             qasm_file.writelines(
                 'I {}\n'.format(int(round(tau/clock_cycle))))
             qasm_file.writelines('X90 {}\n'.format(qubit_name))
@@ -699,5 +699,48 @@ def flux_resonator_shift_seq(qubit_name):
     qasm_file.writelines('QWG trigger square\n')
     qasm_file.writelines('RO {}  \n'.format(qubit_name))
 
+    qasm_file.close()
+    return qasm_file
+
+
+def chevron_elt(qubit_name):
+    filename = join(base_qasm_path, 'chevron_elt.qasm')
+    qasm_file = mopen(filename, mode='w')
+    qasm_file.writelines('qubit {} \n'.format(qubit_name))
+    # On
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('X180 {}     # On \n'.format(qubit_name))
+    qasm_file.writelines('SWAP {}     # On \n'.format(qubit_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit_name))
+
+    qasm_file.close()
+    return qasm_file
+
+
+
+def cryo_scope_elt(qubit_name, wait_time=0, both_quad=True, cal_points=True):
+    filename = join(base_qasm_path, 'cryo_scope.qasm')
+    qasm_file = mopen(filename, mode='w')
+    qasm_file.writelines('qubit {} \n'.format(qubit_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('X90 {}     # On \n'.format(qubit_name))
+    qasm_file.writelines('SWAP {}     # On \n'.format(qubit_name))
+    # qasm_file.writelines('wait {}     # On \n'.format(wait_time))
+    qasm_file.writelines('X90 {}     # On \n'.format(qubit_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit_name))
+
+    if both_quad:
+        qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('X90 {}     # On \n'.format(qubit_name))
+        qasm_file.writelines('SWAP {}     # On \n'.format(qubit_name))
+        # qasm_file.writelines('wait {}     # On \n'.format(wait_time))
+        qasm_file.writelines('Y90 {}     # On \n'.format(qubit_name))
+        qasm_file.writelines('RO {}  \n'.format(qubit_name))
+    if cal_points:
+        qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('RO {}  \n'.format(qubit_name))
+        qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('X180 {}     # On \n'.format(qubit_name))
+        qasm_file.writelines('RO {}  \n'.format(qubit_name))
     qasm_file.close()
     return qasm_file
