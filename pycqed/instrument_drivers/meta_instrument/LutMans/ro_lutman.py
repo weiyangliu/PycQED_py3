@@ -4,7 +4,7 @@ from qcodes.instrument.parameter import ManualParameter
 from qcodes.utils import validators as vals
 import numpy as np
 import copy as copy
-
+import matplotlib.pyplot as plt
 
 class Base_RO_LutMan(Base_LutMan):
 
@@ -179,6 +179,8 @@ class UHFQC_RO_LutMan(Base_RO_LutMan):
         self.AWG.get_instr().awg_sequence_acquisition_and_pulse(
             I_wave, Q_wave, self.acquisition_delay())
 
+
+
     def load_DIO_triggered_sequence_onto_UHFQC(self,
                                                regenerate_waveforms=True,
                                                hardcode_cases=None,
@@ -253,9 +255,55 @@ class UHFQC_RO_LutMan(Base_RO_LutMan):
     def load_waveforms_onto_AWG_lookuptable(
             self, regenerate_waveforms: bool=True,
             stop_start: bool = True):
-        raise NotImplementedError(
-            'UHFQC needs a full sequence, use '
-            '"load_DIO_triggered_sequence_onto_UHFQC"')
+        resonator_combinations = self.resonator_combinations()
+
+        # TODO: automatically assign right codeword for resonator combinations
+        # 1. convert each combination to binary to extract the expected CW
+        # 2. create a list of these binary numbers or put the combinations in
+        #   a dict with these numbers as keys.
+        # 3. When uploading, ensure that the pulses are loaded to the right
+        # number as specified in 2.
+
+        pulse_type = self.pulse_type()
+        if regenerate_waveforms:
+            wave_dict = self.generate_standard_waveforms()
+        else:
+            wave_dict = self._wave_dict
+        I_waves = []
+        Q_waves = []
+        cases = np.zeros([len(resonator_combinations)])
+
+        for i, resonator_combination in enumerate(resonator_combinations):
+            if not resonator_combination:
+                # empty combination, generating empty 20 ns pulse
+                I_waves.append(np.zeros(36))
+                Q_waves.append(np.zeros(36))
+            else:
+                for j, resonator in enumerate(resonator_combination):
+                    wavename = pulse_type+'_R'+str(resonator)
+                    if j == 0:
+                        # starting the entry
+                        Icopy = copy.deepcopy(wave_dict[wavename][0])
+                        Qcopy = copy.deepcopy(wave_dict[wavename][1])
+                        I_waves.append(Icopy)
+                        Q_waves.append(Qcopy)
+                    else:
+                        # adding new wave (not necessarily same length)
+                        I_waves[i] = add_waves_different_length(
+                            I_waves[i], wave_dict[wavename][0])
+                        Q_waves[i] = add_waves_different_length(
+                            Q_waves[i], wave_dict[wavename][1])
+
+                    cases[i] += 2**resonator
+
+        for i, resonator_combination in enumerate(resonator_combinations):
+            # clipping the waveform
+            I_waves[i] = np.clip(I_waves[i],
+                                 self._voltage_min, self._voltage_max)
+            Q_waves[i] = np.clip(Q_waves[i], self._voltage_min,
+                                 self._voltage_max)
+        self.AWG.get_instr().awg_sequence_acquisition_and_pulse(
+            I_waves[0], Q_waves[0], self.acquisition_delay())
 
 
 def add_waves_different_length(a, b):
