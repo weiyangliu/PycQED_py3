@@ -309,6 +309,7 @@ def off_on(qubit_name, pulse_comb='off_on'):
     # Off
     if 'off' in pulse_comb.lower():
         qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('I 40\n')
         qasm_file.writelines('RO {}  \n'.format(qubit_name))
     # simulatneous on
     if 'sim_on' in pulse_comb.lower():

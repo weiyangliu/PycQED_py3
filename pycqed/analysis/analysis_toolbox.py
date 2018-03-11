@@ -22,6 +22,7 @@ from .tools.data_manipulation import *
 from .tools.plotting import *
 import colorsys as colors
 from matplotlib import cm
+import pycqed.analysis.composite_analysis as RA
 
 datadir = get_default_datadir()
 print('Data directory set to:', datadir)
