@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 sys.path.append('D:/repository/PycQED_py3')
 
@@ -24,3 +23,24 @@ class VQE_cost_functions(object):
         cost_func_bare = np.dot(
             self.expect_values, self.weight_of_pauli_terms[distance_index, :])
         return cost_func_bare
+
+    def get_pauli_ops(self):
+        X = np.array([[0, 1], [1, 0]])
+        Y = np.array([[0, -1j], [1j, 0]])
+        Z = np.array([[1, 0], [0, -1]])
+        I = np.identity(2)
+        II = np.kron(I, I)
+        IZ = np.kron(I, Z)
+        ZI = np.kron(Z, I)
+        ZZ = np.kron(Z, Z)
+        XX = np.kron(X, X)
+        YY = np.kron(Y, Y)
+        return II, IZ, ZI, ZZ, XX, YY
+
+    def get_hamiltonian(self, distance_index):
+        terms = self.get_pauli_ops()
+        gs = self.weight_of_pauli_terms[distance_index, :]
+        ham = np.zeros((4,4), dtype=np.complex128)
+        for i,g in enumerate(gs):
+            ham += g*terms[i]
+        return ham
