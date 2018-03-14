@@ -409,6 +409,7 @@ class CBox_v3_driven_transmon(Transmon):
                 UHFQC.awg_sequence_acquisition()
             elif 'iqmod' in self.RO_pulse_type().lower():
                 RO_lm = self.RO_LutMan.get_instr()
+                UHFQC = self._acquisition_instrument
                 reso_id = self.resonator_id()
 
                 RO_lm.set('M_length_R%d'%reso_id, self.RO_pulse_length())
@@ -416,6 +417,9 @@ class CBox_v3_driven_transmon(Transmon):
                 RO_lm.set('M_length_R%d'%reso_id, self.RO_pulse_length())
                 RO_lm.set('M_modulation_R%d'%reso_id, self.f_RO_mod())
                 RO_lm.acquisition_delay(self.RO_acq_marker_delay())
+
+                UHFQC.sigouts_0_offset(self.mixer_offs_RO_I())
+                UHFQC.sigouts_1_offset(self.mixer_offs_RO_Q())
 
                 if 'multiplexed' not in self.RO_pulse_type().lower():
                     RO_lm.load_single_pulse_sequence_onto_UHFQC('M_square_R%d'%reso_id)

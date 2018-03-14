@@ -898,7 +898,6 @@ repeat(loop_cnt) {
         end_string = """
 \tsetTrigger(WINT_EN + RO_TRIG);
 \tsetTrigger(WINT_EN);
-\twaitWave();
 }
 wait(300);
 setTrigger(0);"""
