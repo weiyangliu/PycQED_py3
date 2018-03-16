@@ -311,6 +311,11 @@ def off_on(qubit_name, pulse_comb='off_on'):
         qasm_file.writelines('\ninit_all\n')
         qasm_file.writelines('I 40\n')
         qasm_file.writelines('RO {}  \n'.format(qubit_name))
+    if 'scope' in pulse_comb.lower():
+        qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('SCOPE {}  \n'.format(qubit_name))
+        qasm_file.writelines('X180 {}     # On \n'.format(qubit_name))
+        qasm_file.writelines('WAIT {}  \n'.format(qubit_name))
     # simulatneous on
     if 'sim_on' in pulse_comb.lower():
         qasm_file.writelines('\ninit_all\n')
@@ -321,7 +326,7 @@ def off_on(qubit_name, pulse_comb='off_on'):
         qasm_file.writelines('X180 {}     # On \n'.format(qubit_name))
         qasm_file.writelines('RO {}  \n'.format(qubit_name))
 
-    if 'on' not in pulse_comb.lower() and 'off' not in pulse_comb.lower():
+    if 'on' not in pulse_comb.lower() and 'off' not in pulse_comb.lower() and 'scope' not in pulse_comb.lower():
         raise ValueError('pulse_comb must contain "off" or "on" (is {})'
                          .format(pulse_comb))
     qasm_file.close()
@@ -780,5 +785,42 @@ def vqe_raw(qubit0_name, qubit1_name):
     qasm_file.writelines('\ninit_all\n')
     qasm_file.writelines('CAL_11 {}     # On \n'.format(qubit0_name))
     qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.close()
+    return qasm_file
+
+
+
+
+def MW_pulse_timing(qubit_name,times, cal_points=True):
+    filename = join(base_qasm_path, 'timings_mw.qasm')
+    qasm_file = mopen(filename, mode='w')
+    # Hamiltonian terms
+    # qasm_file.writelines('qubit {} {} \n'.format(qubit_name))
+    # qasm_file.writelines('\ninit_all\n')
+    # qasm_file.writelines('X90 {}\n'.format(qubit_name))
+    # qasm_file.writelines('Idx {:d} \n'.format(int(cl_wait)))
+    # qasm_file.writelines('RO {}  \n'.format(qubit_name))
+    # qasm_file.writelines('X90 {}\n'.format(qubit_name))
+    # qasm_file.close()
+    h = 200e-9
+    clock_cycle = 5e-9
+    cl_s = np.round(times/clock_cycle)
+
+    qasm_file.writelines('qubit {} \n'.format(qubit_name))
+
+    for i, cl in enumerate(cl_s):
+        qasm_file.writelines('\ninit_all\n')
+        if cal_points and (i == (len(cl_s)-4) or i == (len(cl_s)-3)):
+            qasm_file.writelines('RO {}  \n'.format(qubit_name))
+        elif cal_points and (i == (len(cl_s)-2) or i == (len(cl_s)-1)):
+            qasm_file.writelines('X180 {} \n'.format(qubit_name))
+            qasm_file.writelines('RO {}  \n'.format(qubit_name))
+        else:
+            qasm_file.writelines('\ninit_all\n')
+            qasm_file.writelines('X90 {}     \n'.format(qubit_name))
+            qasm_file.writelines('Idx {:d} \n'.format(int(h)))
+            qasm_file.writelines('X90 {}     \n'.format(qubit_name))
+            qasm_file.writelines('Idx {:d} \n'.format(int(cl)))
+            qasm_file.writelines('RO {}  \n'.format(qubit_name))
     qasm_file.close()
     return qasm_file
