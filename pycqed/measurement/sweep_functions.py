@@ -976,6 +976,30 @@ class two_par_joint_sweep(Soft_Sweep):
         self.par_A.set(val)
         self.par_B.set(val*self.par_ratio)
 
+class lutman_par_UHFQC(Soft_Sweep):
+
+    def __init__(self, LutMan, LutMan_parameter, pulse_names, run=False, single=True,**kw):
+        self.set_kw()
+        self.name = LutMan_parameter.name
+        self.parameter_name = LutMan_parameter.label
+        self.unit = 'dB'
+        self.sweep_control = 'soft'
+        self.LutMan = LutMan
+        self.pulse_names = pulse_names
+        self.LutMan_parameter = LutMan_parameter
+        self.run=run
+        self.single = single
+
+    def set_parameter(self, val):
+        self.LutMan_parameter.set(val)
+        if self.run:
+            self.LutMan.AWG.get_instr().awgs_0_enable(False)
+        self.LutMan.load_single_pulse_sequence_onto_UHFQC(self.pulse_names,regenerate_waveforms=True)
+        if self.run:
+            self.LutMan.AWG.get_instr().acquisition_arm(single=self.single)
+
+
+
 
 class FLsweep(Soft_Sweep):
     """
