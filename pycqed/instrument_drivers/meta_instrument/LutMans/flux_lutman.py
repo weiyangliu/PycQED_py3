@@ -550,3 +550,30 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
         self.AWG.get_instr().stop()
         self.AWG.get_instr().set(codeword, waveform)
         self.AWG.get_instr().start()
+
+
+    def distort_waveform(self, waveform):
+        """
+        Modifies the ideal waveform to correct for distortions and correct
+        fine delays.
+        Distortions are corrected using the kernel object.
+        Modified to implement also normal kernels.
+        """
+        k = self.instr_distortion_kernel.get_instr()
+
+        # Prepend zeros to delay waveform to correct for fine timing
+        delay_samples = int(self.cfg_pre_pulse_delay()*self.sampling_rate())
+        waveform = np.pad(waveform, (delay_samples, 0), 'constant')
+
+        # duck typing the distort waveform method
+        if hasattr(k, 'distort_waveform'):
+            distorted_waveform = k.distort_waveform(
+                waveform,
+                length_samples=int(
+                    self.cfg_max_wf_length()*self.sampling_rate()))
+        else:  # old kernel object does not have this method
+            distorted_waveform = k.convolve_kernel(
+                [k.kernel(), waveform],
+                length_samples=int(self.cfg_max_wf_length() *
+                                   self.sampling_rate()))
+        return distorted_waveform
