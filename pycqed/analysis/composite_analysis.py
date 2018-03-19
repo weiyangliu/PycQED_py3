@@ -97,7 +97,6 @@ class Standard_MA(object):
         if type(key_list) is str:
             key_list = [key_list]
         for key in key_list:
-            print(key)
             pdict = self.plot_dicts[key]
             if key not in self.axs:
                 fig, self.axs[key] = plt.subplots(pdict.get('numplotsx', 1),
@@ -243,7 +242,6 @@ class Standard_MA(object):
             2., plot_xvals.max()+plot_xvals_step/2.
         axs.set_xlabel(plot_xlabel)
         axs.set_xlim(xmin, xmax)
-        print(np.shape(plot_yvals[0]),np.shape(plot_yvals[1]),np.shape(plot_yvals[2]),np.shape(plot_yvals[3]),np.shape(plot_yvals[4]),np.shape(plot_yvals[5]),np.shape(plot_yvals[6]))
         ymin, ymax = plot_yvals.min()-plot_yvals_step / \
             2., plot_yvals.max()+plot_yvals_step/2.
         axs.set_ylabel(plot_ylabel)

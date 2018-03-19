@@ -273,7 +273,6 @@ def HangerFuncComplex(f, pars):
         pars = parameters dictionary
                f0, Q, Qe, A, theta, phi_v, phi_0
 
-    Author: Stefano Poletto
     '''
     f0 = pars['f0']
     Q = pars['Q']
@@ -298,7 +297,7 @@ def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
 
 
 def SlopedHangerFuncAmplitude(f, f0, Q, Qe, A, theta, slope):
-    # This is the function for a hanger (lambda/4 resonator) which takes into
+    # This is the function for a hanger which takes into
     # account a possible slope df
     return np.abs((1.+slope*(f/1.e9-f0)/f0) *
                   HangerFuncAmplitude(f, f0, Q, Qe, A, theta))
@@ -696,6 +695,7 @@ PolyBgHangerAmplitudeModel = lmfit.Model(PolyBgHangerFuncAmplitude)
 HangerComplexModel = lmfit.Model(HangerFuncComplex)
 SlopedHangerComplexModel = lmfit.Model(SlopedHangerFuncComplex)
 QubitFreqDacModel = lmfit.Model(QubitFreqDac)
+QubitDacFreq = lmfit.Model(Qubit_dac_to_freq)
 QubitFreqFluxModel = lmfit.Model(QubitFreqFlux)
 TwinLorentzModel = lmfit.Model(TwinLorentzFunc)
 LorentzianModel = lmfit.Model(Lorentzian)

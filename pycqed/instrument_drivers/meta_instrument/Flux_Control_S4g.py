@@ -14,7 +14,7 @@ from pycqed.instrument_drivers.pq_parameters import InstrumentParameter
 # from pycqed.measurement import mc_parameter_wrapper as pw
 
 
-class Flux_Control(Instrument):
+class Flux_Control_S4g(Instrument):
     def __init__(self, name, channel_labels,current_instrument=None, **kw):
         super().__init__(name, **kw)
 
