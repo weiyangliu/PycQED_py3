@@ -6,6 +6,8 @@
 #  - The PyqCED source code
 #    - Download: https://github.com/DiCarloLab-Delft/PycQED_py3
 
+conda create -n pycqed python=3
+
 # install packages.
 conda install h5py
 conda install matplotlib
