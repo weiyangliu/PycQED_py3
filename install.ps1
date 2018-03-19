@@ -19,6 +19,9 @@ pip install uncertainties
 conda install seaborn
 pip install pyvisa
 pip install qcodes
+pip install httplib2
+pip install qutip
+conda install plotly
 
 # install PyqCED
 python setup.py develop
