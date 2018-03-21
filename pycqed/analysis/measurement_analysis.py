@@ -5477,12 +5477,23 @@ class Three_Tone_Spectroscopy_Analysis(MeasurementAnalysis):
 
     def run_default_analysis(self, f01=None, f12=None,
                              amp_lims=[None, None], line_color='k',
-                             phase_lims=[-180, 180], **kw):
+                             phase_lims=[-180, 180], added_phase=0,**kw):
         self.get_naming_and_values_2D()
         # figsize wider for colorbar
         fig1, ax1 = self.default_ax(figsize=(8, 5))
         measured_powers = self.measured_values[0]
-        measured_phases = self.measured_values[1]
+        measured_phases = self.measured_values[1]+ added_phase
+
+        #rewrapping the phase
+        if added_phase !=0:
+            for i,measured_phase_array in enumerate(measured_phases):
+                for j,measured_phase in enumerate(measured_phase_array):
+                    # print(measured_phase)
+                    if measured_phase >180:
+                        measured_phases[i,j]=measured_phase-360
+                    elif measured_phase < -180:
+                        measured_phases[i,j]=measured_phase+360
+
 
         fig1_title = self.timestamp_string + \
             self.measurementstring+'_'+'Amplitude'
