@@ -528,6 +528,11 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
         self._wave_dict_dist = dict()
         self.sampling_rate(1e9)
 
+        self.add_parameter('cfg_oldstyle_kernel_enabled',
+                           initial_value=False,
+                           vals=vals.Bool(),
+                           parameter_class=ManualParameter)
+
     def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         """
@@ -576,4 +581,27 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
                 [k.kernel(), waveform],
                 length_samples=int(self.cfg_max_wf_length() *
                                    self.sampling_rate()))
+
+        if self.cfg_oldstyle_kernel_enabled():
+            # hotfix: to distort adding abounce model
+            kernel_oldstyle = self.kernel_oldstyle
+            distorted_waveform = self.convolve_kernel(
+                [kernel_oldstyle, distorted_waveform],
+                length_samples=int(self.cfg_max_wf_length() *
+                                   self.sampling_rate()))
+
         return distorted_waveform
+
+    def convolve_kernel(self, kernel_list, length_samples=None):
+        """
+        kernel_list : (list of arrays)
+        length_samples      : (int) maximum for convolution
+        Performs a convolution of different kernels
+        """
+        kernels = kernel_list[0]
+        for k in kernel_list[1:]:
+            kernels = np.convolve(k, kernels)[
+                :max(len(k), int(length_samples))]
+        if length_samples is not None:
+            return kernels[:int(length_samples)]
+        return kernels
