@@ -857,7 +857,7 @@ class UHFQC(Instrument):
                     'setTrigger(0);\n')
         self.awg_string(sequence, timeout=timeout)
 
-    def awg_sequence_acquisition_and_pulse(self, Iwave, Qwave, acquisition_delay):
+    def awg_sequence_acquisition_and_pulse(self, Iwave, Qwave, acquisition_delay, dig_trigger=True):
         if np.max(Iwave) > 1.0 or np.min(Iwave) < -1.0:
             raise KeyError(
                 "exceeding AWG range for I channel, all values should be withing +/-1")
@@ -891,16 +891,21 @@ if(getUserReg(1)){
 }else{
   RO_TRIG=WINT_TRIG;
 }\n"""
-
-        loop_start = """
+        if dig_trigger:
+            loop_start = """
 repeat(loop_cnt) {
 \twaitDigTrigger(1, 1);
+\tplayWave(Iwave, Qwave);\n"""
+        else:
+            loop_start = """
+repeat(loop_cnt) {
 \tplayWave(Iwave, Qwave);\n"""
 
         end_string = """
 \tsetTrigger(WINT_EN + RO_TRIG);
 \tsetTrigger(WINT_EN);
 \twaitWave();
+\twait(4000);
 }
 wait(300);
 setTrigger(0);"""
@@ -966,7 +971,7 @@ setTrigger(0);"""
         self._daq.sync()
 
     def awg_sequence_acquisition_and_pulse_SSB(
-            self, f_RO_mod, RO_amp, RO_pulse_length, acquisition_delay):
+            self, f_RO_mod, RO_amp, RO_pulse_length, acquisition_delay, dig_trigger=True):
         f_sampling = 1.8e9
         samples = RO_pulse_length*f_sampling
         array = np.arange(int(samples))
@@ -976,7 +981,7 @@ setTrigger(0);"""
         Qwave = (coswave-sinwave)/np.sqrt(2)
         # Iwave, Qwave = PG.mod_pulse(np.ones(samples), np.zeros(samples), f=f_RO_mod, phase=0, sampling_rate=f_sampling)
         self.awg_sequence_acquisition_and_pulse(
-            Iwave, Qwave, acquisition_delay)
+            Iwave, Qwave, acquisition_delay, dig_trigger=dig_trigger)
 
     def upload_transformation_matrix(self, matrix):
         for i in range(np.shape(matrix)[0]):  # looping over the rows

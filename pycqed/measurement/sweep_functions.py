@@ -858,17 +858,19 @@ class lutman_par_dB_attenuation(Soft_Sweep):
 
 class UHFQC_pulse_dB_attenuation(Soft_Sweep):
 
-    def __init__(self, UHFQC, **kw):
+    def __init__(self, UHFQC, IF, dig_trigger=True,**kw):
         self.set_kw()
         self.name = 'UHFQC pulse attenuation'
         self.parameter_name = 'pulse attenuation'
         self.unit = 'dB'
         self.sweep_control = 'soft'
         self.UHFQC = UHFQC
+        self.dig_trigger = dig_trigger
+        self.IF = IF
 
 
     def set_parameter(self, val):
-        self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=100e6,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9)
+        self.UHFQC.awg_sequence_acquisition_and_pulse_SSB(f_RO_mod=self.IF,RO_amp=10**(val/20),RO_pulse_length=2e-6,acquisition_delay=200e-9,dig_trigger=self.dig_trigger)
         time.sleep(1)
         #print('refreshed UHFQC')
 
