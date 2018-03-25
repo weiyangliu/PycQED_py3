@@ -179,7 +179,11 @@ class ExpectationValueCalculation:
                                                 expect_value_IdenZ_pp]),
                                                 axis=0 )
 
-        # print(expect_value_IdenZ)
+        print(expect_value_IdenZ_up)
+
+        print(expect_value_IdenZ_p)
+
+        print(expect_value_IdenZ_pp)
         return expect_value_IdenZ
 
     def expectation_value_calculation_XX(self):
@@ -216,7 +220,7 @@ class ExpectationValueCalculation:
         return expect_values, self.betas
 
 
-class ExpectationValueCalculation_shots:
+class ExpectationValueCalculation2:
 
     def __init__(self, auto=True, label='', timestamp=None,
                  fig_format='png',
@@ -301,120 +305,58 @@ class ExpectationValueCalculation_shots:
         betas = np.zeros(12)
         # print(self.measurements_cal[0:4])
         betas[0:4] = np.dot(np.linalg.inv(cal_matrix), self.measurements_cal[0:4])
-        # print(cal_matrix)
-        # print(np.linalg.inv(cal_matrix))
-        # print(self.measurements_cal[0:4])
-        # print(betas[0:4])
+        self.betas_up = betas[0:4]
         betas[4:8] = np.dot(np.linalg.inv(cal_matrix), self.measurements_cal[4:8])
-        # print(betas[4:8])
+        self.betas_p = betas[4:8]
         betas[8:] = np.dot(np.linalg.inv(cal_matrix), self.measurements_cal[8:12])
-        # print(betas[8:])
+        self.betas_pp = betas[8:]
 
         return betas
 
-    def expectation_value_calculation_IdenZ(self):
+    def assemble_M_matrix_single_block(self, beta_array):
+        M_matrix_single_block_row_1 = np.array([beta_array[0], beta_array[1], beta_array[2], beta_array[3], 0, 0 ,0 ,0 ,0 ,0])
+        M_matrix_single_block_row_2 = np.array([beta_array[0], -1*beta_array[1], beta_array[2], -1*beta_array[3], 0, 0 ,0 ,0 ,0 ,0])
+        M_matrix_single_block_row_3 = np.array([beta_array[0], beta_array[1], -1*beta_array[2], -1*beta_array[3], 0, 0 ,0 ,0 ,0 ,0])
+        M_matrix_single_block_row_4 = np.array([beta_array[0], -1*beta_array[1], -1*beta_array[2], beta_array[3], 0, 0 ,0 ,0 ,0 ,0])
+        M_matrix_single_block_row_5 = np.array([beta_array[0], 0, 0, 0, -1*beta_array[1], -1*beta_array[2],beta_array[3],0 ,0 ,0])
+        M_matrix_single_block_row_6 = np.array([beta_array[0], 0, 0, 0, beta_array[1], beta_array[2],-1*beta_array[3],0 ,0 ,0])
+        M_matrix_single_block_row_7 = np.array([beta_array[0], 0, 0, 0, 0, 0,0,beta_array[1] ,beta_array[2] ,beta_array[3]])
+        M_matrix_single_block_row_8 = np.array([beta_array[0], 0, 0, 0, 0, 0,0,-1*beta_array[1] ,-1*beta_array[2] ,beta_array[3]])
+        M_matrix_single_block = np.vstack((M_matrix_single_block_row_1,M_matrix_single_block_row_2,M_matrix_single_block_row_3,
+                                           M_matrix_single_block_row_4,M_matrix_single_block_row_5,M_matrix_single_block_row_6,
+                                           M_matrix_single_block_row_7, M_matrix_single_block_row_8))
+        M_matrix_single_block = M_matrix_single_block.reshape(8,10)
+        return M_matrix_single_block
+    def assemble_M_matrix(self):
+        Block1 = self.assemble_M_matrix_single_block(self.betas_up)
+        Block2 = self.assemble_M_matrix_single_block(self.betas_p)
+        Block3 = self.assemble_M_matrix_single_block(self.betas_pp)
+        self.M_matrix = np.vstack((Block1,Block2,Block3)).reshape(24,10)
+        return self.M_matrix
 
+    def invert_M_matrix(self):
+        self.inverse_matrix = np.linalg.pinv(self.M_matrix)
+        return self.inverse_matrix
+
+    def calculate_expectation_values(self):
+
+         expect_values = np.dot(self.inverse_matrix,self.measurements_tomo)
+         return expect_values
+    def execute_expectation_value_calculation2(self):
         betas = self._calibrate_betas()
-        #inverting the unprimed beta matrix
-        #up is unprimed
-        self.betas = betas
-        # print(self.betas[0:4], self.betas[4:8], self.betas[8:])
-        beta_0_up =self.betas[0]
-
-        beta_1_up =self.betas[1]
-        beta_2_up =self.betas[2]
-        beta_3_up =self.betas[3]
+        M_matrix = self.assemble_M_matrix()
+        inverse_matrix = self.invert_M_matrix()
+        self.expect_values = self.calculate_expectation_values()
+        expect_values_VQE =np.array([self.expect_values[0], self.expect_values[1],self.expect_values[2],self.expect_values[3], self.expect_values[6], self.expect_values[9]]) 
+        return expect_values_VQE
 
 
-        beta_matrix_up = np.array([[beta_0_up,beta_1_up,beta_2_up,beta_3_up],
-                                        [beta_0_up,-1*beta_1_up,beta_2_up,-1*beta_3_up],
-                                        [beta_0_up,beta_1_up,-1*beta_2_up,-1*beta_3_up],
-                                        [beta_0_up,-1*beta_1_up,-1*beta_2_up,beta_3_up]])
-
-        #assuming 0:4 are
-        # expect_value_IdenZ_up = np.dot(np.linalg.inv(beta_matrix_up), self.measurements_tomo[1:4])
-
-        expect_value_IdenZ_up = np.dot(np.linalg.inv(beta_matrix_up), self.measurements_tomo[0:4])
-
-        #inverting the primed beta matrix
-        #p is primed
-        beta_0_p =self.betas[4]
-        beta_1_p =self.betas[5]
-        beta_2_p =self.betas[6]
-        beta_3_p =self.betas[7]
-
-        beta_matrix_p = np.array([[beta_0_p,beta_1_p,beta_2_p,beta_3_p],
-                                        [beta_0_p,-1*beta_1_p,beta_2_p,-1*beta_3_p],
-                                        [beta_0_p,beta_1_p,-1*beta_2_p,-1*beta_3_p],
-                                        [beta_0_p,-1*beta_1_p,-1*beta_2_p,beta_3_p]])
-        # beta_matrix_p = np.array([[-1*beta_1_p,beta_2_p,-1*beta_3_p],
-        #                           [beta_1_p,-1*beta_2_p,-1*beta_3_p],
-        #                           [-1*beta_1_p,-1*beta_2_p,beta_3_p]])
-        #assuming 0:4 are
-        expect_value_IdenZ_p = np.dot(np.linalg.inv(beta_matrix_p), self.measurements_tomo[8:12])
-        # expect_value_IdenZ_p = np.dot(np.linalg.inv(beta_matrix_p), self.measurements_tomo[1:4])
-
-        #inverting the unprimed beta matrix
-        #up is unprimed
-        beta_0_pp =self.betas[8]
-        beta_1_pp =self.betas[9]
-        beta_2_pp =self.betas[10]
-        beta_3_pp =self.betas[11]
-
-        beta_matrix_pp = np.array([[beta_0_pp,beta_1_pp,beta_2_pp,beta_3_pp],
-                                        [beta_0_pp,-1*beta_1_pp,beta_2_pp,-1*beta_3_pp],
-                                        [beta_0_pp,beta_1_pp,-1*beta_2_pp,-1*beta_3_pp],
-                                        [beta_0_pp,-1*beta_1_pp,-1*beta_2_pp,beta_3_pp]])
-        # beta_matrix_pp = np.array([[-1*beta_1_pp,beta_2_pp,-1*beta_3_pp],
-        #                            [beta_1_pp,-1*beta_2_pp,-1*beta_3_pp],
-        #                            [-1*beta_1_pp,-1*beta_2_pp,beta_3_pp]])
-        #assuming 0:4 are
-        expect_value_IdenZ_pp = np.dot(np.linalg.inv(beta_matrix_pp), self.measurements_tomo[16:20])
-        # expect_value_IdenZ_pp = np.dot(np.linalg.inv(beta_matrix_p), self.measurements_tomo[1:4])
-
-        #take the mean of calculated expectation values of II, IZ, ZI, ZZ
-        #for three different beta vectors
-
-        expect_value_IdenZ = np.mean( np.array([expect_value_IdenZ_up,
-                                                expect_value_IdenZ_p,
-                                                expect_value_IdenZ_pp]),
-                                                axis=0 )
-
-        # print(expect_value_IdenZ)
-        return expect_value_IdenZ
-
-    def expectation_value_calculation_XX(self):
 
 
-        expect_value_XX_up = ((self.measurements_tomo[4] + self.measurements_tomo[5]) -2*self.betas[0])/2*self.betas[3]
-        expect_value_XX_p = ((self.measurements_tomo[12] + self.measurements_tomo[13])-2*self.betas[4])/2*self.betas[7]
-        expect_value_XX_pp = ((self.measurements_tomo[20] + self.measurements_tomo[21]) - 2*self.betas[8])/2*self.betas[11]
-        expectation_value_XX = (expect_value_XX_up + expect_value_XX_p + expect_value_XX_pp)/3
-        # print(expect_value_XX_up, expect_value_XX_p, expect_value_XX_pp)
-        return expectation_value_XX
 
-    def expectation_value_calculation_YY(self):
+  
 
 
-        expect_value_YY_up = ((self.measurements_tomo[6] + self.measurements_tomo[7]) -2*self.betas[0])/2*self.betas[3]
-        expect_value_YY_p = ((self.measurements_tomo[14] + self.measurements_tomo[15])-2*self.betas[4])/2*self.betas[7]
-        expect_value_YY_pp = ((self.measurements_tomo[22] + self.measurements_tomo[23]) - 2*self.betas[8])/2*self.betas[11]
-        # print(expect_value_YY_up, expect_value_YY_p, expect_value_YY_pp)
-        expectation_value_YY = (expect_value_YY_up + expect_value_YY_p + expect_value_YY_pp)/3
-
-        return expectation_value_YY
-
-
-    def execute_expectation_value_calculation(self):
-
-        expect_values = np.zeros(6)
-        expect_values[0:4]  = self.expectation_value_calculation_IdenZ()
-        # print(self.expectation_value_calculation_IdenZ())
-        expect_values[4]    = self.expectation_value_calculation_XX()
-        # print(self.expectation_value_calculation_XX())
-        expect_values[5]    = self.expectation_value_calculation_YY()
-        # print(self.expectation_value_calculation_YY())
-        return expect_values, self.betas
 
 
 
