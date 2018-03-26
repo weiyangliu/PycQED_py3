@@ -159,8 +159,8 @@ class QuTech_AWG_Module(SCPI):
                                label='Offset channel {}'.format(ch),
                                unit='V',
                                get_cmd=offset_cmd + '?',
-                               set_cmd=offset_cmd + ' {:.3f}',
-                               vals=vals.Numbers(-.25, .25),
+                               set_cmd=offset_cmd + ' {}',
+                               #vals=vals.Numbers(-.25, .25),
                                get_parser=float)
 
             self.add_parameter('ch{}_default_waveform'.format(ch),
