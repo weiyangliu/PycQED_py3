@@ -91,8 +91,28 @@ class SCPI(IPInstrument):
     def operationComplete(self):
         self.write('*OPC')
 
-    def getOperationComplete(self):
-        return self.ask('*OPC?')
+    def getOperationComplete(self, timeout = None):
+        '''The Operation Complete (OPC) query returns the ASCII character 1
+        when all pending operations have finished.
+
+        This query stops any new commands from being processed until the current
+        processing is complete. This command blocks the device driver until all
+        operations are complete (i.e. the timeout setting should be longer than
+        the longest sweep).
+
+        Paramaters:
+            timeout: integer, temporary changes the socket timeout until the
+            operation is complete. If the paramater is not set, the
+            socket timeout will not be changed and the default is used.
+        '''
+        backup_timeout = self._timeout
+        if not timeout:
+            timeout = self._timeout
+        self.set_timeout(timeout)
+        try:
+            return self.ask('*OPC?')
+        finally:
+            self.set_timeout(backup_timeout)
 
     def getOptions(self):
         return self.ask('*OPT?')
