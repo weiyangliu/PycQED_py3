@@ -20,7 +20,11 @@ import pylab
 from pycqed.analysis.tools import data_manipulation as dm_tools
 import imp
 import math
-import pygsti
+
+try:
+    import pygsti
+except:
+    pass
 from math import erfc
 from scipy.signal import argrelmax, argrelmin
 from copy import deepcopy

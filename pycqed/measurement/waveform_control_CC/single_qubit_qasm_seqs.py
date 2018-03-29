@@ -790,6 +790,45 @@ def vqe_raw(qubit0_name, qubit1_name):
 
 
 
+def cardinal_prep(qubit0_name, qubit1_name):
+    filename = join(base_qasm_path, 'VQE.qasm')
+    qasm_file = mopen(filename, mode='w')
+    # Hamiltonian terms
+    for i in range(8):
+        qasm_file.writelines('qubit {} {} \n'.format(qubit0_name, qubit1_name))
+        qasm_file.writelines('\ninit_all\n')
+        qasm_file.writelines('Y180 {}\n'.format(qubit0_name))
+        qasm_file.writelines('SWAP {}\n'.format(qubit0_name))
+        qasm_file.writelines('Tomo_{} {}\n'.format(i,qubit0_name))
+        qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    # calibration points
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_01 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_01 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_10 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_10 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_11 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('CAL_11 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.close()
+    return qasm_file
+
+
+
 
 def MW_pulse_timing(qubit_name,times, cal_points=True):
     filename = join(base_qasm_path, 'timings_mw.qasm')
