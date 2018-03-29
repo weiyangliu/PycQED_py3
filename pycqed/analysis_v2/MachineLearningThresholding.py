@@ -41,8 +41,9 @@ class MachineLearningThresholding(object):
         self.names = ["RBF SVM"]
 
         self.clf = SVC(gamma=2, C=1)
-    def train_classifier_on_calibration_point(self):
-        figure = plt.figure(figsize=(8, 8))
+    def train_classifier_on_calibration_point(self, plot=False):
+        if plot:
+            figure = plt.figure(figsize=(8, 8))
         i = 1
         # preprocess dataset, split into training and test part
         self.X = StandardScaler().fit_transform(self.X)
@@ -54,59 +55,62 @@ class MachineLearningThresholding(object):
         self.xx, self.yy = np.meshgrid(np.arange(self.x_min, self.x_max, self.h),
                 np.arange(self.y_min, self.y_max, self.h))
 
-        # just plot the dataset first
-        cm = plt.cm.RdBu
-        cm_bright = ListedColormap(['#FF0000', '#0000FF'])
-        #len(datasets) hardcoded to be 3
-        ax = plt.subplot(3, 2, 1)
-        ax.set_title("Input data")
-        # Plot the training points
-        ax.scatter(self.X_train[:, 0],
-                   self.X_train[:, 1],
-                   c=self.y_train,
-                   cmap=cm_bright,
-                   edgecolors='k')
-        # and testing points
-        ax.scatter(self.X_test[:, 0], self.X_test[:, 1], c=self.y_test, cmap=cm_bright, alpha=0.6,
-            edgecolors='k')
-        ax.set_xlim(self.xx.min(), self.xx.max())
-        ax.set_ylim(self.yy.min(), self.yy.max())
-        ax.set_xticks(())
-        ax.set_yticks(())
-        # iterate over classifiers
-        
-        ax = plt.subplot(3, 2, 1)
+        if plot:
+            # just plot the dataset first
+            cm = plt.cm.RdBu
+            cm_bright = ListedColormap(['#FF0000', '#0000FF'])
+            #len(datasets) hardcoded to be 3
+            ax = plt.subplot(3, 2, 1)
+            ax.set_title("Input data")
+            # Plot the training points
+            ax.scatter(self.X_train[:, 0],
+                       self.X_train[:, 1],
+                       c=self.y_train,
+                       cmap=cm_bright,
+                       edgecolors='k')
+            # and testing points
+            ax.scatter(self.X_test[:, 0], self.X_test[:, 1], c=self.y_test, cmap=cm_bright, alpha=0.6,
+                edgecolors='k')
+            ax.set_xlim(self.xx.min(), self.xx.max())
+            ax.set_ylim(self.yy.min(), self.yy.max())
+            ax.set_xticks(())
+            ax.set_yticks(())
+            # iterate over classifiers
+            
+            ax = plt.subplot(3, 2, 1)
         self.clf.fit(self.X_train, self.y_train)
         score = self.clf.score(self.X_test, self.y_test)
 
-        # Plot the decision boundary. For that, we will assign a color to each
-        # point in the mesh [x_min, x_max]x[y_min, y_max].
-        if hasattr(self.clf, "decision_function"):
-            self.Z = self.clf.decision_function(np.c_[self.xx.ravel(), self.yy.ravel()])
-        else:
-            self.Z = self.clf.predict_proba(np.c_[self.xx.ravel(), self.yy.ravel()])[:, 1]
+        if plot:
 
-        # Put the result into a color plot
-        self.Z = self.Z.reshape(self.xx.shape)
-        ax.contourf(self.xx, self.yy, self.Z, cmap=cm, alpha=.8)
+            # Plot the decision boundary. For that, we will assign a color to each
+            # point in the mesh [x_min, x_max]x[y_min, y_max].
+            if hasattr(self.clf, "decision_function"):
+                self.Z = self.clf.decision_function(np.c_[self.xx.ravel(), self.yy.ravel()])
+            else:
+                self.Z = self.clf.predict_proba(np.c_[self.xx.ravel(), self.yy.ravel()])[:, 1]
 
-        # Plot also the training points
-        ax.scatter(self.X_train[:, 0], self.X_train[:, 1], c=self.y_train, cmap=cm_bright,
-        edgecolors='k')
-        # and testing points
-        ax.scatter(self.X_test[:, 0], self.X_test[:, 1], c=self.y_test, cmap=cm_bright,
-        edgecolors='k', alpha=0.6)
+            # Put the result into a color plot
+            self.Z = self.Z.reshape(self.xx.shape)
+            ax.contourf(self.xx, self.yy, self.Z, cmap=cm, alpha=.8)
 
-        ax.set_xlim(self.xx.min(), self.xx.max())
-        ax.set_ylim(self.yy.min(), self.yy.max())
-        ax.set_xticks(())
-        ax.set_yticks(())
-        ax.set_title('RBF SVM')
-        ax.text(self.xx.max() - .3, self.yy.min() + .3, ('%.2f' % score).lstrip('0'),
-        size=15, horizontalalignment='right')
-        
+            # Plot also the training points
+            ax.scatter(self.X_train[:, 0], self.X_train[:, 1], c=self.y_train, cmap=cm_bright,
+                       edgecolors='k')
+            # and testing points
+            ax.scatter(self.X_test[:, 0], self.X_test[:, 1], c=self.y_test, cmap=cm_bright,
+                       edgecolors='k', alpha=0.6)
 
-        return self.clf
+            ax.set_xlim(self.xx.min(), self.xx.max())
+            ax.set_ylim(self.yy.min(), self.yy.max())
+            ax.set_xticks(())
+            ax.set_yticks(())
+            ax.set_title('RBF SVM')
+            ax.text(self.xx.max() - .3, self.yy.min() + .3, ('%.2f' % score).lstrip('0'),
+                    size=15, horizontalalignment='right')
+            
+
+        return self.clf, score
 
 
 

@@ -1402,6 +1402,16 @@ def normalize_data(data):
     return data / np.mean(data)
 
 
+def normalized_data_calpoints(data, cal_zero_points=[-3,-4],cal_one_points=[-1,-2]):
+    zero_points = np.mean(data[cal_zero_points])
+    one_points = np.mean(data[cal_one_points])
+
+    # Translate the data
+    slope = 1./(one_points-zero_points)
+    intercept =-slope*zero_points
+    return slope*data+intercept
+
+
 def normalize_data_v2(a, axis=-1, order=2):
     l2 = np.atleast_1d(np.linalg.norm(a, order, axis))
     l2[l2 == 0] = 1

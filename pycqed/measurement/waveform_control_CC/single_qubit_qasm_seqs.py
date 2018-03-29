@@ -752,7 +752,7 @@ def cryo_scope_elt(qubit_name, wait_time=0, both_quad=True, cal_points=True):
 
 
 def vqe_raw(qubit0_name, qubit1_name):
-    filename = join(base_qasm_path, 'cryo_scope.qasm')
+    filename = join(base_qasm_path, 'VQE.qasm')
     qasm_file = mopen(filename, mode='w')
     # Hamiltonian terms
     for i in range(8):
