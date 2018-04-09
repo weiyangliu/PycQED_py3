@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import numpy as np
+
 from qcodes.instrument.base import Instrument
 from qcodes.utils import validators as vals
 from fnmatch import fnmatch
@@ -33,7 +34,7 @@ class UHFQC(Instrument):
     """
 
     def __init__(self, name, device='auto', interface='USB',
-                 address='127.0.0.1', port=8004, DIO=True,**kw):
+                 address='127.0.0.1', port=8004, **kw):
         '''
         Input arguments:
             name:           (str) name of the instrument
@@ -45,9 +46,7 @@ class UHFQC(Instrument):
         t0 = time.time()
         super().__init__(name, **kw)
 
-        self.DIO=DIO
         self._daq = zi.ziDAQServer(address, int(port), 5)
-        # self._daq.setDebugLevel(5)
         if device.lower() == 'auto':
             self._device = zi_utils.autoDetect(self._daq)
         else:
@@ -87,7 +86,7 @@ class UHFQC(Instrument):
             init = False
 
         self.add_parameter('timeout', unit='s',
-                           initial_value=30,
+                           initial_value=10,
                            parameter_class=ManualParameter)
         for parameter in s_node_pars:
             parname = parameter[0].replace("/", "_")
@@ -200,8 +199,8 @@ class UHFQC(Instrument):
         # QuExpress thresholds on DIO (mode == 2), AWG control of DIO (mode ==
         # 1)
         self.dios_0_mode(2)
-        # Drive DIO bits 15 to 0
-        self.dios_0_drive(0x3)
+        # Drive DIO bits 31 to 16
+        self.dios_0_drive(0xc)
 
         # Configure the analog trigger input 1 of the AWG to assert on a rising
         # edge on Ref_Trigger 1 (front-panel of the instrument)
@@ -223,21 +222,6 @@ class UHFQC(Instrument):
 
         # Setting the clock to external
         self.system_extclk(1)
-
-        # Configure the codeword protocol
-        if self.DIO:
-            self.awgs_0_dio_strobe_index(31)
-            self.awgs_0_dio_strobe_slope(1) # rising edge
-            self.awgs_0_dio_valid_index(16)
-            self.awgs_0_dio_valid_polarity(2) # high polarity
-
-
-
-
-
-        # We probably need to adjust some delays here...
-        #self.awgs_0_dio_delay_index(31)
-        #self.awgs_0_dio_delay_value(1)
 
         # No rotation on the output of the weighted integration unit, i.e. take
         # real part of result
@@ -314,80 +298,30 @@ class UHFQC(Instrument):
               ['compiler']['statusstring'][0])
         self._daq.sync()
 
-    def awg_string(self, program_string:str, timeout: float=5):
-        t0 = time.time()
-        awg_nr = 0 # hardcoded for UHFQC
-        print('Configuring AWG of {}'.format(self.name))
-        if not self._awgModule:
-            raise(ziShellModuleError())
-
-        self._awgModule.set('awgModule/index', awg_nr)
-        self._awgModule.set('awgModule/compiler/sourcestring', program_string)
-
-        t0 = time.time()
-
-        succes_msg = 'File successfully uploaded'
-        # Success is set to False when either a timeout or a bad compilation
-        # message is encountered.
-        success = True
-        # while ("compilation not completed"):
-        while len(self._awgModule.get('awgModule/compiler/sourcestring')
-                  ['compiler']['sourcestring'][0]) > 0:
-            time.sleep(0.01)
-            comp_msg = (self._awgModule.get(
-                'awgModule/compiler/statusstring')['compiler']
-                ['statusstring'][0])
-            if (time.time()-t0 >= timeout):
-                success = False
-                print('Timeout encountered during compilation.')
-                break
-            time.sleep(0.01)
-
-        comp_msg = (self._awgModule.get(
-                'awgModule/compiler/statusstring')['compiler']
-                ['statusstring'][0])
-
-        if not comp_msg.endswith(succes_msg):
-            success = False
-
-        if not success:
-            # Printing is disabled because we put the waveform in the program
-            # this should be changed when .csv waveforms are supported for UHFQC
-            # print("Compilation failed, printing program:")
-            # for i, line in enumerate(program_string.splitlines()):
-            #     print(i+1, '\t', line)
-            # print('\n')
-            #raise ziShellCompilationError(comp_msg)
-            #print("Possible error:", comp)
-            pass
-        # If succesful the comipilation success message is printed
-        t1 = time.time()
+    def awg_string(self, sourcestring):
+        path = '/' + self._device + '/awgs/0/ready'
+        self._daq.subscribe(path)
+        self._awgModule.set('awgModule/compiler/sourcestring', sourcestring)
+        #self._awgModule.set('awgModule/elf/file', '')
+        while self._awgModule.get('awgModule/progress')['progress'][0] < 1.0:
+            time.sleep(0.1)
         print(self._awgModule.get('awgModule/compiler/statusstring')
-              ['compiler']['statusstring'][0] + ' in {:.2f}s'.format(t1-t0))
+              ['compiler']['statusstring'][0])
+        while self._awgModule.get('awgModule/progress')['progress'][0] < 1.0:
+            time.sleep(0.01)
 
-        # path = '/' + self._device + '/awgs/0/ready'
-        # self._daq.subscribe(path)
-        # self._awgModule.set('awgModule/compiler/sourcestring', program_string)
-        # #self._awgModule.set('awgModule/elf/file', '')
-        # while self._awgModule.get('awgModule/progress')['progress'][0] < 1.0:
-        #     time.sleep(0.1)
-        # print(self._awgModule.get('awgModule/compiler/statusstring')
-        #       ['compiler']['statusstring'][0])
-        # while self._awgModule.get('awgModule/progress')['progress'][0] < 1.0:
-        #     time.sleep(0.01)
-        # ready = False
-        # timeout = 0
-        # while not ready and timeout < 1.0:
-        #     data = self._daq.poll(0.1, 1, 4, True)
-        #     timeout += 0.1
-        #     if path in data:
-        #         if data[path]['value'][-1] == 1:
-        #             ready = True
-        # self._daq.unsubscribe(path)
+        ready = False
+        timeout = 0
+        while not ready and timeout < 1.0:
+            data = self._daq.poll(0.1, 1, 4, True)
+            timeout += 0.1
+            if path in data:
+                if data[path]['value'][-1] == 1:
+                    ready = True
+        self._daq.unsubscribe(path)
 
     def close(self):
         self._daq.disconnectDevice(self._device)
-        super().close()
 
     def find(self, *args):
         nodes = self._daq.listNodes('/', 7)
@@ -422,7 +356,6 @@ class UHFQC(Instrument):
 
     def acquisition_get(self, samples, acquisition_time=0.010,
                         timeout=0, channels=set([0, 1]), mode='rl'):
-        logging.warning("acquisition_get is deprecated (Nov 2017). Dont' use it!")
         # Define the channels to use
         paths = dict()
         data = dict()
@@ -531,7 +464,7 @@ class UHFQC(Instrument):
         return data
 
     def acquisition(self, samples, acquisition_time=0.010, timeout=0,
-                    channels=(0, 1), mode='rl'):
+                    channels=set([0, 1]), mode='rl'):
         self.acquisition_initialize(channels, mode)
         data = self.acquisition_poll(samples, acquisition_time, timeout)
         self.acquisition_finalize()
@@ -787,85 +720,8 @@ class UHFQC(Instrument):
             self._daq.vectorWrite('/' + self._device + '/' + path, value)
 
     # sequencer functions
-    def awg_sequence_acquisition_and_DIO_triggered_pulse(
-            self, Iwaves, Qwaves, cases, acquisition_delay, timeout=5):
-        # setting the acquisition delay samples
-        delay_samples = int(acquisition_delay*1.8e9/8)
-        # setting the delay in the instrument
-        self.awgs_0_userregs_2(delay_samples)
 
-        sequence = (
-            'const TRIGGER1  = 0x000001;\n' +
-            'const WINT_TRIG = 0x000010;\n' +
-            'const IAVG_TRIG = 0x000020;\n' +
-            'const WINT_EN   = 0x1f0000;\n' +
-            'const DIO_VALID = 0x00010000;\n' +
-            'setTrigger(WINT_EN);\n' +
-            'var loop_cnt = getUserReg(0);\n' +
-            'var wait_delay = getUserReg(2);\n' +
-            'var RO_TRIG;\n' +
-            'if(getUserReg(1)){\n' +
-            ' RO_TRIG=IAVG_TRIG;\n' +
-            '}else{\n' +
-            ' RO_TRIG=WINT_TRIG;\n' +
-            '}\n' +
-            'var trigvalid = 0;\n' +
-            'var dio_in = 0;\n' +
-            'var cw = 0;\n')
-
-        # loop to generate the wave list
-        for i in range(len(Iwaves)):
-            Iwave = Iwaves[i]
-            Qwave = Qwaves[i]
-            if np.max(Iwave) > 1.0 or np.min(Iwave) < -1.0:
-                raise KeyError(
-                    "exceeding AWG range for I channel, all values should be within +/-1")
-            elif np.max(Qwave) > 1.0 or np.min(Qwave) < -1.0:
-                raise KeyError(
-                    "exceeding AWG range for Q channel, all values should be within +/-1")
-            elif len(Iwave) > 16384:
-                raise KeyError(
-                    "exceeding max AWG wave lenght of 16384 samples for I channel, trying to upload {} samples".format(len(Iwave)))
-            elif len(Qwave) > 16384:
-                raise KeyError(
-                    "exceeding max AWG wave lenght of 16384 samples for Q channel, trying to upload {} samples".format(len(Qwave)))
-            wave_I_string = self.array_to_combined_vector_string(
-                Iwave, "Iwave{}".format(i))
-            wave_Q_string = self.array_to_combined_vector_string(
-                Qwave, "Qwave{}".format(i))
-            sequence = sequence+wave_I_string+wave_Q_string
-        # starting the loop and switch statement
-        sequence = sequence+(
-            'repeat(loop_cnt) {\n' +
-            ' waitDIOTrigger();\n' +
-            ' var dio = getDIOTriggered();\n' +
-            ' cw = (dio >> 17) & 0x1f;\n' +#now hardcoded for 7 bits (cc-light)
-            '  switch(cw) {\n')
-        # adding the case statements
-        for i in range(len(Iwaves)):
-            # generating the case statement string
-            case = '  case {}:\n'.format(int(cases[i]))
-            case_play = '   playWave(Iwave{}, Qwave{});\n'.format(i, i)
-            # adding the individual case statements to the sequence
-            # FIXME: this is a hack to work around missing timing in OpenQL
-            # Oct 2017
-            sequence = sequence + case+case_play
-
-        # adding the final part of the sequence including a default wave
-        sequence = (sequence +
-                    '  default:\n' +
-                    '   playWave(ones(36), ones(36));\n' +
-                    ' }\n' +
-                    ' wait(wait_delay);\n' +
-                    ' setTrigger(WINT_EN + RO_TRIG);\n' +
-                    ' setTrigger(WINT_EN);\n' +
-                    #' waitWave();\n'+ #removing this waitwave for now
-                    '}\n' +
-                    'wait(300);\n' +
-                    'setTrigger(0);\n')
-        self.awg_string(sequence, timeout=timeout)
-
-    def awg_sequence_acquisition_and_pulse(self, Iwave, Qwave, acquisition_delay, dig_trigger=True):
+    def awg_sequence_acquisition_and_pulse(self, Iwave, Qwave, acquisition_delay):
         if np.max(Iwave) > 1.0 or np.min(Iwave) < -1.0:
             raise KeyError(
                 "exceeding AWG range for I channel, all values should be withing +/-1")
@@ -889,7 +745,7 @@ class UHFQC(Instrument):
 const TRIGGER1  = 0x000001;
 const WINT_TRIG = 0x000010;
 const IAVG_TRIG = 0x000020;
-const WINT_EN   = 0x1f0000;
+const WINT_EN   = 0x1ff0000;
 setTrigger(WINT_EN);
 var loop_cnt = getUserReg(0);
 var wait_delay = getUserReg(2);
@@ -899,21 +755,16 @@ if(getUserReg(1)){
 }else{
   RO_TRIG=WINT_TRIG;
 }\n"""
-        if dig_trigger:
-            loop_start = """
+
+        loop_start = """
 repeat(loop_cnt) {
 \twaitDigTrigger(1, 1);
-\tplayWave(Iwave, Qwave);\n"""
-        else:
-            loop_start = """
-repeat(loop_cnt) {
 \tplayWave(Iwave, Qwave);\n"""
 
         end_string = """
 \tsetTrigger(WINT_EN + RO_TRIG);
 \tsetTrigger(WINT_EN);
 \twaitWave();
-\twait(4000);
 }
 wait(300);
 setTrigger(0);"""
@@ -921,7 +772,6 @@ setTrigger(0);"""
         string = preamble+wave_I_string+wave_Q_string + \
             loop_start+delay_string+end_string
         self.awg_string(string)
-
 
     def array_to_combined_vector_string(self, array, name):
         # this function cuts up arrays into several vectors of maximum length 1024 that are joined.
@@ -931,7 +781,7 @@ setTrigger(0);"""
         join = False
         n = 0
         while n < len(array):
-            string += '{:.3f}'.format(array[n])
+            string += '{:.6f}'.format(array[n])
             if ((n+1) % 1024 != 0) and n < len(array)-1:
                 string += ','
 
@@ -954,7 +804,7 @@ setTrigger(0);"""
 const TRIGGER1  = 0x000001;
 const WINT_TRIG = 0x000010;
 const IAVG_TRIG = 0x000020;
-const WINT_EN   = 0x1f0000;
+const WINT_EN   = 0x1ff0000;
 setTrigger(WINT_EN);
 var loop_cnt = getUserReg(0);
 var RO_TRIG;
@@ -980,7 +830,7 @@ setTrigger(0);"""
         self._daq.sync()
 
     def awg_sequence_acquisition_and_pulse_SSB(
-            self, f_RO_mod, RO_amp, RO_pulse_length, acquisition_delay, dig_trigger=True):
+            self, f_RO_mod, RO_amp, RO_pulse_length, acquisition_delay):
         f_sampling = 1.8e9
         samples = RO_pulse_length*f_sampling
         array = np.arange(int(samples))
@@ -990,7 +840,7 @@ setTrigger(0);"""
         Qwave = (coswave-sinwave)/np.sqrt(2)
         # Iwave, Qwave = PG.mod_pulse(np.ones(samples), np.zeros(samples), f=f_RO_mod, phase=0, sampling_rate=f_sampling)
         self.awg_sequence_acquisition_and_pulse(
-            Iwave, Qwave, acquisition_delay, dig_trigger=dig_trigger)
+            Iwave, Qwave, acquisition_delay)
 
     def upload_transformation_matrix(self, matrix):
         for i in range(np.shape(matrix)[0]):  # looping over the rows
@@ -1007,23 +857,3 @@ setTrigger(0);"""
                 # print(value)
                 # matrix[i,j]=value
         return matrix
-
-
-class ziShellError(Exception):
-    """Base class for exceptions in this module."""
-    pass
-
-class ziShellDAQError(ziShellError):
-    """Exception raised when no DAQ has been connected."""
-    pass
-
-
-class ziShellModuleError(ziShellError):
-    """Exception raised when a module has not been started."""
-    pass
-
-class ziShellCompilationError(ziShellError):
-    """
-    Exception raised when the zi AWG-8 compiler encounters an error.
-    """
-    pass
