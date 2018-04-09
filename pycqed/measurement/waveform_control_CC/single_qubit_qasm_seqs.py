@@ -332,6 +332,34 @@ def off_on(qubit_name, pulse_comb='off_on'):
     qasm_file.close()
     return qasm_file
 
+def off_on_two_qubit(qubit_list):
+    """
+    Performs an 'Off_On' sequence on the qubit specified.
+    Pulses can be optionally enabled by putting 'off', respectively 'on' in
+    the pulse_comb string.
+    Readout happens at the same time for both qubits
+    """
+    qubit0_name = qubit_list[0].name
+    qubit1_name = qubit_list[1].name
+    filename = join(base_qasm_path, 'off_on_two_qubit.qasm')
+    qasm_file = mopen(filename, mode='w')
+    qasm_file.writelines('qubit {} {}\n'.format(qubit0_name, qubit1_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('X180 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('X180 {}     # On \n'.format(qubit1_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.writelines('\ninit_all\n')
+    qasm_file.writelines('X180 {}     # On \n'.format(qubit0_name))
+    qasm_file.writelines('X180 {}     # On \n'.format(qubit1_name))
+    qasm_file.writelines('RO {}  \n'.format(qubit0_name))
+    qasm_file.close()
+    return qasm_file
+
+
 
 def butterfly(qubit_name, initialize=False):
     """
@@ -791,14 +819,15 @@ def vqe_raw(qubit0_name, qubit1_name):
 
 
 def cardinal_prep(qubit0_name, qubit1_name):
-    filename = join(base_qasm_path, 'VQE.qasm')
+    filename = join(base_qasm_path, 'cardinal_prep.qasm')
     qasm_file = mopen(filename, mode='w')
-    # Hamiltonian terms
+    # A sequance comprises of 8 cal points(after the for loop)
+    # and a state prep pulse followed by 8 tomography rotations.
+
     for i in range(8):
         qasm_file.writelines('qubit {} {} \n'.format(qubit0_name, qubit1_name))
         qasm_file.writelines('\ninit_all\n')
-        qasm_file.writelines('Y180 {}\n'.format(qubit0_name))
-        qasm_file.writelines('SWAP {}\n'.format(qubit0_name))
+        qasm_file.writelines('P1P2 {}\n'.format(qubit0_name))
         qasm_file.writelines('Tomo_{} {}\n'.format(i,qubit0_name))
         qasm_file.writelines('RO {}  \n'.format(qubit0_name))
     # calibration points
@@ -861,5 +890,51 @@ def MW_pulse_timing(qubit_name,times, cal_points=True):
             qasm_file.writelines('X90 {}     \n'.format(qubit_name))
             qasm_file.writelines('Idx {:d} \n'.format(int(cl)))
             qasm_file.writelines('RO {}  \n'.format(qubit_name))
+    qasm_file.close()
+    return qasm_file
+
+
+
+
+def flux_pulse_timing(qubit_name, times, cal_points=True):
+    filename = join(base_qasm_path, 'timings_mw.qasm')
+    qasm_file = mopen(filename, mode='w')
+    # Hamiltonian terms
+    # qasm_file.writelines('qubit {} {} \n'.format(qubit_name))
+    # qasm_file.writelines('\ninit_all\n')
+    # qasm_file.writelines('X90 {}\n'.format(qubit_name))
+    # qasm_file.writelines('Idx {:d} \n'.format(int(cl_wait)))
+    # qasm_file.writelines('RO {}  \n'.format(qubit_name))
+    # qasm_file.writelines('X90 {}\n'.format(qubit_name))
+    # qasm_file.close()
+    h = 200e-9
+    clock_cycle = 5e-9
+    cl_s = np.round(times/clock_cycle)
+
+    qasm_file.writelines('qubit {} \n'.format(qubit_name))
+
+    for i, cl in enumerate(cl_s):
+        qasm_file.writelines('\ninit_all\n')
+        if cal_points and (i == (len(cl_s)-4) or i == (len(cl_s)-3)):
+            qasm_file.writelines('RO {}  \n'.format(qubit_name))
+        elif cal_points and (i == (len(cl_s)-2) or i == (len(cl_s)-1)):
+            qasm_file.writelines('X180 {} \n'.format(qubit_name))
+            qasm_file.writelines('RO {}  \n'.format(qubit_name))
+        else:
+            qasm_file.writelines('\ninit_all\n')
+            qasm_file.writelines('X90 {}     \n'.format(qubit_name))
+            if cl_s>0:
+                qasm_file.writelines('Idx {:d}\n'.format(int(h)))
+                qasm_file.writelines('X90 {}\n'.format(qubit_name))
+                qasm_file.writelines('Idx {:d}\n'.format(int(cl)))
+                qasm_file.writelines('SWAP {}\n'.format(qubit_name))
+                qasm_file.writelines('RO {}\n'.format(qubit_name))
+            else:
+                qasm_file.writelines('Idx {:d}\n'.format(int(h-cl)))
+                qasm_file.writelines('instSWAP {}\n'.format(qubit_name))
+                qasm_file.writelines('Idx {:d}\n'.format(int(abs(cl))))
+                qasm_file.writelines('X90 {}\n'.format(qubit_name))
+                qasm_file.writelines('RO {}\n'.format(qubit_name))
+
     qasm_file.close()
     return qasm_file

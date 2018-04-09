@@ -339,10 +339,9 @@ class DacArchAnalysis:
 
         for i in range(len(amps)):
             mask_data[i,:] = mask_amps[i]
-        print(self.norm_data.shape, mask_data.shape)
         self.norm_data = self.norm_data[mask_data].reshape((np.sum(mask_amps),mask_data.shape[-1]))
         self.amps = list(np.array(self.amps)[mask_amps])
-        print(self.norm_data.shape)
+
         for nd in self.norm_data:
             guess_f, guess_ph, *_ = fft_based_freq_guess_complex(nd)
             guess_f *= self.sampling_rate
