@@ -734,7 +734,7 @@ class MeasurementAnalysis(object):
                 self.save_fig(fig, xlabel=xlabel, ylabel=ylabel, **kw)
         return
 
-    def plot_complex_results(self, cmp_data, fig, ax, show=False, marker='.', **kw):
+    def plot_complex_results(self, cmp_data, fig, ax, square_axes_ranges=True,show=False, marker='.', **kw):
         '''
         Plot real and imaginary values measured vs a sweeped parameter
         Example: complex S21 of a resonator
@@ -749,10 +749,17 @@ class MeasurementAnalysis(object):
 
         xlabel = 'Real'
         ylabel = 'Imag'
+
         ax.set_title(self.plot_title)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.plot(np.real(cmp_data), np.imag(cmp_data), marker)
+        if square_axes_ranges:
+            max_real=np.max(abs(cmp_data.real))
+            max_imag=np.max(abs(cmp_data.imag))
+            max_value=1.1*np.max([max_real,max_imag])
+            ax.set_xlim(-max_value, max_value)
+            ax.set_ylim(-max_value, max_value)
         if show:
             plt.show()
         if save:
@@ -773,7 +780,7 @@ class MeasurementAnalysis(object):
                                  textwrap.fill(self.timestamp_string + '_' +
                                                self.measurementstring, 40))
 
-        xlabel = 'Freq'
+        xlabel = self.sweep_name + '('+self.sweep_unit[0]+')'
         ylabel = 'Transmission (dB)'
         ax.set_title(self.plot_title)
         ax.set_xlabel(xlabel)
@@ -5780,6 +5787,19 @@ class VNA_Analysis(MeasurementAnalysis):
 
         self.save_fig(fig, figname='dB_plot', **kw)
 
+        # prepare complex plane figure
+        real_data=np.array((self.measured_values[2]))
+        imag_data=np.array((self.measured_values[3]))
+        cmp_data = np.zeros((len(real_data)),dtype=np.complex_)
+        for i in range(len(real_data)):
+            cmp_data[i]=complex(real_data[i],imag_data[i])
+
+        fig, ax = self.default_ax(figsize=[5,5])
+        self.plot_complex_results(cmp_data, fig, ax, show=False, marker='.',)
+        self.save_fig(fig, figname='phase_plot', **kw)
+
+
+
 
 class Acquisition_Delay_Analysis(MeasurementAnalysis):
 
@@ -6778,7 +6798,6 @@ class Three_Tone_Spectroscopy_Analysis(MeasurementAnalysis):
     **kwargs:
         f01: fuess for f01
         f12: guess for f12
-
     '''
 
     def __init__(self, label='Three_tone', **kw):
@@ -6788,12 +6807,23 @@ class Three_Tone_Spectroscopy_Analysis(MeasurementAnalysis):
 
     def run_default_analysis(self, f01=None, f12=None,
                              amp_lims=[None, None], line_color='k',
-                             phase_lims=[-180, 180], **kw):
+                             phase_lims=[-180, 180], added_phase=0,**kw):
         self.get_naming_and_values_2D()
         # figsize wider for colorbar
         fig1, ax1 = self.default_ax(figsize=(8, 5))
         measured_powers = self.measured_values[0]
-        measured_phases = self.measured_values[1]
+        measured_phases = self.measured_values[1]+ added_phase
+
+        #rewrapping the phase
+        if added_phase !=0:
+            for i,measured_phase_array in enumerate(measured_phases):
+                for j,measured_phase in enumerate(measured_phase_array):
+                    # print(measured_phase)
+                    if measured_phase >180:
+                        measured_phases[i,j]=measured_phase-360
+                    elif measured_phase < -180:
+                        measured_phases[i,j]=measured_phase+360
+
 
         fig1_title = self.timestamp_string + \
             self.measurementstring+'_'+'Amplitude'
@@ -6845,8 +6875,8 @@ class Three_Tone_Spectroscopy_Analysis(MeasurementAnalysis):
 
             textstr = 'f01 = {:.4g} GHz'.format(f01*1e-9) + '\n' + \
                 'f12 = {:.4g} GHz'.format(f12*1e-9) + '\n' + \
-                'anharm = {:.4g} MHz'.format(anharm*1e-6) + '\n' + \
-                'EC ~= {:.4g} MHz'.format(EC*1e-6) + '\n' + \
+                'anharm ~= {:.4g} MHz'.format(anharm*1e-6) + '\n' + \
+                'EC = {:.4g} MHz'.format(EC*1e-6) + '\n' + \
                 'EJ = {:.4g} GHz'.format(EJ*1e-9)
             ax1.text(0.95, 0.95, textstr, transform=ax1.transAxes,
                      fontsize=11,
