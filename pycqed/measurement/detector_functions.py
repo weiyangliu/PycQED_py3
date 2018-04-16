@@ -348,6 +348,82 @@ class ZNB_VNA_detector(Hard_Detector):
 
         return ampl_linear, phase_radians, real_data, imag_data
 
+class ZNB_VNA_detector_single_point(Soft_Detector):
+
+    def __init__(self,  VNA, center_freq, span,
+                 segment_list=None,
+                  force_reset=False, **kw):
+        '''
+        Detector function for the Rohde & Schwarz ZNB VNA
+        '''
+        super(ZNB_VNA_detector_single_point, self).__init__()
+        self.VNA = VNA
+        self.value_names = ['ampl', 'phase',
+                            'real', 'imag', ]
+        self.value_units = ['', 'radians',
+                            '', '']
+        self.center_freq = center_freq
+        self.segment_list = segment_list
+        self.span = span
+
+        if force_reset == True:
+            VNA.reset()
+
+    def acquire_data_point(self):
+        '''
+        Start a measurement, wait untill the end and retrive data.
+        Return real and imaginary transmission coefficients +
+        amplitude (linear) and phase (deg or radians)
+        '''
+        self.VNA.start_sweep_all()  # start a measurement
+        # wait untill the end of measurement before moving on
+        self.VNA.wait_to_continue()
+        # for visualization on the VNA screen (no effect on data)
+        self.VNA.autoscale_trace()
+        # get data and process them
+        real_data, imag_data = self.VNA.get_real_imaginary_data()
+
+        complex_data = np.add(real_data, 1j*imag_data)
+        ampl_linear = np.abs(complex_data)
+        # ampl_dB = 20*np.log10(ampl_linear)
+        phase_radians = np.arctan2(imag_data, real_data)
+        return ampl_linear, phase_radians, real_data, imag_data
+
+    def prepare(self):
+        '''
+        Prepare the VNA for measurements by defining basic settings.
+        Set the frequency sweep and get the frequency points back from the insturment
+        '''
+        self.VNA.continuous_mode_all('off')  # measure only if required
+        # optimize the sweep time for the fastest measurement
+        self.VNA.min_sweep_time('on')
+        # start a measurement once the trigger signal arrives
+        self.VNA.trigger_source('immediate')
+        # trigger signal is generated with the command:
+        # VNA.start_sweep_all()
+
+        if self.segment_list == None:
+            self.VNA.sweep_type('linear')  # set a linear sweep
+
+            self.VNA.center_frequency(self.center_freq)
+            self.VNA.span_frequency(self.span)
+
+            self.VNA.npts(1)
+        elif self.segment_list != None:
+            # delete all previous stored segments
+            self.VNA.delete_all_segments()
+
+            # Load segments in reverse order to have them executed properly
+            for idx_segment in range(len(self.segment_list), 0, -1):
+                current_segment = self.segment_list[idx_segment-1]
+                str_to_write = 'SENSE:SEGMENT:INSERT %s, %s, %s, %s, %s, %s, %s' % (current_segment[0], current_segment[
+                                                                                    1], current_segment[2], current_segment[3], current_segment[4], current_segment[5], current_segment[6])
+                self.VNA.write(str_to_write)
+
+            self.VNA.sweep_type('segment')  # set a segment sweep
+
+
+
 
 # Detectors for QuTech Control box modes
 class CBox_input_average_detector(Hard_Detector):

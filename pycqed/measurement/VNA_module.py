@@ -3,8 +3,8 @@ from pycqed.analysis import measurement_analysis as ma
 from pycqed.measurement import sweep_functions as swf
 from pycqed.measurement import detector_functions as det
 
-MC_instr = None
-VNA_instr = None
+#MC_instr = None
+#VNA_instr = None
 
 
 def acquire_single_linear_frequency_span(file_name, start_freq=None,
