@@ -7,3 +7,5 @@ qutip
 pyqtgraph
 pygsti
 cma
+spirack
+nose
