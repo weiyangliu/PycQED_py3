@@ -384,7 +384,7 @@ class BaseDataAnalysis(object):
             pass
 
         if self.verbose:
-            print('Saving figures to %s'%savedir)
+            print('Saving figures to %s' % savedir)
         for key in key_list:
             if self.presentation_mode:
                 savename = os.path.join(savedir, savebase + key + tstag + 'presentation' + '.' + fmt)
@@ -504,7 +504,7 @@ class BaseDataAnalysis(object):
         """
 
         # Check weather there is any data to save
-        if hasattr(self, 'fit_res') and self.fit_res is not None and self.fit_res:
+        if hasattr(self, 'fit_res') and self.fit_res is not None:
             fn = a_tools.measurement_filename(a_tools.get_folder(self.timestamps[0]))
             fn = self.options_dict.get('analysis_result_file', fn)
             with h5py.File(fn, 'a') as data_file:
@@ -514,7 +514,7 @@ class BaseDataAnalysis(object):
                     # If the analysis group already exists.
                     analysis_group = data_file['Analysis']
 
-                # Iterate over all the fit result dicts
+                # Iterate over all the fit result dicts as not to overwrite old/other analysis
                 for fr_key, fit_res in self.fit_res.items():
                     try:
                         fr_group = analysis_group.create_group(fr_key)
@@ -524,9 +524,35 @@ class BaseDataAnalysis(object):
                         del analysis_group[fr_key]
                         fr_group = analysis_group.create_group(fr_key)
 
-                    # TODO: convert the params object to a simple dict
-                    # write_dict_to_hdf5(fit_res.params, entry_point=fr_group)
-                    write_dict_to_hdf5(fit_res.best_values, entry_point=fr_group)
+                   write_dict_to_hdf5(self._convert_dict_rec(self.fit_res), entry_point=fr_group)
+
+    @staticmethod
+    def _convert_dict_rec(obj):
+        try:
+            # is iterable?
+            for k in obj:
+                obj[k] = BaseDataAnalysis._convert_dict_rec(obj[k])
+        except TypeError:
+            if type(obj) is lmfit.model.ModelResult:
+                obj = _flatten_lmfit_modelresult(obj)
+            else:
+                obj = str(obj)
+
+    @staticmethod
+    def _flatten_lmfit_modelresult(model):
+        assert type(model) is lmfit.model.ModelResult
+        dic = {}
+        dic['success'] = model.success
+        dic['message'] = model.message
+        dic['best_values'] = model.best_values
+        dic['params'] = {}
+        for param_name in res.params:
+            dic['params'][param_name] = {}
+            param = res.params[param_name]
+            for k in param.__dict__:
+                if not k.startswith('_'):
+                    dic['params'][param_name][k] = getattr(param, k)
+        return dic
 
     def plot(self, key_list=None, axs_dict=None,
              presentation_mode=None, no_label=False):
