@@ -8,20 +8,11 @@
 
 conda create -n pycqed python=3
 
-# install packages.
-conda install h5py
-conda install matplotlib
-pip install pyqtgraph
-conda install numpy
-conda install scipy
-pip install lmfit
-pip install uncertainties
-conda install seaborn
-pip install pyvisa
+# if working properly, this step will install all required packages automatically.
+python -m pip install --upgrade pip
+
+# qcodes should be installed from DiCarloLab-Delft. Downloading is required.
 pip install qcodes
-pip install httplib2
-pip install qutip
-conda install plotly
 
 # install PyqCED
 python setup.py develop
