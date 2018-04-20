@@ -523,8 +523,7 @@ class BaseDataAnalysis(object):
                         # Delete the old group and create a new group (overwrite).
                         del analysis_group[fr_key]
                         fr_group = analysis_group.create_group(fr_key)
-
-                   write_dict_to_hdf5(self._convert_dict_rec(self.fit_res), entry_point=fr_group)
+                    write_dict_to_hdf5(self.fit_res, entry_point=fr_group)
 
     @staticmethod
     def _convert_dict_rec(obj):
@@ -533,22 +532,28 @@ class BaseDataAnalysis(object):
             for k in obj:
                 obj[k] = BaseDataAnalysis._convert_dict_rec(obj[k])
         except TypeError:
-            if type(obj) is lmfit.model.ModelResult:
-                obj = _flatten_lmfit_modelresult(obj)
+            if isinstance(obj, lmfit.model.ModelResult):
+                obj = BaseDataAnalysis._flatten_lmfit_modelresult(obj)
             else:
                 obj = str(obj)
+        return obj
 
     @staticmethod
     def _flatten_lmfit_modelresult(model):
         assert type(model) is lmfit.model.ModelResult
-        dic = {}
+        dic = model.best_values or {}  # to keep compatibility with the old implementation
+
+        used_fields = ['success', 'message', 'best_values', 'params']
+        if sum([1 for k in model.best_values if k in used_fields]) > 0:
+            raise Warning('None of the params of the fit should be named any of this: ' + str(used_fields))
+
         dic['success'] = model.success
         dic['message'] = model.message
         dic['best_values'] = model.best_values
         dic['params'] = {}
-        for param_name in res.params:
+        for param_name in model.params:
             dic['params'][param_name] = {}
-            param = res.params[param_name]
+            param = model.params[param_name]
             for k in param.__dict__:
                 if not k.startswith('_'):
                     dic['params'][param_name][k] = getattr(param, k)
