@@ -505,6 +505,8 @@ class QWG_MW_LutMan_VQE(QWG_MW_LutMan):
             f_modulation = self.mw_modulation()
         else:
             f_modulation = 0
+            self.AWG.get_instr().set('ch_pair{}_sideband_frequency'.format(self.channel_I()),
+                           self.mw_modulation())
 
         self._wave_dict['X180c'] = self.wf_func(
             amp=self.mw_amp180(), sigma_length=self.mw_gauss_width(),
