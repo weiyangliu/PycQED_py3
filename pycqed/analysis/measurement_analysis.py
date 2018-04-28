@@ -3650,8 +3650,8 @@ class SSRO_Analysis(MeasurementAnalysis):
 
         plt.subplots_adjust(hspace=20)
 
-        axarray[0].set_title('2D histogram, pi pulse')
-        im1 = axarray[0].imshow(np.transpose(H1), interpolation='nearest',
+        axarray[0].set_title('2D histogram, no pi pulse')
+        im1 = axarray[0].imshow(np.transpose(H0), interpolation='nearest',
                                 origin='low',
                                 extent=[xedges1[0], xedges1[-1],
                                         yedges1[0], yedges1[-1]], cmap=cmap)
@@ -3666,8 +3666,8 @@ class SSRO_Analysis(MeasurementAnalysis):
         #axarray[0].set_ylim(-edge, edge)
 
         # plotting 2D histograms of mmts with no pulse
-        axarray[1].set_title('2D histogram, no pi pulse')
-        im0 = axarray[1].imshow(np.transpose(H0), interpolation='nearest',
+        axarray[1].set_title('2D histogram, pi pulse')
+        im0 = axarray[1].imshow(np.transpose(H1), interpolation='nearest',
                                 origin='low',
                                 extent=[xedges0[0], xedges0[-1], yedges0[0],
                                         yedges0[-1]], cmap=cmap)
@@ -8897,9 +8897,9 @@ class CZ_1Q_phase_analysis(TD_Analysis):
         self.save_fig(fig, **kw)
 
 
-def DAC_scan_analysis_and_plot(scan_start, scan_stop, dac, feed, 
+def DAC_scan_analysis_and_plot(scan_start, scan_stop, dac, feed,
     dac_prefix='',perc=99.6, factor=1, smooth_window_len=31,smoothing=True,
-    overwrite_old=False, fig_format='png', verbose=False, 
+    overwrite_old=False, fig_format='png', verbose=False,
     peak_fitting_sample_n=0, plotsize=None, temperature_plots=True, current_multiplier=1):
     plotsize = plotsize or (4,10)
     date_folder = scan_stop.split('_')[0]
@@ -8938,7 +8938,7 @@ def DAC_scan_analysis_and_plot(scan_start, scan_stop, dac, feed,
     dac_values_unsorted = spec_scans.TD_dict['dac']
     sorted_indices = dac_values_unsorted.argsort()
     dac_values=np.array(dac_values_unsorted[sorted_indices], dtype=float)*current_multiplier
-    
+
     amplitude_values=np.array(spec_scans.TD_dict['amp'][sorted_indices,feed], dtype=float)
     frequency_values=np.array(spec_scans.TD_dict['frequencies'][sorted_indices], dtype=float)
 
@@ -9070,11 +9070,11 @@ def time_domain_DAC_scan_analysis_and_plot(scan_start, scan_stop, dac, resonator
     opt_dict = {'scan_label':dac_prefix+dac,
            'exact_label_match':True}
 
-    nparams = ['amp', 
-                'frequencies', 
-                'dac', 
+    nparams = ['amp',
+                'frequencies',
+                'dac',
                 ]
-    
+
     if temperature_plots:
         nparams.append('T_mc')
         nparams.append('T_cp')

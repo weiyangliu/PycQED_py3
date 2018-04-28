@@ -846,8 +846,8 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         avg_h2 -= mean_h2
         avg_h12 -= mean_h12
 
-        scale_h1 = (h1_00+h1_10-h1_01-h1_11)/4
-        scale_h2 = (h2_00+h2_01-h2_10-h2_11)/4
+        scale_h1 = (h1_00-h1_10+h1_01-h1_11)/4
+        scale_h2 = (h2_00-h2_01+h2_10-h2_11)/4
         scale_h12 = (h12_00+h12_11-h12_01-h12_10)/4
 
         avg_h1 = (avg_h1)/scale_h1

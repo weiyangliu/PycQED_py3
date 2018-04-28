@@ -38,6 +38,7 @@ def mixer_carrier_cancellation(SH, source, MC,
                                frequency: float=None,
                                SH_ref_level: float=-40,
                                init_stepsize: float=0.1,
+                               maxiter=500,
                                x0=(0.0, 0.0)):
     """
     Varies the mixer offsets to minimize leakage at the carrier frequency.
@@ -72,7 +73,7 @@ def mixer_carrier_cancellation(SH, source, MC,
     ad_func_pars = {'adaptive_function': cma.fmin,
                     'x0': x0,
                     'sigma0':1,
-                    'options': {'maxiter': 500,    # maximum function cals
+                    'options': {'maxiter': maxiter,    # maximum function cals
                                 # Scaling for individual sigma's
                                 'cma_stds': [init_stepsize]*2
                                 },

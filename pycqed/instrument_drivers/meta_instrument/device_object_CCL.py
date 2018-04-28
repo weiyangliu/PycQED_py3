@@ -554,7 +554,7 @@ class DeviceCCL(Instrument):
 
     def prepare_for_timedomain(self):
         self.prepare_readout()
-        self.prepare_fluxing()
+        # self.prepare_fluxing()
         self.prepare_timing()
 
         for qb_name in self.qubits():
@@ -890,15 +890,14 @@ class DeviceCCL(Instrument):
 
         # weights 0 and 1 are the correct indices because I set the numbering
         # at the start of this calibration script.
-        UHFQC.quex_trans_offset_weightfunction_0(V_offset_cor[0])
-        UHFQC.quex_trans_offset_weightfunction_1(V_offset_cor[1])
+        # UHFQC.quex_trans_offset_weightfunction_0(V_offset_cor[0])
+        # UHFQC.quex_trans_offset_weightfunction_1(V_offset_cor[1])
+        UHFQC.quex_trans_offset_weightfunction_0(0)
+        UHFQC.quex_trans_offset_weightfunction_1(0)
 
-        # Does not work because axes are not normalized
-        matrix_normalized = res_dict['mu_matrix_inv']
-        matrix_rescaled = matrix_normalized/abs(matrix_normalized).max()
-        UHFQC.upload_transformation_matrix(matrix_rescaled)
-
-        # a = self.check_mux_RO(update=update, update_threshold=update_threshold)
+        # matrix should not be normalized!
+        #matrix = res_dict['mu_matrix_inv']
+        #UHFQC.upload_transformation_matrix(matrix)
         return True
 
     def calibrate_cz_single_q_phase(self, q0: str, q1: str,

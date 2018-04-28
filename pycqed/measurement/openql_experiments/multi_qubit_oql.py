@@ -1366,6 +1366,57 @@ def partial_tomography_cardinal(q0: int, q1: int, cardinal: int, platf_cfg: str,
     p.output_dir = ql.get_output_dir()
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
+def two_qubit_least_squares_noise(q0: int, q1: int, state: int, platf_cfg: str,
+                       precompiled_flux: bool=True,
+                       cal_points: bool=True, second_CZ_delay: int=260,
+                       CZ_duration: int=260,
+                       add_echo_pulses: bool=False):
+    """
+    Tomography sequence for Grover's algorithm.
+
+        cardinal: int denoting cardinal state prepared.
+    """
+    nr_segments = 100
+    if not precompiled_flux:
+        raise NotImplementedError('Currently only precompiled flux pulses '
+                                  'are supported.')
+
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="two_qubit_least_squares_noise_seq",
+                nqubits=platf.get_qubit_number(), p=platf)
+
+    prep_gates = [('i','i'),('i','rx180'),('rx180','i'),('rx180','rx180'),
+        ('ry90','ry90'),('ry90','rym90'),('rym90','ry90'),('rym90','rym90')]
+
+    idx_state = state
+
+    #cardinal_gates[]
+    #k.gate(string_of_the_gate, integer_from_qubit)
+
+    #strings denoting the gates
+    SP0 = prep_gates[idx_state][0]
+    SP1 = prep_gates[idx_state][1]
+    for i in np.arange(nr_segments):
+        k = Kernel('LS_{}_segment_{}'.format(state,i),
+                   p=platf)
+
+        k.prepz(q0)
+        k.prepz(q1)
+
+        # Cardinal state preparation
+        k.gate(SP0, q0)
+        k.gate(SP1, q1)
+        # tomo pulses
+        #to be taken from list of tuples
+        k.measure(q0)
+        k.measure(q1)
+        k.gate('wait', [2, 0], 0)
+        p.add_kernel(k)
+    with suppress_stdout():
+        p.compile()
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
 
 
 def two_qubit_VQE(q0: int, q1: int, platf_cfg: str):
@@ -1376,6 +1427,58 @@ def two_qubit_VQE(q0: int, q1: int, platf_cfg: str):
         q0, q1          (int) : target qubits for the sequence
     '''
     tomo_pulses = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
+    tomo_list_q0 = tomo_pulses
+    tomo_list_q1 = tomo_pulses
+
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="VQE_full_tomo",
+                nqubits=platf.get_qubit_number(), p=platf)
+
+    # Tomography pulses
+    i = 0
+    for p_q1 in tomo_list_q1:
+        for p_q0 in tomo_list_q0:
+            i += 1
+            kernel_name = '{}_{}_{}'.format(i, p_q0, p_q1)
+            k = Kernel(kernel_name, p=platf)
+            k.prepz(q0)
+            k.prepz(q1)
+            k.gate('rY180', q0) #Y180 gate without compilation
+            k.gate('i', q1) #Y180 gate without compilation
+            k.gate("wait", [q1], 40)
+            k.gate('fl_cw_02', 2, 0)
+            k.gate("wait", [q1], 40)
+            k.gate(p_q0, q0) #compiled z gate+pre_rotation
+            k.gate(p_q1, q1) #pre_rotation
+            k.measure(q0)
+            k.measure(q1)
+            p.add_kernel(k)
+    # every calibration point is repeated 7 times. This is copied from the
+    # script for Tektronix driven qubits. I do not know if this repetition
+    # is important or even necessary here.
+    p = add_two_q_cal_points(p, platf=platf, q0=q1, q1=q0, reps_per_cal_pt=7)
+    with suppress_stdout():
+        p.compile()
+    # attribute is added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
+
+
+def two_qubit_VQE_partial(q0: int, q1: int, platf_cfg: str):
+    '''
+    VQE tomography for two qubits.
+    Args:
+        cardinal        (int) : index of prep gate
+        q0, q1          (int) : target qubits for the sequence
+    '''
+    # not finished!
+    tomo_pulses = [['i','i'],
+                   ['rx180'],
+                   ['ry90'],
+                   ['rym90'],
+                   ['rx90'],
+                   ['rxm90']]
     tomo_list_q0 = tomo_pulses
     tomo_list_q1 = tomo_pulses
 

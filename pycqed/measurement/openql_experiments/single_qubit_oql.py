@@ -424,11 +424,13 @@ def off_on(qubit_idx: int, pulse_comb: str, initialize: bool, platf_cfg: str):
     p = Program(pname="OffOn_RO_sequence", nqubits=platf.get_qubit_number(),
                 p=platf)
     # # Off
+    waitnanoseconds = 20
     if 'off' in pulse_comb.lower():
         k = Kernel("off", p=platf)
         k.prepz(qubit_idx)
         if initialize:
             k.measure(qubit_idx)
+        k.gate("wait", [qubit_idx], waitnanoseconds)
         k.measure(qubit_idx)
         p.add_kernel(k)
 
