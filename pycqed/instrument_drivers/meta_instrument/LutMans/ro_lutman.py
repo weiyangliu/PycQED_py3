@@ -5,7 +5,6 @@ from qcodes.utils import validators as vals
 import numpy as np
 import copy as copy
 
-
 class Base_RO_LutMan(Base_LutMan):
 
     def __init__(self, name, num_res=2, feedline_number: int=0,**kw):
@@ -26,11 +25,12 @@ class Base_RO_LutMan(Base_LutMan):
 
     def _add_waveform_parameters(self):
         # mixer corrections are done globally, can be specified per resonator
-        self.add_parameter('mixer_apply_predistortion_matrix',
+        # pulse parameters
+        self.add_parameter('pulse_apply mixer_predistortion_matrix',
                            vals=vals.Bool(),
                            parameter_class=ManualParameter,
                            initial_value=False)
-        self.add_parameter('gaussian_convolution',
+        self.add_parameter('pulse_apply_gaussian_convolution',
                            vals=vals.Bool(),
                            parameter_class=ManualParameter,
                            initial_value=False)
@@ -198,8 +198,7 @@ class Base_RO_LutMan(Base_LutMan):
                               np.concatenate((M_up[1], M_down0[1], M_down1[1])))
             res_wave_dict['M_up_down_down_R{}'.format(res)] = M_up_down_down
 
-            ## pulse with up, down, down depletion with an additional final
-            ## strong measurement at some delay
+            ## 3-step RO pulse with an additional final measurement at a delay
             M_final = self.add_pulse(self.get('M_final_amp_R{}'.format(res)),
                                self.get('M_final_length_R{}'.format(res)),  # ns
                                delay=self.get('M_final_delay_R{}'.format(res)),
@@ -214,8 +213,6 @@ class Base_RO_LutMan(Base_LutMan):
                 for key, val in res_wave_dict.items():
                     M_conv0 = np.convolve(val[0], norm_gauss_p)
                     M_conv1 = np.convolve(val[1], norm_gauss_p)
-                    #M_conv0 = M_conv0[hgsl: -hgsl+1]
-                    #M_conv1 = M_conv1[hgsl: -hgsl+1]
                     res_wave_dict[key] = (M_conv0/sampling_rate, M_conv1/sampling_rate)
 
             # 3. modulation with base frequency
