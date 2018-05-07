@@ -184,14 +184,14 @@ class Base_MW_LutMan(Base_LutMan):
             wave_dict[key] = np.dot(M, val)
         return wave_dict
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         if regenerate_waveforms:
             self.generate_standard_waveforms()
         waveforms = self._wave_dict[waveform_name]
         codewords = self.LutMap()[waveform_name]
         for waveform, cw in zip(waveforms, codewords):
-            self.AWG.get_instr().set(cw, waveform)
+            self.instr.get_instr().set(cw, waveform)
 
 
 class CBox_MW_LutMan(Base_MW_LutMan):
@@ -204,16 +204,16 @@ class CBox_MW_LutMan(Base_MW_LutMan):
         self.add_parameter('awg_nr', parameter_class=ManualParameter,
                            initial_value=0, vals=vals.Numbers(0, 2))
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         if regenerate_waveforms:
             self.generate_standard_waveforms()
         I_wave, Q_wave = self._wave_dict[waveform_name]
         codeword = self.LutMap()[waveform_name]
 
-        self.AWG.get_instr().set_awg_lookuptable(self.awg_nr(),
+        self.instr.get_instr().set_awg_lookuptable(self.awg_nr(),
                                                  codeword, 0, I_wave)
-        self.AWG.get_instr().set_awg_lookuptable(self.awg_nr(),
+        self.instr.get_instr().set_awg_lookuptable(self.awg_nr(),
                                                  codeword, 1, Q_wave)
 
     def set_default_lutmap(self):
@@ -247,14 +247,14 @@ class QWG_MW_LutMan(Base_MW_LutMan):
                                       'wave reloading. Should not be using VSM'))
 
     def _set_channel_amp(self, val):
-        AWG = self.AWG.get_instr()
-        AWG.set('ch{}_amp'.format(self.channel_I()), val)
-        AWG.set('ch{}_amp'.format(self.channel_Q()), val)
+        instr = self.instr.get_instr()
+        instr.set('ch{}_amp'.format(self.channel_I()), val)
+        instr.set('ch{}_amp'.format(self.channel_Q()), val)
 
     def _get_channel_amp(self):
-        AWG = self.AWG.get_instr()
-        val_I = AWG.get('ch{}_amp'.format(self.channel_I()))
-        val_Q = AWG.get('ch{}_amp'.format(self.channel_Q()))
+        instr = self.instr.get_instr()
+        val_I = instr.get('ch{}_amp'.format(self.channel_I()))
+        val_Q = instr.get('ch{}_amp'.format(self.channel_Q()))
         assert val_Q == val_I
         return val_I
 
@@ -277,24 +277,24 @@ class AWG8_MW_LutMan(Base_MW_LutMan):
                                       'wave reloading. Should not be using VSM'))
 
     def _set_channel_amp(self, val):
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         for awg_ch in [self.channel_I(), self.channel_Q()]:
             awg_nr = (awg_ch-1)//2
             ch_pair = (awg_ch-1) % 2
-            AWG.set('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair), val)
+            instr.set('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair), val)
 
     def _get_channel_amp(self):
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         vals = []
         for awg_ch in [self.channel_I(), self.channel_Q()]:
             awg_nr = (awg_ch-1)//2
             ch_pair = (awg_ch-1) % 2
             vals.append(
-                AWG.get('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair)))
+                instr.get('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair)))
         assert vals[0] == vals[1]
         return vals[0]
 
-    def load_waveforms_onto_AWG_lookuptable(
+    def load_waveforms_onto_instr_lookuptable(
             self, regenerate_waveforms: bool=True, stop_start: bool = True):
         """
         Loads all waveforms specified in the LutMap to an AWG.
@@ -304,14 +304,14 @@ class AWG8_MW_LutMan(Base_MW_LutMan):
                 generate_standard_waveforms before uploading.
             stop_start           (bool): if True stops and starts the AWG.
         """
-        super().load_waveforms_onto_AWG_lookuptable(
+        super().load_waveforms_onto_instr_lookuptable(
             regenerate_waveforms=regenerate_waveforms,
             stop_start=stop_start)
         # Uploading the codeword program (again) is needed to link the new
         # waveforms.
         # the False prevents reconfiguring the DIO timings. This
         # needs to be fixed in the AWG8 driver (MAR Oct 2017)
-        self.AWG.get_instr().upload_codeword_program()
+        self.instr.get_instr().upload_codeword_program()
 
 
 class AWG8_VSM_MW_LutMan(AWG8_MW_LutMan):
@@ -361,22 +361,22 @@ class AWG8_VSM_MW_LutMan(AWG8_MW_LutMan):
                                       'wave reloading. Should not be using VSM'))
 
     def _set_channel_amp(self, val):
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         for awg_ch in [self.channel_GI(), self.channel_GQ(),
                        self.channel_DI(), self.channel_DQ()]:
             awg_nr = (awg_ch-1)//2
             ch_pair = (awg_ch-1) % 2
-            AWG.set('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair), val)
+            instr.set('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair), val)
 
     def _get_channel_amp(self):
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         vals = []
         for awg_ch in [self.channel_GI(), self.channel_GQ(),
                        self.channel_DI(), self.channel_DQ()]:
             awg_nr = (awg_ch-1)//2
             ch_pair = (awg_ch-1) % 2
             vals.append(
-                AWG.get('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair)))
+                instr.get('awgs_{}_outputs_{}_amplitude'.format(awg_nr, ch_pair)))
         assert vals[0] == vals[1] == vals[2] == vals[3]
         return vals[0]
 
@@ -551,7 +551,7 @@ class QWG_MW_LutMan_VQE(QWG_MW_LutMan):
                 self._wave_dict)
         return self._wave_dict
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         if regenerate_waveforms:
             self.generate_standard_waveforms()
@@ -570,29 +570,29 @@ class QWG_MW_LutMan_VQE(QWG_MW_LutMan):
         for redundant_cw_idx in redundant_cw_list:
             redundant_cw_I = 'wave_ch{}_cw{:03}'.format(self.channel_I(),
                                                         redundant_cw_idx)
-            self.AWG.get_instr().set(redundant_cw_I, waveforms[0])
+            self.instr.get_instr().set(redundant_cw_I, waveforms[0])
             redundant_cw_Q = 'wave_ch{}_cw{:03}'.format(self.channel_Q(),
                                                         redundant_cw_idx)
-            self.AWG.get_instr().set(redundant_cw_Q, waveforms[1])
+            self.instr.get_instr().set(redundant_cw_Q, waveforms[1])
 
 
 # Not the cleanest inheritance but whatever - MAR Nov 2017
 class QWG_VSM_MW_LutMan(AWG8_VSM_MW_LutMan):
 
-    def load_waveforms_onto_AWG_lookuptable(
+    def load_waveforms_onto_instr_lookuptable(
             self, regenerate_waveforms: bool=True,  stop_start: bool = True):
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         if self.cfg_sideband_mode() == 'real-time':
-            AWG.ch_pair1_sideband_frequency(self.mw_modulation())
-            AWG.ch_pair3_sideband_frequency(self.mw_modulation())
+            instr.ch_pair1_sideband_frequency(self.mw_modulation())
+            instr.ch_pair3_sideband_frequency(self.mw_modulation())
         else:
-            AWG.ch_pair1_sideband_frequency(0)
-            AWG.ch_pair3_sideband_frequency(0)
+            instr.ch_pair1_sideband_frequency(0)
+            instr.ch_pair3_sideband_frequency(0)
 
         for ch in range(1, 5):
             # ensures amplitude specified is in
-            AWG.set('ch{}_amp'.format(ch), 1)
-        return Base_MW_LutMan.load_waveforms_onto_AWG_lookuptable(
+            instr.set('ch{}_amp'.format(ch), 1)
+        return Base_MW_LutMan.load_waveforms_onto_instr_lookuptable(
             self=self,
             regenerate_waveforms=regenerate_waveforms, stop_start=stop_start)
 

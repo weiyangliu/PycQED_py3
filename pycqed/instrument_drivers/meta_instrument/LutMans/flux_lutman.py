@@ -183,18 +183,18 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
 
         N.B. the implementation is specific to this type of AWG
         """
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
 
         awg_ch = self.cfg_awg_channel()-1  # -1 is to account for starting at 1
         awg_nr = awg_ch//2
         ch_pair = awg_ch % 2
 
-        channel_amp = AWG.get('awgs_{}_outputs_{}_amplitude'.format(
+        channel_amp = instr.get('awgs_{}_outputs_{}_amplitude'.format(
             awg_nr, ch_pair))
 
         # channel range of 5 corresponds to -2.5V to +2.5V
-        channel_range_pp = AWG.get('sigouts_{}_range'.format(awg_ch))
-        # direct_mode = AWG.get('sigouts_{}_direct'.format(awg_ch))
+        channel_range_pp = instr.get('sigouts_{}_range'.format(awg_ch))
+        # direct_mode = instr.get('sigouts_{}_direct'.format(awg_ch))
         scale_factor = channel_amp*(channel_range_pp/2)
         return scale_factor
 
@@ -354,7 +354,7 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
         """
         self._wave_dict = {}
         # N.B. the  naming convention ._gen_{waveform_name} must be preserved
-        # as it is used in the load_waveform_onto_AWG_lookuptable method.
+        # as it is used in the load_waveform_onto_instr_lookuptable method.
         self._wave_dict['i'] = self._gen_i()
         self._wave_dict['square'] = self._gen_square()
         self._wave_dict['park'] = self._gen_park()
@@ -627,7 +627,7 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
         # CZ with phase correction
         return waveform
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         """
         Loads a specific waveform to the AWG
@@ -646,9 +646,9 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
         if self.cfg_distort():
             waveform = self.distort_waveform(waveform)
             self._wave_dict_dist[waveform_name] = waveform
-        self.AWG.get_instr().set(codeword, waveform)
+        self.instr.get_instr().set(codeword, waveform)
 
-    def load_composite_waveform_onto_AWG_lookuptable(
+    def load_composite_waveform_onto_instr_lookuptable(
         self,
             primitive_waveform_name: str,
             time_tuples: list,
@@ -674,7 +674,7 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
         if self.cfg_distort():
             waveform = self.distort_waveform(waveform)
             self._wave_dict_dist[waveform_name] = waveform
-        self.AWG.get_instr().set(codeword, waveform)
+        self.instr.get_instr().set(codeword, waveform)
 
     def load_waveform_realtime(self, waveform_name: str,
                                other_waveform=None):
@@ -714,7 +714,7 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
             waveforms = (other_waveform, waveform)
 
         # wf_nr = 1 is the assumption of only a sinlge waveform in the program
-        self.AWG.get_instr().upload_waveform_realtime(
+        self.instr.get_instr().upload_waveform_realtime(
             w0=waveforms[0], w1=waveforms[1], awg_nr=awg_nr, wf_nr=1)
 
     def add_compensation_pulses(self, waveform):
@@ -801,7 +801,7 @@ class AWG8_Flux_LutMan(Base_Flux_LutMan):
             color='C1', alpha=0.25)
 
         title = ('Calibration visualization\n{}\nchannel {}'.format(
-            self.AWG(), self.cfg_awg_channel()))
+            self.instr(), self.cfg_awg_channel()))
         if plot_cz_trajectory:
             self.plot_cz_trajectory(ax=ax, show=False)
         leg = ax.legend(title=title, loc=(1.05, .7))
@@ -837,10 +837,10 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
                            vals=vals.Bool(),
                            parameter_class=ManualParameter)
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         """
-        Loads a specific waveform to the AWG
+        Loads a specific waveform to the instr
         """
         if regenerate_waveforms:
             # only regenerate the one waveform that is desired
@@ -856,9 +856,9 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
         if self.cfg_distort():
             waveform = self.distort_waveform(waveform)
             self._wave_dict_dist[waveform_name] = waveform
-        self.AWG.get_instr().stop()
-        self.AWG.get_instr().set(codeword, waveform)
-        self.AWG.get_instr().start()
+        self.instr.get_instr().stop()
+        self.instr.get_instr().set(codeword, waveform)
+        self.instr.get_instr().start()
 
     def distort_waveform(self, waveform):
         """
@@ -916,9 +916,9 @@ class QWG_Flux_LutMan(AWG8_Flux_LutMan):
 
         N.B. the implementation is specific to this type of AWG (QWG)
         """
-        AWG = self.AWG.get_instr()
+        instr = self.instr.get_instr()
         awg_ch = self.cfg_awg_channel()
 
-        channel_amp = AWG.get('ch{}_amp'.format(awg_ch))
+        channel_amp = instr.get('ch{}_amp'.format(awg_ch))
         scale_factor = channel_amp
         return scale_factor

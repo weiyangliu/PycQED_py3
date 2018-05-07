@@ -276,7 +276,7 @@ class UHFQC_RO_LutMan(Base_RO_LutMan):
                          self._voltage_min, self._voltage_max)
         Q_wave = np.clip(wave_dict[pulse_name][1], self._voltage_min,
                          self._voltage_max)
-        self.AWG.get_instr().awg_sequence_acquisition_and_pulse(
+        self.instr.get_instr().awg_sequence_acquisition_and_pulse(
             I_wave, Q_wave, self.acquisition_delay())
 
     def load_DIO_triggered_sequence_onto_UHFQC(self,
@@ -330,15 +330,15 @@ class UHFQC_RO_LutMan(Base_RO_LutMan):
             Q_waves[i] = np.clip(Q_waves[i], self._voltage_min,
                                  self._voltage_max)
 
-        self.AWG.get_instr().awg_sequence_acquisition_and_DIO_triggered_pulse(
+        self.instr.get_instr().awg_sequence_acquisition_and_DIO_triggered_pulse(
             I_waves, Q_waves, cases, self.acquisition_delay(), timeout=timeout)
 
     def set_mixer_offsets(self):
-        UHFQC = self.AWG.get_instr()
+        UHFQC = self.instr.get_instr()
         UHFQC.sigouts_0_offset(self.mixer_offs_I())
         UHFQC.sigouts_1_offset(self.mixer_offs_Q())
 
-    def load_waveforms_onto_AWG_lookuptable(
+    def load_waveforms_onto_instr_lookuptable(
             self, regenerate_waveforms: bool=True,
             stop_start: bool = True):
         raise NotImplementedError(
