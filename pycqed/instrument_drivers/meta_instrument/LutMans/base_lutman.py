@@ -33,11 +33,11 @@ class Base_LutMan(Instrument):
     def __init__(self, name, **kw):
         logging.info(__name__ + ' : Initializing instrument')
         super().__init__(name, **kw)
-        # FIXME: rename to instr_AWG to be consistent with other instr refs
+        # FIXME: rename to instr to be consistent with other instr refs
         self.add_parameter(
-            'AWG', parameter_class=InstrumentRefParameter, docstring=(
-                "Name of the AWG instrument used, note that this can also be "
-                "a UHFQC or a CBox as these also contain AWG's"),
+            'instr', parameter_class=instrumentRefParameter, docstring=(
+                "Name of the AWG or acquisition instrument used, note that this can also be "
+                "a UHFQC or a CBox as these also contain instr's"),
             vals=vals.Strings())
         self._add_cfg_parameters()
         self._add_waveform_parameters()
@@ -90,14 +90,14 @@ class Base_LutMan(Instrument):
         """
         raise NotImplementedError()
 
-    def load_waveform_onto_AWG_lookuptable(self, waveform_name: str,
+    def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         """
         Loads a specific waveform to the AWG
         """
         raise NotImplementedError()
 
-    def load_waveforms_onto_AWG_lookuptable(
+    def load_waveforms_onto_instr_lookuptable(
             self, regenerate_waveforms: bool=True, stop_start: bool = True):
         """
         Loads all waveforms specified in the LutMap to an AWG.
@@ -107,7 +107,7 @@ class Base_LutMan(Instrument):
                 generate_standard_waveforms before uploading.
             stop_start           (bool): if True stops and starts the AWG.
         """
-        AWG = self.AWG.get_instr()
+        instr = self.AWG.get_instr()
 
         if stop_start:
             AWG.stop()
