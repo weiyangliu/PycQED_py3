@@ -587,7 +587,7 @@ class CCLight_Transmon(Qubit):
 
         else:
             ro_lm = self.instr_LutMan_RO.get_instr()
-            ro_lm.AWG(self.instr_acquisition())
+            ro_lm.instr(self.instr_acquisition())
 
             idx = self.cfg_qubit_nr()
             # These parameters affect all resonators
@@ -620,9 +620,11 @@ class CCLight_Transmon(Qubit):
             ro_lm.acquisition_delay(self.ro_acq_delay())
             if upload:
                 ro_lm.load_DIO_triggered_sequence_onto_UHFQC()
+            #setting the pulse mixer offsets
+            ro_lm.mixer_offs_I(self.ro_pulse_mixer_offs_I())
+            ro_lm.mixer_offs_Q(self.ro_pulse_mixer_offs_Q())
+            ro_lm.set_mixer_offsets()
 
-            UHFQC.sigouts_0_offset(self.ro_pulse_mixer_offs_I())
-            UHFQC.sigouts_1_offset(self.ro_pulse_mixer_offs_Q())
 
     def prepare_for_timedomain(self):
         self.prepare_readout()
@@ -643,7 +645,7 @@ class CCLight_Transmon(Qubit):
     def _prep_mw_pulses(self):
         # 1. Gets instruments and prepares cases
         MW_LutMan = self.instr_LutMan_MW.get_instr()
-        AWG = MW_LutMan.AWG.get_instr()
+        AWG = MW_LutMan.instr.get_instr()
         do_prepare = self.cfg_prepare_mw_awg()
         using_QWG = (AWG.__class__.__name__ == 'QuTech_AWG_Module')
         using_VSM = self.cfg_with_vsm()

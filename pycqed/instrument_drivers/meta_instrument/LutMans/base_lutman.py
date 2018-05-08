@@ -16,7 +16,7 @@ class Base_LutMan(Instrument):
     The base LutMan is an abstract base class for the individual LutMans.
     The idea of the Lookuptable Manager (LutMan) is to provide a convenient
     interface to manage the waveforms loaded on specific lookuptables in
-    an AWG.
+    an instr.
 
     The LutMan provides
         - A set of basic waveforms that are generated based on
@@ -35,7 +35,7 @@ class Base_LutMan(Instrument):
         super().__init__(name, **kw)
         # FIXME: rename to instr to be consistent with other instr refs
         self.add_parameter(
-            'instr', parameter_class=instrumentRefParameter, docstring=(
+            'instr', parameter_class=InstrumentRefParameter, docstring=(
                 "Name of the AWG or acquisition instrument used, note that this can also be "
                 "a UHFQC or a CBox as these also contain instr's"),
             vals=vals.Strings())
@@ -93,32 +93,32 @@ class Base_LutMan(Instrument):
     def load_waveform_onto_instr_lookuptable(self, waveform_name: str,
                                            regenerate_waveforms: bool=False):
         """
-        Loads a specific waveform to the AWG
+        Loads a specific waveform to the instruments
         """
         raise NotImplementedError()
 
     def load_waveforms_onto_instr_lookuptable(
             self, regenerate_waveforms: bool=True, stop_start: bool = True):
         """
-        Loads all waveforms specified in the LutMap to an AWG.
+        Loads all waveforms specified in the LutMap to an instr.
 
         Args:
             regenerate_waveforms (bool): if True calls
                 generate_standard_waveforms before uploading.
-            stop_start           (bool): if True stops and starts the AWG.
+            stop_start           (bool): if True stops and starts the instr.
         """
-        instr = self.AWG.get_instr()
+        instr = self.instr.get_instr()
 
         if stop_start:
-            AWG.stop()
+            instr.stop()
         if regenerate_waveforms:
             self.generate_standard_waveforms()
 
         for waveform_name, lookuptable in self.LutMap().items():
-            self.load_waveform_onto_AWG_lookuptable(waveform_name)
+            self.load_waveform_onto_instrument_lookuptable(waveform_name)
 
         if stop_start:
-            AWG.start()
+            instr.start()
 
     def render_wave(self, wave_name, show=True, time_units='lut_index',
                     reload_pulses=True):

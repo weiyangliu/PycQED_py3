@@ -6,8 +6,6 @@ import numpy as np
 import copy as copy
 from pycqed.measurement import detector_functions as det
 
-
-
 class Base_Acq_LutMan(Base_LutMan):
 	    def __init__(self, name, num_res=2, feedline_number: int=0,**kw):
         self.add_parameter('weight_nr_samples', unit='samples', vals=vals.Ints(0,2**20), #taking arbitrarily large max val
@@ -91,6 +89,22 @@ class Base_Acq_LutMan(Base_LutMan):
 	        sin = np.array(np.sin(2*np.pi*IF*tbase))
 	        self._wave_dict['R{}_cos'.format(res)] = cos
 	        self._wave_dict['R{}_sin'.format(res)] = sin
+
+	def get_input_average_detector(self, CC, qubit_nr,  **kw):
+    	self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)
+        return self._input_average_detector
+
+    def get_int_avg_det(self, CC, qubit_nr, **kw):
+    	self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr) 
+    	return self._int_avg_det
+
+    def get_int_avg_det_single(self, CC, qubit_nr, **kw):
+    	self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)  
+        return self._int_avg_det_single
+
+    def get_int_log_det(self, CC, qubit_nr, **kw):
+    	self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)  
+        return self._int_log_det
 
 
 class UHFQC_Acq_LutMan(Base_Acq_LutMan):
@@ -177,7 +191,6 @@ class UHFQC_Acq_LutMan(Base_Acq_LutMan):
    		if self.weight_type() == 'optimal':
             ro_channels = [weight_I_channel]
             result_logging_mode = 'lin_trans'
-
             if self.digitized():
                 result_logging_mode = 'digitized'
             # The threshold that is set in the hardware  needs to be
@@ -191,33 +204,20 @@ class UHFQC_Acq_LutMan(Base_Acq_LutMan):
         else:
             ro_channels = [weight_I_channel, weight_Q_channel]
             result_logging_mode = 'raw'
-
-        return True 
-
-    def get_input_average_detector(self, prepare=True, **kw):
-    	if prepare: 
-    		self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)  
-        return det.UHFQC_input_average_detector(
+        self._input_avg_det = det.UHFQC_input_average_detector(
             UHFQC=UHFQC,
             AWG=CC,
             nr_averages=self.averages(),
-            nr_samples=self.weight_nr_samples(), **kw)
-
-    def get_int_avg_det(self, prepare=True, **kw):
-    	if prepare: 
-    		self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr) 
-    	return det.UHFQC_integrated_average_detector(
+            nr_samples=self.weight_nr_samples(), 
+            **kw)
+        self._int_avg_det = det._UHFQC_integrated_average_detector(
         	UHFQC=UHFQC,
         	AWG=CC,
             channels=ro_channels,
             result_logging_mode=result_logging_mode,
             nr_averages=self.averages(),
             integration_length=self.integration_length(), **kw)
-
-    def get_int_avg_det_single(self, prepare=True, **kw):
-    	if prepare: 
-    		self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)  
-        return det.UHFQC_integrated_average_detector(
+         self._int_avg_det_single = det.UHFQC_integrated_average_detector(
             UHFQC=UHFQC, 
             AWG=CC,
             channels=ro_channels,
@@ -225,16 +225,14 @@ class UHFQC_Acq_LutMan(Base_Acq_LutMan):
             nr_averages=self.averages(),
             real_imag=True, single_int_avg=True,
             integration_length=self.integration_length(), **kw)
-
-    def get_int_log_det(self, prepare=True, **kw):
-    	if prepare: 
-    		self.prepare_single_qubit_detectors(CC=CC, qubit_nr=qubit_nr)  
-        return det.UHFQC_integration_logging_det(
+         self._int_log_det = det.UHFQC_integration_logging_det(
             UHFQC=UHFQC, 
             AWG=CC,
             channels=ro_channels,
             result_logging_mode=result_logging_mode,
             integration_length=self.integration_length(), **kw)
+
+
 
 
 
