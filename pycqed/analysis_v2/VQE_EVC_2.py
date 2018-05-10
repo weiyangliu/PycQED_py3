@@ -135,11 +135,11 @@ class ExpectationValueCalculation:
         measurement_ch_average_3[5] = (measurement_channel_3[6] + measurement_channel_3[7])/2
 
         # measurements_tomo is a len 24 array
-        measurements_tomo = np.array([measurement_ch_average_1,
+        self.measurements_tomo = np.array([measurement_ch_average_1,
                                       measurement_ch_average_2,
                                       measurement_ch_average_3]).flatten()
 
-        measurements_cal = np.array([h1_00, h1_01, h1_10, h1_11, h2_00, h2_01, h2_10, h2_11, h12_00, h12_01, h12_10, h12_11]).flatten()
+        self.measurements_cal = np.array([h1_00, h1_01, h1_10, h1_11, h2_00, h2_01, h2_10, h2_11, h12_00, h12_01, h12_10, h12_11]).flatten()
 
         self.plot_TV_mode(avg_h1, avg_h2, avg_h12)
 
@@ -175,6 +175,9 @@ class ExpectationValueCalculation:
         betas[8:] = np.dot(np.linalg.inv(cal_matrix),
                            self.measurements_cal[8:12])
         self.betas_pp = betas[8:]
+        #statement to plot betas
+        #do not plot beta_II if it is close to zero
+
         return betas
 
     def assemble_M_matrix_single_block(self, beta_array):

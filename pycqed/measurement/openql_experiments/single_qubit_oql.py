@@ -297,9 +297,10 @@ def echo(times, qubit_idx: int, platf_cfg: str):
         k.prepz(qubit_idx)
         # nr_clocks = int(time/20e-9/2)
         wait_nanoseconds = int(round(time/1e-9/2))
+        print(wait_nanoseconds)
         k.gate('rx90', qubit_idx)
         k.gate("wait", [qubit_idx], wait_nanoseconds)
-        k.gate('rx180', qubit_idx)
+        # k.gate('rx180', qubit_idx)
         k.gate("wait", [qubit_idx], wait_nanoseconds)
         k.gate('rx90', qubit_idx)
         k.measure(qubit_idx)
@@ -831,3 +832,85 @@ def FastFeedbackControl(lantecy, qubit_idx: int, platf_cfg: str):
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
+
+def Ramsey_artificial_det(times, qubit_idx: int, platf_cfg: str):
+    """
+    Single qubit Ramsey sequence.
+    Writes output files to the directory specified in openql.
+    Output directory is set as an attribute to the program for convenience.
+
+    Input pars:
+        times:          the list of waiting times for each Ramsey element
+        qubit_idx:      int specifying the target qubit (starting at 0)
+        platf_cfg:      filename of the platform config file
+    Returns:
+        p:              OpenQL Program object containing
+
+    """
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="Ramsey", nqubits=platf.get_qubit_number(),
+                p=platf)
+
+    for i, time in enumerate(times[:-4]):
+        # this assumes 0 and 1 waveforms are allocating I and X180
+        # and from 2 onwards we allocate the rest.
+        cw_idx = 3 + i % 10 # every 10 segments we do a cycle.
+        k = Kernel("Ramsey_"+str(i), p=platf)
+        k.prepz(qubit_idx)
+        wait_nanoseconds = int(round(time/1e-9))
+        k.gate('cw_02', qubit_idx)
+        k.gate("wait", [qubit_idx], wait_nanoseconds)
+        k.gate('cw_{:02}'.format(cw_idx), qubit_idx)
+        k.measure(qubit_idx)
+        p.add_kernel(k)
+
+    # adding the calibration points
+    add_single_qubit_cal_points(p, platf=platf, qubit_idx=qubit_idx)
+
+    with suppress_stdout():
+        p.compile(verbose=False)
+    # attribute get's added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
+
+def Echo_artificial_det(times, qubit_idx: int, platf_cfg: str):
+    """
+    Single qubit Ramsey sequence.
+    Writes output files to the directory specified in openql.
+    Output directory is set as an attribute to the program for convenience.
+
+    Input pars:
+        times:          the list of waiting times for each Ramsey element
+        qubit_idx:      int specifying the target qubit (starting at 0)
+        platf_cfg:      filename of the platform config file
+    Returns:
+        p:              OpenQL Program object containing
+
+    """
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="Ramsey", nqubits=platf.get_qubit_number(),
+                p=platf)
+
+    for i, time in enumerate(times[:-4]):
+        cw_idx = 2 + i % 10 # every 10 segments we do a cycle.
+        k = Kernel("Ramsey_"+str(i), p=platf)
+        k.prepz(qubit_idx)
+        wait_nanoseconds = int(round(time/1e-9/2))
+        k.gate('cw_02', qubit_idx)
+        k.gate("wait", [qubit_idx], wait_nanoseconds)
+        k.gate('cw_01', qubit_idx)
+        k.gate("wait", [qubit_idx], wait_nanoseconds)
+        k.gate('cw_{:02}'.format(cw_idx), qubit_idx)
+        k.measure(qubit_idx)
+        p.add_kernel(k)
+
+    # adding the calibration points
+    add_single_qubit_cal_points(p, platf=platf, qubit_idx=qubit_idx)
+
+    with suppress_stdout():
+        p.compile(verbose=False)
+    # attribute get's added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p

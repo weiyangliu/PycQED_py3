@@ -368,11 +368,13 @@ class TomoAnalysis_JointRO():
         n_rotations = len(self.rotation_matrixes) ** self.n_qubits
         # Now fill in 2 ** self.n_qubits betas into the coefficient matrix on
         # each row
+        print('########### BETAS ###########')
         for quadrature in range(self.n_quadratures):
             # calibrate betas for this quadrature
             self.betas = self._calibrate_betas(
                 self.measurements_cal[quadrature * self.n_states:
                                       (1 + quadrature) * self.n_states])
+            print('beta_{}'.format(quadrature),self.betas)
             for rotation_index in range(n_rotations):
                 for beta_index in range(2 ** self.n_qubits):
                     (place, sign) = self._get_basis_index_from_rotation(
@@ -837,18 +839,33 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         # plt.show()
 
         # Substract avg of all traces
-
+        # avg is what would be beta0 (first column of the inverse beta matrix
         mean_h1 = (h1_00+h1_10+h1_01+h1_11)/4
         mean_h2 = (h2_00+h2_01+h2_10+h2_11)/4
         mean_h12 = (h12_00+h12_11+h12_01+h12_10)/4
+        # print('########### OFFSETS ###########')
+        # print('<H1>',mean_h1)
+        # print('<H2>',mean_h2)
+        # print('<H12>',mean_h12)
 
         avg_h1 -= mean_h1
         avg_h2 -= mean_h2
         avg_h12 -= mean_h12
 
+        # this implies h1 is MSQ; h2 is LSQ.
+        # notations is therefore h1,h2 ie 0,1 shorted as 01
+        """
         scale_h1 = (h1_00-h1_10+h1_01-h1_11)/4
         scale_h2 = (h2_00-h2_01+h2_10-h2_11)/4
         scale_h12 = (h12_00+h12_11-h12_01-h12_10)/4
+        """
+        scale_h1 = (h1_00+h1_01-h1_10-h1_11)/4
+        scale_h2 = (h2_00-h2_01+h2_10-h2_11)/4
+        scale_h12 = (h12_00-h12_01-h12_10+h12_11)/4
+        # print('########### SCALES ###########')
+        # print('H1',scale_h1)
+        # print('H2',scale_h2)
+        # print('H12',scale_h12)
 
         avg_h1 = (avg_h1)/scale_h1
         avg_h2 = (avg_h2)/scale_h2
@@ -891,6 +908,10 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         std_h12 = np.mean([std_h12_00, std_h12_01, std_h12_10, std_h12_11])
         std_arr = np.array([std_h1_00, std_h1_01, std_h1_10, std_h1_11, std_h2_00, std_h2_01,
                             std_h2_10, std_h2_11, std_h12_00, std_h12_01, std_h12_10, std_h12_11])
+        # print('########### STD ###########')
+        # print('STD 1',std_h1)
+        # print('STD 2',std_h2)
+        # print('STD 12',std_h12)
 
         # plt.plot([std_h1, std_h2, std_h12])
         # plt.plot(std_arr)
@@ -900,6 +921,10 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         avg_h1 *= fac/std_h1
         avg_h2 *= fac/std_h2
         avg_h12 *= fac/std_h12
+        # print('########### FACTORS ###########')
+        # print('factor 1',fac/std_h1)
+        # print('factor 2',fac/std_h2)
+        # print('factor 12',fac/std_h12)
 
         h1_00 = np.mean(avg_h1[36:36+7])
         h1_01 = np.mean(avg_h1[43:43+7])
@@ -1032,7 +1057,17 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
                          'angle_MSQ': np.rad2deg(self.fit_res.best_values['angle_MSQ']),
                          'LSQ_name': self.q0_label,
                          'MSQ_name': self.q1_label}
-
+        except Exception as e:
+            logging.warning(e)
+            pars_dict = {}
+        try:
+            op_string_vec = ['II', 'IZ', 'IX', 'IY',
+                             'ZI', 'ZZ', 'ZX', 'ZY',
+                             'XI', 'XZ', 'XX', 'XY',
+                             'YI', 'YZ', 'YX', 'YY']
+            for i, op in enumerate(self.operators):
+                pars_dict.update({op_string_vec[i]: op})
+            print('Saving expectation values')
             self.save_dict_to_analysis_group(pars_dict, 'tomography_results')
         # only works if MLE and target bell were specified
         except Exception as e:

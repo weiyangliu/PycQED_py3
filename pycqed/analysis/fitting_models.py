@@ -10,6 +10,22 @@ import logging
 #################################
 
 
+def ImagExpFunc(t, amplitude, frequency, phase, offset):
+    '''
+    Implements A* (Cos(2pi*f*t+p) + i*Sin(2pi*f*t+p)) + offset
+    parameters:
+        t, time in s
+        amplitude a.u.
+        frequency in Hz (f, not omega!)
+        phase in rad
+        offset a.u.
+    '''
+    l = len(t)
+    cos_part = amplitude * np.cos(2 * np.pi * frequency * t[::2] + phase) + offset
+    sin_part = amplitude * np.sin(2 * np.pi * frequency * t[1::2] + phase) + offset
+    return np.concatenate((cos_part,sin_part))
+
+
 def RandomizedBenchmarkingDecay(numCliff, Amplitude, p, offset):
     val = Amplitude * (p ** numCliff) + offset
     return val
@@ -782,6 +798,8 @@ def double_gauss_guess(model, data, x=None, **kwargs):
 # file, this prevents the model params having a memory.
 # A valid reason to define it here would beexp_dec_guess if you want to add a guess function
 CosModel = lmfit.Model(CosFunc)
+ImagExpModel = lmfit.Model(ImagExpFunc)
+
 CosModel.guess = Cos_guess
 
 ExpDecayModel = lmfit.Model(ExpDecayFunc)

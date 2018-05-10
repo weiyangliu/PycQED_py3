@@ -173,7 +173,7 @@ class CCLight_Transmon(Qubit):
                            vals=vals.Enum('SSB', 'DSB', 'optimal', 'optimal IQ'),
                            docstring=ro_acq_docstr,
                            parameter_class=ManualParameter)
-   
+
 
         self.add_parameter(
             'ro_acq_weight_chI', initial_value=0, docstring=(
@@ -1569,7 +1569,7 @@ class CCLight_Transmon(Qubit):
 
     def calibrate_optimal_weights(self, MC=None, verify: bool=True,
                                   analyze: bool=True, update: bool=True,
-                                  no_figs: bool=False, IQ: bool=False, 
+                                  no_figs: bool=False, IQ: bool=False,
                                   LO_switched_transients: bool=False)->bool:
         if MC is None:
             MC = self.instr_MC.get_instr()
@@ -2140,6 +2140,7 @@ class CCLight_Transmon(Qubit):
         if freq_qubit is None:
             freq_qubit = self.freq_qubit()
         # # this should have no effect if artificial detuning = 0
+        print(artificial_detuning)
         self.instr_LO_mw.get_instr().set(
             'frequency', freq_qubit -
             self.mw_freq_mod.get() + artificial_detuning)
