@@ -474,6 +474,7 @@ class DephasingAnalysis(ba.BaseDataAnalysis):
         self.proc_data_dict['phase'] = self.raw_data_dict['phase'][mask]
 
     def run_fitting(self):
+        #todo: this is not the way the v2 analysis is intended. Move to prepare_fitting
         self.fit_res = OrderedDict()
         self.fit_dicts['coherence_fit'] = OrderedDict()
         coherence = self.proc_data_dict['coherence']
