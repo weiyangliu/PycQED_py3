@@ -2033,9 +2033,9 @@ def two_qubit_VQE_locked_swapped(q0: int, q1: int, platf_cfg: str):
         k.gate("wait", [q1,q0], 0)
         k.gate('fl_cw_02', 2, 0)
         if i<36:
-            k.gate("wait", [q1,], 140)
+            k.gate("wait", [q1,q0], 140)
         else:
-            k.gate("wait", [q1,], 120)
+            k.gate("wait", [q1,q0], 120)
         k.gate(p_q0, q0) #compiled z gate+pre_rotation
         k.gate(p_q1, q1) #pre_rotation
         k.measure(q0)
