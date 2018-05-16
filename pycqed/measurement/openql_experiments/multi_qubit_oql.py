@@ -1909,7 +1909,7 @@ def two_qubit_VQE_locked(q0: int, q1: int, platf_cfg: str):
         q0 is red (tomography plot)
         q1 is blue (tomography plot)
     '''
-    buffer_time = 720
+    buffer_time = 720#+100
     num_repeat_cal = 7
     tomo_pulses = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
 
@@ -1939,8 +1939,8 @@ def two_qubit_VQE_locked(q0: int, q1: int, platf_cfg: str):
 
         if i<36:
             # init_pulse = 'cw_07'
-            init_pulse = 'rY180'
-            # init_pulse = 'rX90'
+            # init_pulse = 'rY180'
+            init_pulse = 'rX90'
         else:
             init_pulse = 'i'
 
@@ -1955,6 +1955,85 @@ def two_qubit_VQE_locked(q0: int, q1: int, platf_cfg: str):
         k.gate('fl_cw_02', 2, 0)
         if i<36:
             k.gate("wait", [q1,], 140)
+            # k.gate("wait", [q1,], 40)
+        else:
+            k.gate("wait", [q1,], 120)
+            # k.gate("wait", [q1,], 20)
+        k.gate(p_q0, q0) #compiled z gate+pre_rotation
+        k.gate(p_q1, q1) #pre_rotation
+        k.measure(q0)
+        k.measure(q1)
+        if i>35:
+            k.gate("wait", [q1,q0], 20)
+
+        p.add_kernel(k)
+
+    with suppress_stdout():
+        p.compile()
+    # attribute is added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
+
+
+def two_qubit_VQE_locked_swapped(q0: int, q1: int, platf_cfg: str):
+    '''
+    VQE tomography for two qubits.
+    Args:
+        cardinal        (int) : index of prep gate
+        q0, q1          (int) : target qubits for the sequence
+        NTOES FOR DEBUGGING
+        q1 is the qubit that gets fluxed, s0.
+        q0 is the qubit that does not get fluxed s2.
+        q0 is red (tomography plot)
+        q1 is blue (tomography plot)
+    '''
+    buffer_time = 700
+    num_repeat_cal = 7
+    tomo_pulses = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
+
+    tomo_pulses_q0 = tomo_pulses * 6
+    tomo_pulses_q0 += ['i'] * num_repeat_cal
+    tomo_pulses_q0 += ['rx180'] * num_repeat_cal
+    tomo_pulses_q0 += ['i'] * num_repeat_cal
+    tomo_pulses_q0 += ['rx180'] * num_repeat_cal
+
+    # tomo_pulses_q0 = list(itertools.chain(*[tomo_pulses_q0]))
+
+    tomo_pulses_q1 = [[t]*6 for t in tomo_pulses]
+    tomo_pulses_q1 += [['i'] * num_repeat_cal]
+    tomo_pulses_q1 += [['i'] * num_repeat_cal]
+    tomo_pulses_q1 += [['rx180'] * num_repeat_cal]
+    tomo_pulses_q1 += [['rx180'] * num_repeat_cal]
+    # dirty hack for list of lists
+    tomo_pulses_q1 = list(itertools.chain(*tomo_pulses_q1))
+
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="VQE_full_tomo_locked_swapped",
+                nqubits=platf.get_qubit_number(), p=platf)
+    for i in range(64):
+        # define what is going to go into the skeleton
+        p_q0 = tomo_pulses_q0[i]
+        p_q1 = tomo_pulses_q1[i]
+
+        if i<36:
+            # init_pulse = 'cw_07'
+            # init_pulse = 'rY180'
+            init_pulse = 'rX90'
+        else:
+            init_pulse = 'i'
+
+        # put everything into the seq skeleton
+        kernel_name = 'VQE_{}'.format(i)
+        k = Kernel(kernel_name, p=platf)
+        k.prepz(q0)
+        k.prepz(q1)
+        k.gate("wait", [q1,q0], buffer_time) # for fixed-point
+        k.gate(init_pulse, q1) #Y180 gate without compilation
+        k.gate("wait", [q1,q0], 0)
+        k.gate('fl_cw_02', 2, 0)
+        if i<36:
+            k.gate("wait", [q1,], 140)
         else:
             k.gate("wait", [q1,], 120)
         k.gate(p_q0, q0) #compiled z gate+pre_rotation
@@ -1963,7 +2042,6 @@ def two_qubit_VQE_locked(q0: int, q1: int, platf_cfg: str):
         k.measure(q1)
         if i>35:
             k.gate("wait", [q1,q0], 20)
-
         p.add_kernel(k)
 
     with suppress_stdout():
