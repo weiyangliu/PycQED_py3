@@ -503,6 +503,7 @@ class QWG_MW_LutMan_VQE(QWG_MW_LutMan):
             f_modulation = 0
             self.AWG.get_instr().set('ch_pair{}_sideband_frequency'.format(self.channel_I()),
                            self.mw_modulation())
+            self.AWG.get_instr().syncSidebandGenerators()
 
         ########################################
         # STD waveforms

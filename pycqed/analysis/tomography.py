@@ -822,17 +822,17 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         h1_00 = np.mean(avg_h1[36:36+7])
         h1_01 = np.mean(avg_h1[43:43+7])
         h1_10 = np.mean(avg_h1[50:50+7])
-        h1_11 = np.mean(avg_h1[57:])
+        h1_11 = np.mean(avg_h1[57:-1])
 
         h2_00 = np.mean(avg_h2[36:36+7])
         h2_01 = np.mean(avg_h2[43:43+7])
         h2_10 = np.mean(avg_h2[50:50+7])
-        h2_11 = np.mean(avg_h2[57:])
+        h2_11 = np.mean(avg_h2[57:-1])
 
         h12_00 = np.mean(avg_h12[36:36+7])
         h12_01 = np.mean(avg_h12[43:43+7])
         h12_10 = np.mean(avg_h12[50:50+7])
-        h12_11 = np.mean(avg_h12[57:])
+        h12_11 = np.mean(avg_h12[57:-1])
 
         # std_arr = np.array( std_h2_00, std_h2_01, std_h2_10, std_h2_11, std_h12_00, std_h12_01, std_h12_10, std_h12_11])
         # plt.plot(std_arr)
@@ -876,38 +876,38 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         h1_00 = np.mean(avg_h1[36:36+7])
         h1_01 = np.mean(avg_h1[43:43+7])
         h1_10 = np.mean(avg_h1[50:50+7])
-        h1_11 = np.mean(avg_h1[57:])
+        h1_11 = np.mean(avg_h1[57:-1])
 
         h2_00 = np.mean(avg_h2[36:36+7])
         h2_01 = np.mean(avg_h2[43:43+7])
         h2_10 = np.mean(avg_h2[50:50+7])
-        h2_11 = np.mean(avg_h2[57:])
+        h2_11 = np.mean(avg_h2[57:-1])
 
         h12_00 = np.mean(avg_h12[36:36+7])
         h12_01 = np.mean(avg_h12[43:43+7])
         h12_10 = np.mean(avg_h12[50:50+7])
-        h12_11 = np.mean(avg_h12[57:])
+        h12_11 = np.mean(avg_h12[57:-1])
 
         std_h1_00 = np.std(avg_h1[36:36+7])
         std_h1_01 = np.std(avg_h1[43:43+7])
         std_h1_10 = np.std(avg_h1[50:50+7])
-        std_h1_11 = np.std(avg_h1[57:])
+        std_h1_11 = np.std(avg_h1[57:-1])
 
         std_h2_00 = np.std(avg_h2[36:36+7])
         std_h2_01 = np.std(avg_h2[43:43+7])
         std_h2_10 = np.std(avg_h2[50:50+7])
-        std_h2_11 = np.std(avg_h2[57:])
+        std_h2_11 = np.std(avg_h2[57:-1])
 
         std_h12_00 = np.std(avg_h12[36:36+7])
         std_h12_01 = np.std(avg_h12[43:43+7])
         std_h12_10 = np.std(avg_h12[50:50+7])
-        std_h12_11 = np.std(avg_h12[57:])
+        std_h12_11 = np.std(avg_h12[57:-1])
 
         std_h1 = np.mean([std_h1_00, std_h1_01, std_h1_10, std_h1_11])
         std_h2 = np.mean([std_h2_00, std_h2_01, std_h2_10, std_h2_11])
         std_h12 = np.mean([std_h12_00, std_h12_01, std_h12_10, std_h12_11])
-        std_arr = np.array([std_h1_00, std_h1_01, std_h1_10, std_h1_11, std_h2_00, std_h2_01,
-                            std_h2_10, std_h2_11, std_h12_00, std_h12_01, std_h12_10, std_h12_11])
+        # std_arr = np.array([std_h1_00, std_h1_01, std_h1_10, std_h1_11, std_h2_00, std_h2_01,
+        #                     std_h2_10, std_h2_11, std_h12_00, std_h12_01, std_h12_10, std_h12_11])
         # print('########### STD ###########')
         # print('STD 1',std_h1)
         # print('STD 2',std_h2)
@@ -916,6 +916,13 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         # plt.plot([std_h1, std_h2, std_h12])
         # plt.plot(std_arr)
         # plt.show()
+
+        # std_arr_h1_h2_h12 = np.array([std_h1,std_h2,std_h12])
+        # index_of_dominant_channel = np.argmax(std_arr_h1_h2_h12)
+        # fac_h1 = std_arr_h1_h2_h12[index_of_dominant_channel]/std_h1
+        # fac_h2 = std_arr_h1_h2_h12[index_of_dominant_channel]/std_h2
+        # fac_h12 = std_arr_h1_h2_h12[index_of_dominant_channel]/std_h12
+
 
         fac = np.mean([std_h1, std_h2, std_h12])
         avg_h1 *= fac/std_h1
@@ -926,20 +933,25 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
         # print('factor 2',fac/std_h2)
         # print('factor 12',fac/std_h12)
 
+
+        # avg_h1 *= fac_h1
+        # avg_h2 *= fac_h2
+        # avg_h12 *= fac_h12
+
         h1_00 = np.mean(avg_h1[36:36+7])
         h1_01 = np.mean(avg_h1[43:43+7])
         h1_10 = np.mean(avg_h1[50:50+7])
-        h1_11 = np.mean(avg_h1[57:])
+        h1_11 = np.mean(avg_h1[57:-1])
 
         h2_00 = np.mean(avg_h2[36:36+7])
         h2_01 = np.mean(avg_h2[43:43+7])
         h2_10 = np.mean(avg_h2[50:50+7])
-        h2_11 = np.mean(avg_h2[57:])
+        h2_11 = np.mean(avg_h2[57:-1])
 
         h12_00 = np.mean(avg_h12[36:36+7])
         h12_01 = np.mean(avg_h12[43:43+7])
         h12_10 = np.mean(avg_h12[50:50+7])
-        h12_11 = np.mean(avg_h12[57:])
+        h12_11 = np.mean(avg_h12[57:-1])
 
         self.plot_TV_mode(avg_h1, avg_h2, avg_h12)
         #############################
@@ -1065,7 +1077,7 @@ class Tomo_Multiplexed(ma.MeasurementAnalysis):
                              'ZI', 'ZZ', 'ZX', 'ZY',
                              'XI', 'XZ', 'XX', 'XY',
                              'YI', 'YZ', 'YX', 'YY']
-            for i, op in enumerate(self.operators):
+            for i, op in enumerate(self.operators_fit):
                 pars_dict.update({op_string_vec[i]: op})
             print('Saving expectation values')
             self.save_dict_to_analysis_group(pars_dict, 'tomography_results')
