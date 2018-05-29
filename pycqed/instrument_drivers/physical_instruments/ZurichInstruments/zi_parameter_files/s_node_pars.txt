@@ -111,7 +111,7 @@
     "awgs/0/dio/delay/value",
     "int",
     0,
-    3
+    1024
   ],
   [
     "awgs/0/dio/snapshot",
