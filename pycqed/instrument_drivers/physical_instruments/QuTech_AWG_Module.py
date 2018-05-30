@@ -46,7 +46,7 @@ class HandshakeParameter(Parameter):
 class QuTech_AWG_Module(SCPI):
 
     def __init__(self, name, address, port, **kwargs):
-        numCodewords = kwargs.pop('numCodewords', 64)
+        numCodewords = kwargs.pop('numCodewords', 128)
         super().__init__(name, address, port, **kwargs)
 
         # AWG properties
@@ -236,6 +236,17 @@ class QuTech_AWG_Module(SCPI):
                            docstring='Reads the temperature of the FPGA.\n' \
                              +'Temperature measurement interval is 10 seconds\n' \
                              +'Return:\n     float with temperature in Celsius')
+
+        for cw in range(self.device_descriptor.numCodewords):
+            for j in range(self.device_descriptor.numChannels):
+                ch = j+1
+                # Codeword 0 corresponds to bitcode 0
+                cw_cmd = 'sequence:element{:d}:waveform{:d}'.format(cw, ch)
+                self.add_parameter('codeword_{}_ch{}_waveform'.format(cw, ch),
+                                   get_cmd=cw_cmd+'?',
+                                   set_cmd=cw_cmd+' "{:s}"',
+                                   vals=vals.Strings())
+
         # Waveform parameters
         self.add_parameter('WlistSize',
                            label='Waveform list size',
