@@ -2149,3 +2149,141 @@ def two_qubit_VQE_locked_swapped_aem(q0: int, q1: int,
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
+
+def two_qubit_VQE_final(q0: int, q1: int, platf_cfg: str, wait_tau=0):
+    '''
+    VQE tomography for two qubits.
+    Args:
+        cardinal        (int) : index of prep gate
+        q0, q1          (int) : target qubits for the sequence
+        NTOES FOR DEBUGGING
+        q1 is the qubit that gets fluxed, s0.
+        q0 is the qubit that does not get fluxed s2.
+        q0 is red (tomography plot)
+        q1 is blue (tomography plot)
+    '''
+    num_repeat_cal = 7
+    # tomo_pulses = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
+    # takes 0 onto    0      1        +       -       -i       +i
+    tomo_pulses = ['i', 'cw_02', 'cw_03', 'cw_04', 'cw_05', 'cw_06']
+
+    tomo_pulses_q0 = tomo_pulses * 6
+    tomo_pulses_q0 += ['i'] * num_repeat_cal
+    tomo_pulses_q0 += ['rx180'] * num_repeat_cal
+    tomo_pulses_q0 += ['i'] * num_repeat_cal
+    tomo_pulses_q0 += ['rx180'] * num_repeat_cal
+
+    # tomo_pulses_q0 = list(itertools.chain(*[tomo_pulses_q0]))
+
+    tomo_pulses_q1 = [[t]*6 for t in tomo_pulses]
+    tomo_pulses_q1 += [['i'] * num_repeat_cal]
+    tomo_pulses_q1 += [['i'] * num_repeat_cal]
+    tomo_pulses_q1 += [['rx180'] * num_repeat_cal]
+    tomo_pulses_q1 += [['rx180'] * num_repeat_cal]
+    # dirty hack for list of lists
+    tomo_pulses_q1 = list(itertools.chain(*tomo_pulses_q1))
+    idling_tau = int(wait_tau // 1e-9)
+
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="VQE_full_tomo_final",
+                nqubits=platf.get_qubit_number(), p=platf)
+    for i in range(64):
+        # define what is going to go into the skeleton
+        p_q0 = tomo_pulses_q0[i]
+        p_q1 = tomo_pulses_q1[i]
+
+        if i<36:
+            init_pulse = 'rx180'
+            buffer_time = 680-60+120+20-40-2*idling_tau-40
+        else:
+            init_pulse = 'i'
+            buffer_time = 680-60+120+20-40-2*idling_tau-40
+
+        if idling_tau>0:
+            buffer_time += 20
+        # put everything into the seq skeleton
+        kernel_name = 'VQE_{}'.format(i)
+        k = Kernel(kernel_name, p=platf)
+        k.prepz(q0)
+        k.prepz(q1)
+        k.gate("wait", [q1,q0], buffer_time) # for fixed-point
+        k.gate(init_pulse, q1) #Y180 gate without compilation
+        k.gate("wait", [q1,q0], idling_tau)
+        k.gate("wait", [q1,q0], 0)
+        k.gate('fl_cw_02', 2, 0)
+        k.gate("wait", [q1,q0], 0)
+        k.gate("wait", [q1,q0], idling_tau)
+        # k.gate("wait", [q1,q0], 140)
+        k.gate('i', q0) #compiled z gate+pre_rotation
+        k.gate('i', q1) #pre_rotation
+        k.gate(p_q0, q0) #compiled z gate+pre_rotation
+        k.gate(p_q1, q1) #pre_rotation
+        k.gate("wait", [q1,q0], 40)
+        k.measure(q0)
+        k.measure(q1)
+        if i<63:
+            k.gate("wait", [q1,q0], 20)
+        p.add_kernel(k)
+
+    with suppress_stdout():
+        p.compile()
+    # attribute is added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
+
+def flipping_crosstalk(num_gates_vec, q0: int, q1: int,
+                       platf_cfg: str,
+                       z_basis=False,
+                       tomo=False, tomo_pulse='rx90'):
+    """
+    Single qubit Ramsey sequence.
+    Writes output files to the directory specified in openql.
+    Output directory is set as an attribute to the program for convenience.
+
+    Input pars:
+        times:          the list of waiting times for each Ramsey element
+        qubit_idx:      int specifying the target qubit (starting at 0)
+        platf_cfg:      filename of the platform config file
+    Returns:
+        p:              OpenQL Program object containing
+
+    """
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="flipping_crosstalk", nqubits=platf.get_qubit_number(),
+                p=platf)
+    if z_basis:
+        pulse_basis = 'i'
+        first_pulse = 'i'
+    else:
+        pulse_basis = tomo_pulse
+        if tomo:
+            first_pulse = 'i'
+        else:
+            first_pulse = 'rx90'
+
+
+    for i, num_gates  in enumerate(num_gates_vec):
+        list_gates = ['rx180']*num_gates + ['i']*(len(num_gates_vec)-num_gates)
+        k = Kernel("Flipping_crosstalk_"+str(i), p=platf)
+        k.prepz(q0)
+        k.prepz(q1)
+        k.gate(first_pulse, q0)
+        k.gate('i', q1)
+        for g in list_gates:
+            k.gate('i', q0)
+            k.gate(g, q1)
+        k.gate(pulse_basis, q0)
+        k.gate('i', q1)
+        k.measure(q0)
+        k.measure(q1)
+        p.add_kernel(k)
+
+    p = add_two_q_cal_points(p, platf=platf,
+                             q0=q0, q1=q1)
+    with suppress_stdout():
+        p.compile(verbose=False)
+    # attribute get's added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
