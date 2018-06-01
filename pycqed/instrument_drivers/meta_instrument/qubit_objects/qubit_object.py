@@ -282,7 +282,7 @@ class Qubit(Instrument):
         if freqs is None:
             f_center = freq_res_par()
             if f_center is None:
-                raise ValueError('Specify "freq_res" to generate a freq span')
+                raise ValueError('Specify "freq_res" to generate a freq. span')
             f_span = 10e6
             f_step = 100e3
             freqs = np.arange(f_center-f_span/2, f_center+f_span/2, f_step)
@@ -293,7 +293,7 @@ class Qubit(Instrument):
         else:
             f_res = a.fit_results.params['f0'].value*1e9  # fit converts to Hz
         if f_res > max(freqs) or f_res < min(freqs):
-            logging.warning('exracted frequency outside of range of scan')
+            logging.warning('Extracted frequency outside of range of scan, not updating Qubit object!')
         elif update:  # don't update if the value is out of the scan range
             freq_res_par(f_res)
             freq_RO_par(f_res)
@@ -313,19 +313,11 @@ class Qubit(Instrument):
         :param close_fig: close the figure after finishing
         :return:
         '''
-        # This snippet exists to be backwards compatible 9/2017.
-        try:
-            freq_res_par = self.freq_res
-            freq_RO_par = self.ro_freq
-        except:
-            logging.warning('Rename the f_res parameter to freq_res')
-            freq_res_par = self.f_res
-            freq_RO_par = self.f_RO
 
         if freqs is None:
-            f_center = freq_res_par()
+            f_center = self.freq_res()
             if f_center is None:
-                raise ValueError('Specify "freq_res" to generate a freq span')
+                raise ValueError('Specify "freq_res" to generate a freq. span')
             f_span = 10e6
             f_step = 100e3
             freqs = np.arange(f_center-f_span/2, f_center+f_span/2, f_step)
@@ -338,10 +330,10 @@ class Qubit(Instrument):
         f_res = a.fit_results.params['f0'].value*1e9  # fit converts to Hz
 
         if f_res > max(freqs) or f_res < min(freqs):
-            logging.warning('exracted frequency outside of range of scan')
+            logging.warning('Extracted frequency outside of range of scan, not updating Qubit object!')
         elif update:  # don't update if the value is out of the scan range
-            freq_res_par(f_res)
-            freq_RO_par(f_res)
+            self.freq_res(f_res)
+            self.ro_freq(f_res)
         return f_res
 
     def find_frequency(self, method='spectroscopy', pulsed=False,
