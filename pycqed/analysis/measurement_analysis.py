@@ -443,6 +443,7 @@ class MeasurementAnalysis(object):
                              show=False, log=False, transpose=False, **kw):
 
         if TwoD is False:
+
             self.get_naming_and_values()
             self.sweep_points = kw.pop('sweep_points', self.sweep_points)
             # Preallocate the array of axes in the figure
@@ -460,6 +461,7 @@ class MeasurementAnalysis(object):
                         figsize=(7, 4 * len(self.value_names)), dpi=self.dpi)
 
             else:
+
                 if self.no_of_columns == 2:
                     fig, axs = plt.subplots(max(len(self.value_names), 1), 1,
                                             figsize=(3.375,
@@ -2985,8 +2987,14 @@ class SSRO_Analysis(MeasurementAnalysis):
     the optimum threshold and fidelity from cumulative histograms.
     '''
 
-    def __init__(self, rotate=True, close_fig=True, channels=['I', 'Q'],
+    def __init__(self, rotate=True, close_fig=True, channels=None,
                  hist_log_scale: bool = True, **kw):
+        if channels is None:
+            channels = ['I', 'Q']
+
+        logging.warning('The use of this class is deprectated!' +
+                         ' Use the new v2 analysis instead.')
+
         kw['h5mode'] = 'r+'
         self.rotate = rotate
         self.channels = channels
@@ -4142,7 +4150,7 @@ class Ramsey_Analysis(TD_Analysis):
         kw['label'] = label
         kw['h5mode'] = 'r+'
         self.phase_sweep_only = phase_sweep_only
-        self.artificial_detuning = kw.pop('artificial_detuning', 0) 
+        self.artificial_detuning = kw.pop('artificial_detuning', 0)
         if self.artificial_detuning == 0:
             logging.warning('Artificial detuning is unknown. Defaults to %s MHz. '
                             'New qubit frequency might be incorrect.'

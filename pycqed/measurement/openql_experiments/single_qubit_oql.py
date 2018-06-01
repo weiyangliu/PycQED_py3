@@ -667,7 +667,16 @@ def Ram_Z(qubit_name,
     pass
 
 
-def add_single_qubit_cal_points(p, platf, qubit_idx):
+def add_single_qubit_cal_points(p, platf, qubit_idx,
+                                f_state_cal_pts:bool=False):
+    """
+    Adds single qubit calibration points to an OpenQL program
+
+    Args:
+        p
+        platf
+        qubit_idx
+    """
     for i in np.arange(2):
         k = Kernel("cal_gr_"+str(i), p=platf)
         k.prepz(qubit_idx)
@@ -680,6 +689,14 @@ def add_single_qubit_cal_points(p, platf, qubit_idx):
         k.gate('rx180', qubit_idx)
         k.measure(qubit_idx)
         p.add_kernel(k)
+    if f_state_cal_pts:
+        for i in np.arange(2):
+            k = Kernel("cal_f_"+str(i), p=platf)
+            k.prepz(qubit_idx)
+            k.gate('rx180', qubit_idx)
+            k.gate('rx12', qubit_idx)
+            k.measure(qubit_idx)
+            p.add_kernel(k)
     return p
 
 
@@ -827,5 +844,61 @@ def FastFeedbackControl(lantecy, qubit_idx: int, platf_cfg: str):
     # attribute get's added to program to help finding the output files
     p.output_dir = ql.get_output_dir()
     p.filename = join(p.output_dir, p.name + '.qisa')
+    return p
+
+
+def ef_rabi_seq(q0: int,
+                   amps: list,
+                   platf_cfg: str,
+                   recovery_pulse: bool=True,
+                   add_cal_points: bool=True):
+    """
+    Sequence used to calibrate pulses for 2nd excited state (ef/12 transition)
+
+    Timing of the sequence:
+    q0:   --   X180 -- X12 -- (X180) -- RO
+
+    Args:
+        q0      (str): name of the addressed qubit
+        amps   (list): amps for the two state pulse, note that these are only
+            used to label the kernels. Load the pulse in the LutMan
+        recovery_pulse (bool): if True adds a recovery pulse to enhance
+            contrast in the measured signal.
+    """
+    if len(amps)>18:
+        raise ValueError('Only 18 free codewords available for amp pulses')
+    platf = Platform('OpenQL_Platform', platf_cfg)
+    p = Program(pname="ef_rabi_seq",
+                nqubits=platf.get_qubit_number(),
+                p=platf)
+    # These angles correspond to special pi/2 pulses in the lutman
+    for i, amp in enumerate(amps):
+        # cw_idx corresponds to special hardcoded pulses in the lutman
+        cw_idx = i + 9
+
+        k = Kernel("ef_A{}".format(amp), p=platf)
+        k.prepz(q0)
+        k.gate('rx180', q0)
+        k.gate('cw_{:02}'.format(cw_idx), q0)
+        if recovery_pulse:
+            k.gate('rx180', q0)
+        k.measure(q0)
+        p.add_kernel(k)
+    if add_cal_points:
+        p = add_single_qubit_cal_points(p, platf=platf, qubit_idx=q0)
+    with suppress_stdout():
+        p.compile()
+    # attribute get's added to program to help finding the output files
+    p.output_dir = ql.get_output_dir()
+    p.filename = join(p.output_dir, p.name + '.qisa')
+
+    if add_single_qubit_cal_points:
+        cal_pts_idx = [amps[-1]+.1, amps[-1]+.15,
+                        amps[-1]+.2, amps[-1]+.25]
+    else:
+        cal_pts_idx = []
+
+    p.sweep_points = np.concatenate([amps, cal_pts_idx])
+    p.set_sweep_points(p.sweep_points, len(p.sweep_points))
     return p
 

@@ -32,7 +32,9 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
                             initialize: bool=True,
                             interleaving_cliffords = [None],
                             program_name: str='randomized_benchmarking',
-                            cal_points: bool=True, recompile: bool=True):
+                            cal_points: bool=True,
+                            f_state_cal_pts: bool=True,
+                            recompile: bool=True):
     '''
     Input pars:
         qubits:         list of ints specifying qubit indices.
@@ -115,27 +117,6 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
         program_fn = p.filename, platf_cfg=platf_cfg, recompile=recompile):
         return p
 
-    # if recompile == True:
-    #     pass
-    # elif recompile == 'as needed':
-    #     try:
-    #         if is_more_rencent(p.filename, platf_cfg):
-    #             return p
-    #         else:
-    #             pass # compilation is required
-    #     except FileNotFoundError:
-    #         # File doesn't exist means compilation is required
-    #         pass
-
-    # elif recompile == False: # if False
-    #     if is_more_rencent(p.filename, platf_cfg):
-    #         return p
-    #     else:
-    #         raise ValueError('OpenQL config has changed more recently '
-    #                          'than program.')
-    # else:
-    #     raise NotImplementedError('recompile should be True, False or "as needed"')
-
     if len(qubits) ==1:
         qubit_map = {'q0': qubits[0]}
         number_of_qubits = 1
@@ -181,8 +162,9 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
 
         if cal_points:
             if number_of_qubits == 1:
-                p = add_single_qubit_cal_points(p, platf=platf,
-                                                qubit_idx=qubits[0])
+                p = add_single_qubit_cal_points(
+                    p, platf=platf, qubit_idx=qubits[0],
+                    f_state_cal_pts=f_state_cal_pts)
             elif number_of_qubits == 2:
                 p = add_two_q_cal_points(p, platf=platf,
                                          q0=qubits[0],

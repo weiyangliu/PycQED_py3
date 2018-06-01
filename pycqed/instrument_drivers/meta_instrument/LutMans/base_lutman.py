@@ -143,13 +143,11 @@ class Base_LutMan(Instrument):
                           self._voltage_min, self._voltage_max, linestyle='--')
 
         ax.set_title(wave_name)
-        ax.plot(x, self._wave_dict[wave_name][0],
-                marker='o', label='chI')
-        ax.plot(x, self._wave_dict[wave_name][1],
-                marker='o', label='chQ')
+        ax.plot(x, self._wave_dict[wave_name][0], marker=',', label='chI')
+        ax.plot(x, self._wave_dict[wave_name][1], marker=',', label='chQ')
         ax.legend()
         if self._voltage_min is not None:
-            ax.set_axis_bgcolor('gray')
+            ax.set_facecolor('gray')
             ax.axhspan(self._voltage_min, self._voltage_max, facecolor='w',
                        linewidth=0)
             ax.set_ylim(self._voltage_min*1.1, self._voltage_max*1.1)
@@ -174,9 +172,9 @@ class Base_LutMan(Instrument):
 
         ax.set_title(wave_name)
         ax.plot(f_axis, PSD_I,
-                marker='o', label='chI')
+                marker=',', label='chI')
         ax.plot(f_axis, PSD_Q,
-                marker='o', label='chQ')
+                marker=',', label='chQ')
         ax.legend()
 
         ax.set_yscale("log", nonposy='clip')

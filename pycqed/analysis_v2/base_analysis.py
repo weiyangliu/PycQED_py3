@@ -34,8 +34,8 @@ class BaseDataAnalysis(object):
         - __init__      -> specify params to be extracted, set options
                            specific to analysis and call run_analysis method.
         - process_data  -> mundane tasks such as binning and filtering
-        - prepare_plots -> specify default plots and set up plotting dicts
         - run_fitting   -> perform fits to data
+        - prepare_plots -> specify default plots and set up plotting dicts
 
     The core of this class is the flow defined in run_analysis and should
     be called at the end of the __init__. This executes
@@ -95,14 +95,16 @@ class BaseDataAnalysis(object):
         none of the below parameters: look for the last data which matches the
                 filtering options from the options dictionary.
 
-        :param t_start, t_stop: give a range of timestamps in where data is loaded from.
-                                Filtering options can be given through the options dictionary.
-                                If t_stop is omitted, the extraction routine looks for
-                        the data with time stamp t_start.
+        :param t_start, t_stop: give a range of timestamps in where data is
+                                loaded from. Filtering options can be given
+                                through the options dictionary. If t_stop is
+                                omitted, the extraction routine looks for
+                                the data with time stamp t_start.
         :param label: Only process datasets with this label.
-        :param data_file_path: directly give the file path of a data file that should be loaded.
-                                Note: data_file_path has priority, i.e. if this
-                                argument is given time stamps are ignored.
+        :param data_file_path: directly give the file path of a data file that
+                                should be loaded. Note: data_file_path has
+                                priority, i.e. if this argument is given time
+                                stamps are ignored.
         :param close_figs: Close the figure (do not display)
         :param options_dict: available options are:
                                 -'presentation_mode'
@@ -121,6 +123,7 @@ class BaseDataAnalysis(object):
         :param extract_only: Should we also do the plots?
         :param do_fitting: Should the run_fitting method be executed?
         '''
+        # todo: what exactly does this flag do? May 2018 (Adriaan/Rene)
         self.single_timestamp = False
         # initialize an empty dict to store results of analysis
         self.proc_data_dict = OrderedDict()
@@ -478,6 +481,7 @@ class BaseDataAnalysis(object):
         for key, fit_dict in self.fit_dicts.items():
             guess_dict = fit_dict.get('guess_dict', None)
             guess_pars = fit_dict.get('guess_pars', None)
+            guessfn_pars = fit_dict.get('guessfn_pars', {})
             fit_yvals = fit_dict['fit_yvals']
             fit_xvals = fit_dict['fit_xvals']
 
@@ -486,14 +490,14 @@ class BaseDataAnalysis(object):
                 fit_fn = fit_dict.get('fit_fn', None)
                 model = fit_dict.get('model', lmfit.Model(fit_fn))
             fit_guess_fn = fit_dict.get('fit_guess_fn', None)
-            if fit_guess_fn is None:
+            if fit_guess_fn is None and fit_dict.get('fit_guess', True):
                 fit_guess_fn = model.guess
 
             if guess_pars is None:
                 if fit_guess_fn is not None:
                     # a fit function should return lmfit parameter objects
                     # but can also work by returning a dictionary of guesses
-                    guess_pars = fit_guess_fn(**fit_yvals, **fit_xvals)
+                    guess_pars = fit_guess_fn(**fit_yvals, **fit_xvals, **guessfn_pars)
                     if not isinstance(guess_pars, lmfit.Parameters):
                         for gd_key, val in list(guess_pars.items()):
                             model.set_param_hint(gd_key, **val)
@@ -507,13 +511,12 @@ class BaseDataAnalysis(object):
                     # A guess can also be specified as a dictionary.
                     # additionally this can be used to overwrite values
                     # from the guess functions.
-                else:
+                elif guess_dict is not None:
                     for key, val in list(guess_dict.items()):
                         model.set_param_hint(key, **val)
                     guess_pars = model.make_params()
-
-            fit_dict['fit_res'] = model.fit(
-                params=guess_pars, **fit_xvals, **fit_yvals)
+            fit_dict['fit_res'] = model.fit(**fit_xvals, **fit_yvals,
+                                            params=guess_pars)
 
             self.fit_res[key] = fit_dict['fit_res']
 
@@ -776,8 +779,6 @@ class BaseDataAnalysis(object):
         plot_title = pdict.get('title', None)
         plot_xrange = pdict.get('xrange', None)
         plot_yrange = pdict.get('yrange', None)
-        if pdict.get('color', False):
-            plot_linekws['color'] = pdict.get('color')
 
         # plot_multiple = pdict.get('multiple', False)
         plot_linestyle = pdict.get('linestyle', '-')
@@ -818,6 +819,9 @@ class BaseDataAnalysis(object):
                                    **plot_linekws))
 
         else:
+            if pdict.get('color', False):
+                plot_linekws['color'] = pdict.get('color')
+
             p_out = pfunc(plot_xvals, plot_yvals,
                           linestyle=plot_linestyle, marker=plot_marker,
                           label='%s%s' % (dataset_desc, dataset_label),
@@ -1111,7 +1115,7 @@ class BaseDataAnalysis(object):
         plot_xunit = pdict['xunit']
         plot_ylabel = pdict['ylabel']
         plot_yunit = pdict['yunit']
-        plot_title = pdict['title']
+        plot_title = pdict.get('title', None)
         if plot_transpose:
             # transpose switches X and Y
             set_xlabel(axs, plot_ylabel, plot_yunit)
@@ -1240,7 +1244,8 @@ class BaseDataAnalysis(object):
 
         """
         pfunc = getattr(axs, pdict.get('func'))
-        pfunc(**pdict['plot_kws'])
+        pdict['plot_args'] = pdict.get('plot_args', [])
+        pfunc(*pdict['plot_args'], **pdict['plot_kws'])
 
     @staticmethod
     def _sort_by_axis0(arr, sorted_indices, type=None):
@@ -1273,6 +1278,20 @@ class BaseDataAnalysis(object):
         :return: Global maximum
         '''
         return np.max([np.max(v) for v in array])
+
+    def plot_vlines_auto(self, pdict, axs):
+        xs = pdict.get('xdata')
+        for i,x in enumerate(xs):
+            d = {}
+            for k in pdict:
+                lk = k[:-1]
+                #if lk in signature(axs.axvline).parameters:
+                if k not in ['xdata', 'plotfn', 'ax_id', 'do_legend']:
+                    try:
+                        d[lk] = pdict[k][i]
+                    except:
+                        pass
+            axs.axvline(x=x, **d)
 
 
 def plot_scatter_errorbar(self, ax_id, xdata, ydata, xerr=None, yerr=None, pdict=None):
