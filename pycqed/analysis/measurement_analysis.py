@@ -5456,6 +5456,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
         '''
         super(self.__class__, self).run_default_analysis(
             close_file=False, show=show, **kw)
+        self.verbose = kw.pop('verbose', False)
         self.add_analysis_datagroup_to_file()
 
         window_len_filter = kw.get('window_len_filter', 11)
@@ -5463,9 +5464,16 @@ class Homodyne_Analysis(MeasurementAnalysis):
         ## Prepare the naming of a few things
         scan_freqs = self.sweep_points
         data_amp = self.measured_values[0]
+        data_angle = None
         if len(self.measured_values) > 1:
             data_angle = self.measured_values[1]
             data_complex = data_amp * np.cos(data_angle) + 1j * data_amp * np.sin(data_angle)
+            # Not required right now: calculate s21 distance
+            #s21distFunc = a_tools.calculate_distance_ground_state
+            #data_dist = s21distFunc(data_real=data_complex.real,
+            #                        data_imag=data_complex.imag,
+            #                        percentile=kw.get('s21_percentile', 70),
+            #                        normalize=kw.get('s21_normalize_per_dac', False))
 
         ########## Fit data ##########
 
@@ -5485,7 +5493,6 @@ class Homodyne_Analysis(MeasurementAnalysis):
                                          window_len=0)
 
         # Search for peak
-        fit_res = None
         if self.peaks['dip'] is not None:  # look for dips first
             f0 = self.peaks['dip']
             amplitude_factor = -1.
@@ -5501,6 +5508,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             # N.B. This not updating is not implemented as of 9/2017
 
         # Fit data according to the model required
+        fit_res = None
         if 'hanger' in fitting_model:
             if fitting_model == 'hanger':
                 # f is expected in Hz but f0 in GHz!
@@ -5530,12 +5538,15 @@ class Homodyne_Analysis(MeasurementAnalysis):
             #     data_x = data_x*1e9
 
             fit_res = Model.fit(data=self.data_y,
-                                f=data_x, verbose=False)
+                                f=data_x, verbose=self.verbose)
+            # Set the main result easy to read in SI units.
+            self.fit_frequency = fit_res.params['f0'].value*1e9
 
         elif fitting_model == 'complex':
-            # Implement slope fitting with Complex!! Xavi February 2018
-            # this is the fit with a complex transmission curve WITHOUT slope
-            # np.add(self.measured_values[2], 1j*self.measured_values[3])
+            # TODO: (improvement) Implement slope fitting with Complex!! (Xavi February 2018)
+            if data_angle is not None:
+                raise ValueError('Fitting model "complex" requires angle data' +
+                                 ', which was not found in this data set.')
 
             # Guess
             P = a_tools.HangerComplexGuess(freq=scan_freqs,
@@ -5546,6 +5557,8 @@ class Homodyne_Analysis(MeasurementAnalysis):
             fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, P,
                                      args=(fit_mods.HangerFuncComplex,
                                            scan_freqs, data_complex))
+            # Set the main result easy to read in SI units.
+            self.fit_frequency = fit_res.params['f0'].value*1e9
 
         elif fitting_model == 'lorentzian':
             Model = fit_mods.LorentzianModel
@@ -5576,16 +5589,26 @@ class Homodyne_Analysis(MeasurementAnalysis):
             fit_res = Model.fit(data=self.measured_powers,
                                 f=scan_freqs,
                                 params=self.params)
+            # Set the main result easy to read in SI units.
+            self.fit_frequency = fit_res.params['f0'].value*1e9
+
+        elif fitting_model == 'double_resonator':
+            Model = lmfit.Model(a_tools.DoubleHangerS21Func)
+            self.params = a_tools.DoubleHangerS21Guess(model=Model,
+                                                       freq=scan_freqs,
+                                                       s21=data_complex)
+            fit_res = Model.fit(data=data_complex, f=scan_freqs,
+                                verbose=self.verbose, **self.params)
+            # Set the main result easy to read in SI units.
+            self.fit_frequency = fit_res.params['wrr'].value/(2*np.pi)
 
         else:
-            raise ValueError('fitting model "{}" not recognized'.format(
+            raise ValueError('Fitting model "{}" not recognized'.format(
                 fitting_model))
 
         self.fit_results = fit_res
         self.save_fitted_parameters(fit_res, var_name='HM')
 
-        # Set the main result easy to read in SI units.
-        self.fit_frequency = fit_res.params['f0'].value*1e9
 
         if print_fit_results is True:
             # print(fit_res.fit_report())

@@ -258,7 +258,8 @@ class Qubit(Instrument):
     def find_resonator_frequency(self, use_min: bool=False,
                                  update: bool=True,
                                  freqs: list=None,
-                                 MC=None, close_fig: bool=True):
+                                 MC=None, close_fig: bool=True,
+                                 fitting_model: str='hanger'):
         '''
         Finds the resonator frequency by performing a heterodyne experiment
 
@@ -287,53 +288,17 @@ class Qubit(Instrument):
             f_step = 100e3
             freqs = np.arange(f_center-f_span/2, f_center+f_span/2, f_step)
         self.measure_heterodyne_spectroscopy(freqs, MC, analyze=False)
-        a = ma.Homodyne_Analysis(label=self.msmt_suffix, close_fig=close_fig)
+        a = ma.Homodyne_Analysis(label=self.msmt_suffix, close_fig=close_fig,
+                                 fitting_model=fitting_model)
         if use_min:
             f_res = a.min_frequency
         else:
-            f_res = a.fit_results.params['f0'].value*1e9  # fit converts to Hz
+            f_res = a.fit_frequency
         if f_res > max(freqs) or f_res < min(freqs):
             logging.warning('Extracted frequency outside of range of scan, not updating Qubit object!')
         elif update:  # don't update if the value is out of the scan range
             freq_res_par(f_res)
             freq_RO_par(f_res)
-        return f_res
-
-    def find_double_resonator_frequencies(self, update: bool=True, freqs: list=None,
-                                          MC=None, close_fig: bool=True):
-        '''
-        Find the frequencies and coupling of two coupled resonators (as e.g. in
-        a Purcell-Filtered Readout-resonator) by performing a heterodyne
-        experiment.
-
-        :param update: update the qubits attribute
-        :param freqs: frequency range to scan; if None, will use a default
-                        range dependent on the last known frequency of the resonator.
-        :param MC:
-        :param close_fig: close the figure after finishing
-        :return:
-        '''
-
-        if freqs is None:
-            f_center = self.freq_res()
-            if f_center is None:
-                raise ValueError('Specify "freq_res" to generate a freq. span')
-            f_span = 10e6
-            f_step = 100e3
-            freqs = np.arange(f_center-f_span/2, f_center+f_span/2, f_step)
-
-
-        self.measure_heterodyne_spectroscopy(freqs, MC, analyze=False)
-        
-        #Replace this analysis!
-        a = ma.Homodyne_Analysis(label=self.msmt_suffix, close_fig=close_fig)
-        f_res = a.fit_results.params['f0'].value*1e9  # fit converts to Hz
-
-        if f_res > max(freqs) or f_res < min(freqs):
-            logging.warning('Extracted frequency outside of range of scan, not updating Qubit object!')
-        elif update:  # don't update if the value is out of the scan range
-            self.freq_res(f_res)
-            self.ro_freq(f_res)
         return f_res
 
     def find_frequency(self, method='spectroscopy', pulsed=False,

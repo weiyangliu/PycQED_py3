@@ -365,10 +365,22 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-def DoubleHangerS21DistFunc(x, A, phi, kappa, gamma, wrr, J, wpf):
+def DoubleHangerS21Func(f: float, A, phi, kappa, gamma, wrr, J, wpf):
+    '''
+    As in the ETH paper
+    :param f: frequencies
+    :param A: Amplitude
+    :param phi: Global Phase
+    :param kappa: Decay rate of resonator1
+    :param gamma: Decay rate of resonator2
+    :param wrr: Frequency rate of resonator1
+    :param J: Coupling between the two resonators
+    :param wpf: Frequency rate of resonator2
+    :return:
+    '''
     if A < 0 or kappa < 0 or gamma <= 0 or wrr <= 0 or J <= 0 or wpf <= 0:
         return 0
-    return A*abs(1-(np.exp(-1j*phi)*kappa*(gamma+2j*(x-wrr))/(4*J**2+(kappa+2j*(x-wpf))*(gamma+2j*(x-wrr)))))
+    return A*1-(np.exp(-1j*phi)*kappa*(gamma+2j*(f-wrr))/(4*J**2+(kappa+2j*(f-wpf))*(gamma+2j*(f-wrr))))
 
 def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
     # This is the function for a hanger (lambda/4 resonator) which takes into
@@ -711,8 +723,13 @@ def HangerQGuess(freq, amp, f0):
     Q = f0 / abs(min_frequency - max_frequency)
     return Q
 
-def DoubleHangerS21DistGuess(model, freq, s21dist):
-    f0 = freq[np.argmin(s21dist)]
+def DoubleHangerS21Guess(model, freq: list, s21: list, f0: float):
+    # TODO: Fill this!
+    model.set_param_hint('f0', value=f0 * 1e-9,
+                         min=min(freq) * 1e-9,
+                         max=max(freq) * 1e-9)
+    params = model.make_params()
+    return params
 
 def HangerGuess(model, freq: list, amp: list, f0: float, Q: float=None):
     '''
