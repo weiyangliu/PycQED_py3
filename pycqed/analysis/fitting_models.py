@@ -724,10 +724,29 @@ def HangerQGuess(freq, amp, f0):
     return Q
 
 def DoubleHangerS21Guess(model, freq: list, s21: list, f0: float):
-    # TODO: Fill this!
-    model.set_param_hint('f0', value=f0 * 1e-9,
-                         min=min(freq) * 1e-9,
-                         max=max(freq) * 1e-9)
+    #TODO: Make some 'real' guesses. This is not very robust!
+    s21abs = np.abs(s21)
+    A = np.max(s21abs)
+    model.set_param_hint('A', value=A, min=0, vary=True)
+    model.set_param_hint('phi',min=0, max=2 * np.pi
+                         value=1e-3, #stimulate change but not choosing 0
+                         vary = True)
+    J = 10e6
+    model.set_param_hint('wrr', value=(f0 - J/2) * 2 * np.pi,
+                         min=min(freq) * 2 * np.pi,
+                         max=max(freq) * 2 * np.pi, vary=True)
+    model.set_param_hint('wpf', value=(f0 + J/2) * 2 * np.pi,
+                         min=min(freq) * 2 * np.pi,
+                         max=max(freq) * 2 * np.pi, vary=True)
+    model.set_param_hint('J', value=J * 2 * np.pi,
+                         min=0.1e6 * 2 * np.pi,
+                         max=200e6 * 2 * np.pi, vary=True)
+    model.set_param_hint('kappa', value=J * 2 * np.pi,
+                         min=0.1e6 * 2 * np.pi,
+                         max=200e6 * 2 * np.pi, vary=True)
+    model.set_param_hint('gamma', value=J * 2 * np.pi,
+                         min=0.1e6 * 2 * np.pi,
+                         max=200e6 * 2 * np.pi, vary=True)
     params = model.make_params()
     return params
 
