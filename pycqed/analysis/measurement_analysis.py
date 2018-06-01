@@ -5422,8 +5422,8 @@ class RandomizedBench_2D_flat_Analysis(RandomizedBenchmarking_Analysis):
 
 class Homodyne_Analysis(MeasurementAnalysis):
 
-    def __init__(self, label='HM', custom_power_message: dict = None, **kw):
-        # Custome power message is used to create a message in resonator measurements
+    def __init__(self, label: str='HM', custom_power_message: dict = None, **kw):
+        # Custom power message is used to create a message in resonator measurements
         # dict must be custom_power_message={'Power': -15, 'Atten': 86, 'res_len':3e-6}
         # Power in dBm, Atten in dB and resonator length in m
         kw['label'] = label
@@ -5431,19 +5431,30 @@ class Homodyne_Analysis(MeasurementAnalysis):
         kw['custom_power_message'] = custom_power_message
         super().__init__(**kw)
 
-    def run_default_analysis(self, print_fit_results=False,
-                             close_file=False, fitting_model='hanger',
-                             show_guess=False, show=False,
+    def run_default_analysis(self, print_fit_results: bool=False,
+                             close_file: bool=False, fitting_model: str='hanger',
+                             show_guess: bool=False, show: bool=False,
                              fit_window=None, **kw):
         '''
-        Available fitting_models:
-            - 'hanger' = amplitude fit with slope
-            - 'complex' = complex transmission fit WITHOUT slope
-            - 'lorentzian' = fit to a Lorentzian lineshape
 
-        'fit_window': allows to select the windows of data to fit.
-                      Example: fit_window=[100,-100]
+        :param print_fit_results:
+        :param close_file:
+        :param fitting_model: Available fitting_models:
+                - 'hanger' = amplitude fit with slope
+                - 'simple_hanger' = 
+                - 'complex' = complex transmission fit WITHOUT slope
+                - 'lorentzian' = fit to a Lorentzian lineshape
+                - 'double_resonator' =  fit two coupled resonators
+                                            (as e.g. in a Purcell-Filtered
+                                            Readout-resonator)
+        :param show_guess:
+        :param show:
+        :param fit_window: allows to select the windows of data to fit.
+                            Example: fit_window=[100,-100]
+        :param kw:
+        :return:
         '''
+
         super(self.__class__, self).run_default_analysis(
             close_file=False, show=show, **kw)
         self.add_analysis_datagroup_to_file()
@@ -5482,135 +5493,26 @@ class Homodyne_Analysis(MeasurementAnalysis):
             # not use it to update the qubit object
             # N.B. This not updating is not implemented as of 9/2017
 
+
+        fig, ax = self.default_ax()
+
         # Fit data according to the model required
+        fitting_model = fitting_model.lower() #more robust
         if 'hanger' in fitting_model:
-            if fitting_model == 'hanger':
-                # f is expected in Hz but f0 in GHz!
-                Model = fit_mods.SlopedHangerAmplitudeModel
-            # this in not working at the moment (need to be fixed)
-            elif fitting_model == 'simple_hanger':
-                Model = fit_mods.HangerAmplitudeModel
-            else:
-                raise ValueError(
-                    'The fitting model specified is not available')
-            # added reject outliers to be robust agains CBox data acq bug.
-            # this should have no effect on regular data acquisition and is
-            # only used in the guess.
-            amplitude_guess = max(
-                dm_tools.reject_outliers(self.measured_values[0]))
-
-            # Creating parameters and estimations
-            S21min = (min(dm_tools.reject_outliers(self.measured_values[0])) /
-                      max(dm_tools.reject_outliers(self.measured_values[0])))
-
-            Q = kw.pop('Q', f0 / abs(self.min_frequency - self.max_frequency))
-            Qe = abs(Q / abs(1 - S21min))
-
-            # Note: input to the fit function is in GHz for convenience
-            Model.set_param_hint('f0', value=f0 * 1e-9,
-                                 min=min(self.sweep_points) * 1e-9,
-                                 max=max(self.sweep_points) * 1e-9)
-            Model.set_param_hint('A', value=amplitude_guess)
-            Model.set_param_hint('Q', value=Q, min=1, max=50e6)
-            Model.set_param_hint('Qe', value=Qe, min=1, max=50e6)
-            # NB! Expressions are broken in lmfit for python 3.5 this has
-            # been fixed in the lmfit repository but is not yet released
-            # the newest upgrade to lmfit should fix this (MAR 18-2-2016)
-            Model.set_param_hint('Qi', expr='abs(1./(1./Q-1./Qe*cos(theta)))',
-                                 vary=False)
-            Model.set_param_hint('Qc', expr='Qe/cos(theta)', vary=False)
-            Model.set_param_hint('theta', value=0, min=-np.pi / 2,
-                                 max=np.pi / 2)
-            Model.set_param_hint('slope', value=0, vary=True)
-
-            self.params = Model.make_params()
-
-            if fit_window == None:
-                data_x = self.sweep_points
-                self.data_y = self.measured_values[0]
-            else:
-                data_x = self.sweep_points[fit_window[0]:fit_window[1]]
-                data_y_temp = self.measured_values[0]
-                self.data_y = data_y_temp[fit_window[0]:fit_window[1]]
-
-            # # make sure that frequencies are in Hz
-            # if np.floor(data_x[0]/1e8) == 0:  # frequency is defined in GHz
-            #     data_x = data_x*1e9
-
-            fit_res = Model.fit(data=self.data_y,
-                                f=data_x, verbose=False)
+            Model, fit_res = self._hanger_fit(fitting_model=fitting_model,
+                                              f0=f0, ax=ax, fig=fig,
+                                              fit_window=fit_window, **kw)
 
         elif fitting_model == 'complex':
-            # Implement slope fitting with Complex!! Xavi February 2018
-            # this is the fit with a complex transmission curve WITHOUT slope
-            data_amp = self.measured_values[0]
-            data_angle = self.measured_values[1]
-            data_complex = data_amp * np.cos(data_angle) + 1j * data_amp * np.sin(data_angle)
-            # np.add(self.measured_values[2], 1j*self.measured_values[3])
-
-            # Initial guesses
-            guess_A = max(data_amp)
-            # this has to been improved
-            guess_Q = f0 / abs(self.min_frequency - self.max_frequency)
-            guess_Qe = guess_Q / (1 - (max(data_amp) - min(data_amp)))
-            # phi_v
-            # number of 2*pi phase jumps
-            nbr_phase_jumps = (np.diff(data_angle) > 4).sum()
-            guess_phi_v = (2 * np.pi * nbr_phase_jumps + (data_angle[0] - data_angle[-1])) / (
-                    self.sweep_points[0] - self.sweep_points[-1])
-            # phi_0
-            angle_resonance = data_angle[int(len(self.sweep_points) / 2)]
-            phase_evolution_resonance = np.exp(1j * guess_phi_v * f0)
-            angle_phase_evolution = np.arctan2(
-                np.imag(phase_evolution_resonance), np.real(phase_evolution_resonance))
-            guess_phi_0 = angle_resonance - angle_phase_evolution
-
-            # prepare the parameter dictionary
-            P = lmfit.Parameters()
-            #           (Name,         Value, Vary,      Min,     Max,  Expr)
-            P.add_many(('f0', f0 / 1e9, True, None, None, None),
-                       ('Q', guess_Q, True, 1, 50e6, None),
-                       ('Qe', guess_Qe, True, 1, 50e6, None),
-                       ('A', guess_A, True, 0, None, None),
-                       ('theta', 0, True, -np.pi / 2, np.pi / 2, None),
-                       ('phi_v', guess_phi_v, True, None, None, None),
-                       ('phi_0', guess_phi_0, True, -np.pi, np.pi, None))
-            P.add('Qi', expr='1./(1./Q-1./Qe*cos(theta))', vary=False)
-            P.add('Qc', expr='Qe/cos(theta)', vary=False)
-
-            # Fit
-            fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, P,
-                                     args=(fit_mods.HangerFuncComplex, self.sweep_points, data_complex))
+            Model, fit_res = self._complex_fit(f0=f0, ax=ax, fig=fig, **kw)
 
         elif fitting_model == 'lorentzian':
-            Model = fit_mods.LorentzianModel
+            Model, fit_res = self._lorentzian_fit(f0=f0, ax=ax, fig=fig,
+                                           amplitude_factor=amplitude_factor,
+                                           **kw)
 
-            kappa_guess = 2.5e6
-
-            amplitude_guess = amplitude_factor * np.pi * kappa_guess * abs(
-                max(self.measured_powers) - min(self.measured_powers))
-
-            Model.set_param_hint('f0', value=f0,
-                                 min=min(self.sweep_points),
-                                 max=max(self.sweep_points))
-            Model.set_param_hint('A', value=amplitude_guess)
-
-            # Fitting
-            Model.set_param_hint('offset',
-                                 value=np.mean(self.measured_powers),
-                                 vary=True)
-            Model.set_param_hint('kappa',
-                                 value=kappa_guess,
-                                 min=0,
-                                 vary=True)
-            Model.set_param_hint('Q',
-                                 expr='0.5*f0/kappa',
-                                 vary=False)
-            self.params = Model.make_params()
-
-            fit_res = Model.fit(data=self.measured_powers,
-                                f=self.sweep_points,
-                                params=self.params)
+        elif fitting_model == 'double_resonator':
+            Model, fit_res = self._double_resonator_fit(f0=f0, ax=ax, **kw)
 
         else:
             raise ValueError('fitting model "{}" not recognized'.format(
@@ -5623,42 +5525,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             # print(fit_res.fit_report())
             print(lmfit.fit_report(fit_res))
 
-        ########## Plot results ##########
-
-        fig, ax = self.default_ax()
-
-        if 'hanger' in fitting_model:
-            self.plot_results_vs_sweepparam(x=self.sweep_points,
-                                            y=self.measured_values[0],
-                                            fig=fig, ax=ax,
-                                            xlabel=self.sweep_name,
-                                            x_unit=self.sweep_unit[0],
-                                            ylabel=str('S21_mag'),
-                                            y_unit=self.value_units[0],
-                                            save=False)
-            # ensures that amplitude plot starts at zero
-            ax.set_ylim(ymin=-0.001)
-
-        elif 'complex' in fitting_model:
-            self.plot_complex_results(
-                data_complex, fig=fig, ax=ax, show=False, save=False)
-            # second figure with amplitude
-            fig2, ax2 = self.default_ax()
-            self.plot_results_vs_sweepparam(x=self.sweep_points, y=data_amp,
-                                            fig=fig2, ax=ax2,
-                                            show=False, xlabel=self.sweep_name,
-                                            x_unit=self.sweep_unit[0],
-                                            ylabel=str('S21_mag'),
-                                            y_unit=self.value_units[0])
-
-        elif fitting_model == 'lorentzian':
-            self.plot_results_vs_sweepparam(x=self.sweep_points,
-                                            y=self.measured_powers,
-                                            fig=fig, ax=ax,
-                                            xlabel=self.sweep_name,
-                                            x_unit=self.sweep_unit[0],
-                                            ylabel=str('Power (arb. units)'),
-                                            save=False)
+        # Add stuff to the result plots ##########
 
         scale = SI_prefix_and_scale_factor(val=max(abs(ax.get_xticks())),
                                            unit=self.sweep_unit[0])[0]
@@ -5771,15 +5638,187 @@ class Homodyne_Analysis(MeasurementAnalysis):
             # save figure
             self.save_fig(fig, xlabel=self.xlabel, ylabel='Mag', **kw)
 
-        # self.save_fig(fig, xlabel=self.xlabel, ylabel='Mag', **kw)
         if close_file:
             self.data_file.close()
+
         return fit_res
 
+    def _hanger_fit(self, fitting_model: str, f0: float, ax, fig, fit_window=None, **kw):
+        if fitting_model == 'hanger':
+            # f is expected in Hz but f0 in GHz!
+            Model = fit_mods.SlopedHangerAmplitudeModel
+        # this in not working at the moment (need to be fixed)
+        elif fitting_model == 'simple_hanger':
+            Model = fit_mods.HangerAmplitudeModel
+        else:
+            raise ValueError(
+                'The fitting model specified is not available')
+        # added reject outliers to be robust agains CBox data acq bug.
+        # this should have no effect on regular data acquisition and is
+        # only used in the guess.
+        amplitude_guess = max(
+            dm_tools.reject_outliers(self.measured_values[0]))
 
+        # Creating parameters and estimations
+        S21min = (min(dm_tools.reject_outliers(self.measured_values[0])) /
+                  max(dm_tools.reject_outliers(self.measured_values[0])))
+
+        Q = kw.pop('Q', f0 / abs(self.min_frequency - self.max_frequency))
+        Qe = abs(Q / abs(1 - S21min))
+
+        # Note: input to the fit function is in GHz for convenience
+        Model.set_param_hint('f0', value=f0 * 1e-9,
+                             min=min(self.sweep_points) * 1e-9,
+                             max=max(self.sweep_points) * 1e-9)
+        Model.set_param_hint('A', value=amplitude_guess)
+        Model.set_param_hint('Q', value=Q, min=1, max=50e6)
+        Model.set_param_hint('Qe', value=Qe, min=1, max=50e6)
+        # NB! Expressions are broken in lmfit for python 3.5 this has
+        # been fixed in the lmfit repository but is not yet released
+        # the newest upgrade to lmfit should fix this (MAR 18-2-2016)
+        Model.set_param_hint('Qi', expr='abs(1./(1./Q-1./Qe*cos(theta)))',
+                             vary=False)
+        Model.set_param_hint('Qc', expr='Qe/cos(theta)', vary=False)
+        Model.set_param_hint('theta', value=0, min=-np.pi / 2,
+                             max=np.pi / 2)
+        Model.set_param_hint('slope', value=0, vary=True)
+
+        self.params = Model.make_params()
+
+        if fit_window == None:
+            data_x = self.sweep_points
+            self.data_y = self.measured_values[0]
+        else:
+            data_x = self.sweep_points[fit_window[0]:fit_window[1]]
+            data_y_temp = self.measured_values[0]
+            self.data_y = data_y_temp[fit_window[0]:fit_window[1]]
+
+        # # make sure that frequencies are in Hz
+        # if np.floor(data_x[0]/1e8) == 0:  # frequency is defined in GHz
+        #     data_x = data_x*1e9
+
+        fit_res = Model.fit(data=self.data_y, f=data_x, verbose=False)
+
+        # Plot
+        self.plot_results_vs_sweepparam(x=self.sweep_points,
+                                        y=self.measured_values[0],
+                                        fig=fig, ax=ax,
+                                        xlabel=self.sweep_name,
+                                        x_unit=self.sweep_unit[0],
+                                        ylabel=str('S21_mag'),
+                                        y_unit=self.value_units[0],
+                                        save=False)
+        # ensures that amplitude plot starts at zero
+        ax.set_ylim(ymin=-0.001)
+
+        return Model, fit_res
+
+    def _complex_fit(self, f0: float, ax, fig, ax2, fig2, **kw):
+        # this is the fit with a complex transmission curve WITHOUT slope
+
+        # TODO: Implement slope fitting with Complex!! Xavi February 2018
+        data_amp = self.measured_values[0]
+        data_angle = self.measured_values[1]
+        data_complex = data_amp * np.cos(data_angle) + 1j * data_amp * np.sin(data_angle)
+        # np.add(self.measured_values[2], 1j*self.measured_values[3])
+
+        # Initial guesses
+        guess_A = max(data_amp)
+        # this has to been improved
+        guess_Q = f0 / abs(self.min_frequency - self.max_frequency)
+        guess_Qe = guess_Q / (1 - (max(data_amp) - min(data_amp)))
+        # phi_v
+        # number of 2*pi phase jumps
+        nbr_phase_jumps = (np.diff(data_angle) > 4).sum()
+        guess_phi_v = (2 * np.pi * nbr_phase_jumps + (data_angle[0] - data_angle[-1])) / (
+                self.sweep_points[0] - self.sweep_points[-1])
+        # phi_0
+        angle_resonance = data_angle[int(len(self.sweep_points) / 2)]
+        phase_evolution_resonance = np.exp(1j * guess_phi_v * f0)
+        angle_phase_evolution = np.arctan2(
+            np.imag(phase_evolution_resonance), np.real(phase_evolution_resonance))
+        guess_phi_0 = angle_resonance - angle_phase_evolution
+
+        # prepare the parameter dictionary
+        P = lmfit.Parameters()
+        #           (Name,         Value, Vary,      Min,     Max,  Expr)
+        P.add_many(('f0', f0 / 1e9, True, None, None, None),
+                   ('Q', guess_Q, True, 1, 50e6, None),
+                   ('Qe', guess_Qe, True, 1, 50e6, None),
+                   ('A', guess_A, True, 0, None, None),
+                   ('theta', 0, True, -np.pi / 2, np.pi / 2, None),
+                   ('phi_v', guess_phi_v, True, None, None, None),
+                   ('phi_0', guess_phi_0, True, -np.pi, np.pi, None))
+        P.add('Qi', expr='1./(1./Q-1./Qe*cos(theta))', vary=False)
+        P.add('Qc', expr='Qe/cos(theta)', vary=False)
+
+        # Fit
+        fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, P,
+                              args=(fit_mods.HangerFuncComplex,
+                                    self.sweep_points, data_complex))
+
+        # Plot
+        self.plot_complex_results(
+            data_complex, fig=fig, ax=ax, show=False, save=False)
+        # second figure with amplitude
+        self.plot_results_vs_sweepparam(x=self.sweep_points, y=data_amp,
+                                        fig=fig2, ax=ax2,
+                                        show=False, xlabel=self.sweep_name,
+                                        x_unit=self.sweep_unit[0],
+                                        ylabel=str('S21_mag'),
+                                        y_unit=self.value_units[0])
+
+        return None, fit_res
+
+    def _lorentzian_fit(self, amplitude_factor: float, f0: float, ax, fig, **kw):
+        Model = fit_mods.LorentzianModel
+
+        kappa_guess = 2.5e6
+
+        amplitude_guess = amplitude_factor * np.pi * kappa_guess * abs(
+            max(self.measured_powers) - min(self.measured_powers))
+
+        Model.set_param_hint('f0', value=f0,
+                             min=min(self.sweep_points),
+                             max=max(self.sweep_points))
+        Model.set_param_hint('A', value=amplitude_guess)
+
+        # Fitting
+        Model.set_param_hint('offset',
+                             value=np.mean(self.measured_powers),
+                             vary=True)
+        Model.set_param_hint('kappa',
+                             value=kappa_guess,
+                             min=0,
+                             vary=True)
+        Model.set_param_hint('Q',
+                             expr='0.5*f0/kappa',
+                             vary=False)
+        self.params = Model.make_params()
+
+        fit_res = Model.fit(data=self.measured_powers,
+                            f=self.sweep_points,
+                            params=self.params)
+
+        # Plot
+        self.plot_results_vs_sweepparam(x=self.sweep_points,
+                                        y=self.measured_powers,
+                                        fig=fig, ax=ax,
+                                        xlabel=self.sweep_name,
+                                        x_unit=self.sweep_unit[0],
+                                        ylabel=str('Power (arb. units)'),
+                                        save=False)
+
+        return Model, fit_res
+
+    def _double_resonator_fit(self, f0: float, ax, fig, **kw):
+        Model = lmfit.Model(fit_mods.DoubleHangerFuncS21Dist)
+
+        return None, None
 ################
 # VNA analysis #
 ################
+
 class VNA_Analysis(MeasurementAnalysis):
     '''
     Nice to use with all measurements performed with the VNA.
