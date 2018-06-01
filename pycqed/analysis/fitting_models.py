@@ -365,7 +365,10 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-
+def DoubleHangerFuncS21Dist(x, A, phi, kappa, gamma, wrr, J, wpf):
+    if A < 0 or kappa < 0 or gamma <= 0 or wrr <= 0 or J <= 0 or wpf <= 0:
+        return 0
+    return A*abs(1-(np.exp(-1j*phi)*kappa*(gamma+2j*(x-wrr))/(4*J**2+(kappa+2j*(x-wpf))*(gamma+2j*(x-wrr)))))
 
 def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
     # This is the function for a hanger (lambda/4 resonator) which takes into
