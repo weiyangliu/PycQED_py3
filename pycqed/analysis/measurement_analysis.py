@@ -5422,8 +5422,8 @@ class RandomizedBench_2D_flat_Analysis(RandomizedBenchmarking_Analysis):
 
 class Homodyne_Analysis(MeasurementAnalysis):
 
-    def __init__(self, label='HM', custom_power_message: dict = None, **kw):
-        # Custome power message is used to create a message in resonator measurements
+    def __init__(self, label: str='HM', custom_power_message: dict = None, **kw):
+        # Custom power message is used to create a message in resonator measurements
         # dict must be custom_power_message={'Power': -15, 'Atten': 86, 'res_len':3e-6}
         # Power in dBm, Atten in dB and resonator length in m
         kw['label'] = label
@@ -5431,18 +5431,28 @@ class Homodyne_Analysis(MeasurementAnalysis):
         kw['custom_power_message'] = custom_power_message
         super().__init__(**kw)
 
-    def run_default_analysis(self, print_fit_results=False,
-                             close_file=False, fitting_model='hanger',
-                             show_guess=False, show=False,
+    def run_default_analysis(self, print_fit_results: bool=False,
+                             close_file: bool=False, fitting_model: str='hanger',
+                             show_guess: bool=False, show: bool=False,
                              fit_window=None, **kw):
         '''
-        Available fitting_models:
-            - 'hanger' = amplitude fit with slope
-            - 'complex' = complex transmission fit WITHOUT slope
-            - 'lorentzian' = fit to a Lorentzian lineshape
 
-        'fit_window': allows to select the windows of data to fit.
-                      Example: fit_window=[100,-100]
+        :param print_fit_results:
+        :param close_file:
+        :param fitting_model: Available fitting_models:
+                - 'hanger' = amplitude fit with slope
+                - 'simple_hanger' =
+                - 'complex' = complex transmission fit WITHOUT slope
+                - 'lorentzian' = fit to a Lorentzian lineshape
+                - 'double_resonator' =  fit two coupled resonators
+                                            (as e.g. in a Purcell-Filtered
+                                            Readout-resonator)
+        :param show_guess:
+        :param show:
+        :param fit_window: allows to select the windows of data to fit.
+                            Example: fit_window=[100,-100]
+        :param kw:
+        :return:
         '''
         super(self.__class__, self).run_default_analysis(
             close_file=False, show=show, **kw)
