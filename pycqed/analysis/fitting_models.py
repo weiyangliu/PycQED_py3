@@ -365,10 +365,11 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-def DoubleHangerS21Func(f: float, A, phi, kappa, gamma, wrr, J, wpf):
+def DoubleHangerS21Func(f, A: float, phi: float, kappa: float,
+                        gamma: float, wrr: float, J: float, wpf: float):
     '''
     As in the ETH paper
-    :param f: frequencies
+    :param f: (list of) frequency(-ies)
     :param A: Amplitude
     :param phi: Global Phase
     :param kappa: Decay rate of resonator1
@@ -380,7 +381,7 @@ def DoubleHangerS21Func(f: float, A, phi, kappa, gamma, wrr, J, wpf):
     '''
     if A < 0 or kappa < 0 or gamma <= 0 or wrr <= 0 or J <= 0 or wpf <= 0:
         return 0
-    return A*1-(np.exp(-1j*phi)*kappa*(gamma+2j*(f-wrr))/(4*J**2+(kappa+2j*(f-wpf))*(gamma+2j*(f-wrr))))
+    return A*(1-(np.exp(-1j*phi)*kappa*(gamma+2j*(f-wrr))/(4*J**2+(kappa+2j*(f-wpf))*(gamma+2j*(f-wrr)))))
 
 def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
     # This is the function for a hanger (lambda/4 resonator) which takes into
@@ -728,9 +729,9 @@ def DoubleHangerS21Guess(model, freq: list, s21: list, f0: float):
     s21abs = np.abs(s21)
     A = np.max(s21abs)
     model.set_param_hint('A', value=A, min=0, vary=True)
-    model.set_param_hint('phi',min=0, max=2 * np.pi
+    model.set_param_hint('phi',min=0, max=2 * np.pi,
                          value=1e-3, #stimulate change but not choosing 0
-                         vary = True)
+                         vary=True)
     J = 10e6
     model.set_param_hint('wrr', value=(f0 - J/2) * 2 * np.pi,
                          min=min(freq) * 2 * np.pi,
@@ -794,8 +795,12 @@ def HangerGuess(model, freq: list, amp: list, f0: float, Q: float=None):
     params = model.make_params()
     return params
 
-def HangerComplexGuess(model, freq: list, data_amp: list, data_angle: list,
-                       f0: float, Q: float=None):
+def HangerComplexGuess(freq: list, data_amp: list, data_angle: list,
+                       f0: float, model = None, Q: float=None):
+    if model is not None:
+        model.make_params()
+    else:
+        P = lmfit.Parameters()
     # Initial guesses
     guess_A = max(data_amp)
     guess_Q = Q or HangerQGuess(freq=freq, amp=data_amp, f0=f0)
@@ -813,7 +818,7 @@ def HangerComplexGuess(model, freq: list, data_amp: list, data_angle: list,
     guess_phi_0 = angle_resonance - angle_phase_evolution
 
     # prepare the parameter dictionary
-    P = lmfit.Parameters()
+
     #           (Name,         Value, Vary,      Min,     Max,  Expr)
     P.add_many(('f0', f0 / 1e9, True, None, None, None),
                ('Q', guess_Q, True, 1, 50e6, None),

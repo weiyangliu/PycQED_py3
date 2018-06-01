@@ -5521,7 +5521,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
                     'The fitting model specified is not available')
 
             # Make a guess
-            self.params = a_tools.HangerGuess(model=Model, freq=scan_freqs,
+            self.params = fit_mods.HangerGuess(model=Model, freq=scan_freqs,
                                          amp=data_amp, f0=f0)
 
             # Start fitting
@@ -5544,17 +5544,17 @@ class Homodyne_Analysis(MeasurementAnalysis):
 
         elif fitting_model == 'complex':
             # TODO: (improvement) Implement slope fitting with Complex!! (Xavi February 2018)
-            if data_angle is not None:
+            if data_angle is None:
                 raise ValueError('Fitting model "complex" requires angle data' +
                                  ', which was not found in this data set.')
 
             # Guess
-            P = a_tools.HangerComplexGuess(freq=scan_freqs,
-                                           data_amp=data_amp,
-                                           data_angle=data_angle)
+            self.param = fit_mods.HangerComplexGuess(freq=scan_freqs,
+                                            data_amp=data_amp,
+                                            data_angle=data_angle, f0=f0)
             # TODO: Why not add self.param = P? (Rene june 2018)
             # Fit
-            fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, P,
+            fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, self.param,
                                      args=(fit_mods.HangerFuncComplex,
                                            scan_freqs, data_complex))
             # Set the main result easy to read in SI units.
@@ -5589,14 +5589,16 @@ class Homodyne_Analysis(MeasurementAnalysis):
             fit_res = Model.fit(data=self.measured_powers,
                                 f=scan_freqs,
                                 params=self.params)
+
             # Set the main result easy to read in SI units.
             self.fit_frequency = fit_res.params['f0'].value*1e9
 
         elif fitting_model == 'double_resonator':
-            Model = lmfit.Model(a_tools.DoubleHangerS21Func)
-            self.params = a_tools.DoubleHangerS21Guess(model=Model,
-                                                       freq=scan_freqs,
+            Model = lmfit.Model(fit_mods.DoubleHangerS21Func)
+            self.params = fit_mods.DoubleHangerS21Guess(model=Model,
+                                                       freq=scan_freqs, f0=f0,
                                                        s21=data_complex)
+
             fit_res = Model.fit(data=data_complex, f=scan_freqs,
                                 verbose=self.verbose, **self.params)
             # Set the main result easy to read in SI units.
@@ -5630,7 +5632,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             # ensures that amplitude plot starts at zero
             ax.set_ylim(ymin=-0.001)
 
-        elif 'complex' in fitting_model:
+        elif fitting_model == 'complex':
             self.plot_complex_results(
                 data_complex, fig=fig, ax=ax, show=False, save=False)
             # second figure with amplitude
@@ -5650,6 +5652,17 @@ class Homodyne_Analysis(MeasurementAnalysis):
                                             x_unit=self.sweep_unit[0],
                                             ylabel=str('Power (arb. units)'),
                                             save=False)
+        elif fitting_model == 'double_resonator':
+            self.plot_complex_results(
+                data_complex, fig=fig, ax=ax, show=False, save=False)
+            # second figure with amplitude
+            fig2, ax2 = self.default_ax()
+            self.plot_results_vs_sweepparam(x=scan_freqs, y=data_amp,
+                                            fig=fig2, ax=ax2,
+                                            show=False, xlabel=self.sweep_name,
+                                            x_unit=self.sweep_unit[0],
+                                            ylabel=str('S21_mag'),
+                                            y_unit=self.value_units[0])
 
         scale = SI_prefix_and_scale_factor(val=max(abs(ax.get_xticks())),
                                            unit=self.sweep_unit[0])[0]
@@ -5711,13 +5724,15 @@ class Homodyne_Analysis(MeasurementAnalysis):
                                                                  '$Q$ = %.1f $\pm$ (%.1f)' % (
                           fit_res.params['Q'].value,
                           fit_res.params['Q'].stderr) + old_vals
+        elif fitting_model == 'double_resonator':
+            textstr = 'test'
 
         fig.text(0.5, 0, textstr, transform=ax.transAxes,
                  fontsize=self.font_size,
                  verticalalignment='top',
                  horizontalalignment='center', bbox=self.box_props)
 
-        if 'complex' in fitting_model:
+        if fitting_model == 'complex':
             fig2.text(0.5, 0, textstr, transform=ax.transAxes,
                       fontsize=self.font_size,
                       verticalalignment='top', horizontalalignment='center',
@@ -5732,10 +5747,20 @@ class Homodyne_Analysis(MeasurementAnalysis):
             ax.plot(scan_freqs, fit_res.init_fit, 'k--',
                     linewidth=self.line_width)
 
-        # this part is necessary to separate fit perfomed with lmfit.minimize
-        if 'complex' in fitting_model:
+        # this part is necessary to separate fit performed with lmfit.minimize
+        if fitting_model == 'complex':
             fit_values = fit_mods.HangerFuncComplex(
                 scan_freqs, fit_res.params)
+            ax.plot(np.real(fit_values), np.imag(fit_values), 'r-')
+
+            ax2.plot(scan_freqs, np.abs(fit_values), 'r-')
+
+            # save both figures
+            self.save_fig(fig, figname='complex', **kw)
+            self.save_fig(fig2, xlabel='Mag', **kw)
+        elif fitting_model == 'double_resonator':
+            fit_values = fit_mods.DoubleHangerS21Func(scan_freqs,
+                                                      *fit_res.params)
             ax.plot(np.real(fit_values), np.imag(fit_values), 'r-')
 
             ax2.plot(scan_freqs, np.abs(fit_values), 'r-')
