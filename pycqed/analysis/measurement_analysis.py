@@ -5460,24 +5460,32 @@ class Homodyne_Analysis(MeasurementAnalysis):
 
         window_len_filter = kw.get('window_len_filter', 11)
 
+        ## Prepare the naming of a few things
+        scan_freqs = self.sweep_points
+        data_amp = self.measured_values[0]
+        if len(self.measured_values) > 1:
+            data_angle = self.measured_values[1]
+            data_complex = data_amp * np.cos(data_angle) + 1j * data_amp * np.sin(data_angle)
+
         ########## Fit data ##########
 
         # Fit Power to a Lorentzian
-        self.measured_powers = self.measured_values[0] ** 2
+        self.measured_powers = data_amp ** 2
 
         min_index = np.argmin(self.measured_powers)
         max_index = np.argmax(self.measured_powers)
 
-        self.min_frequency = self.sweep_points[min_index]
-        self.max_frequency = self.sweep_points[max_index]
+        self.min_frequency = scan_freqs[min_index]
+        self.max_frequency = scan_freqs[max_index]
 
         measured_powers_smooth = a_tools.smooth(self.measured_powers,
                                                 window_len=window_len_filter)
-        self.peaks = a_tools.peak_finder((self.sweep_points),
+        self.peaks = a_tools.peak_finder((scan_freqs),
                                          measured_powers_smooth,
                                          window_len=0)
 
         # Search for peak
+        fit_res = None
         if self.peaks['dip'] is not None:  # look for dips first
             f0 = self.peaks['dip']
             amplitude_factor = -1.
@@ -5485,7 +5493,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             f0 = self.peaks['peak']
             amplitude_factor = 1.
         else:  # Otherwise take center of range
-            f0 = np.median(self.sweep_points)
+            f0 = np.median(scan_freqs)
             amplitude_factor = -1.
             logging.warning('No peaks or dips in range')
             # If this error is raised, it should continue the analysis but
@@ -5503,44 +5511,18 @@ class Homodyne_Analysis(MeasurementAnalysis):
             else:
                 raise ValueError(
                     'The fitting model specified is not available')
-            # added reject outliers to be robust agains CBox data acq bug.
-            # this should have no effect on regular data acquisition and is
-            # only used in the guess.
-            amplitude_guess = max(
-                dm_tools.reject_outliers(self.measured_values[0]))
 
-            # Creating parameters and estimations
-            S21min = (min(dm_tools.reject_outliers(self.measured_values[0])) /
-                      max(dm_tools.reject_outliers(self.measured_values[0])))
+            # Make a guess
+            self.params = a_tools.HangerGuess(model=Model, freq=scan_freqs,
+                                         amp=data_amp, f0=f0)
 
-            Q = kw.pop('Q', f0 / abs(self.min_frequency - self.max_frequency))
-            Qe = abs(Q / abs(1 - S21min))
-
-            # Note: input to the fit function is in GHz for convenience
-            Model.set_param_hint('f0', value=f0 * 1e-9,
-                                 min=min(self.sweep_points) * 1e-9,
-                                 max=max(self.sweep_points) * 1e-9)
-            Model.set_param_hint('A', value=amplitude_guess)
-            Model.set_param_hint('Q', value=Q, min=1, max=50e6)
-            Model.set_param_hint('Qe', value=Qe, min=1, max=50e6)
-            # NB! Expressions are broken in lmfit for python 3.5 this has
-            # been fixed in the lmfit repository but is not yet released
-            # the newest upgrade to lmfit should fix this (MAR 18-2-2016)
-            Model.set_param_hint('Qi', expr='abs(1./(1./Q-1./Qe*cos(theta)))',
-                                 vary=False)
-            Model.set_param_hint('Qc', expr='Qe/cos(theta)', vary=False)
-            Model.set_param_hint('theta', value=0, min=-np.pi / 2,
-                                 max=np.pi / 2)
-            Model.set_param_hint('slope', value=0, vary=True)
-
-            self.params = Model.make_params()
-
+            # Start fitting
             if fit_window == None:
-                data_x = self.sweep_points
-                self.data_y = self.measured_values[0]
+                data_x = scan_freqs
+                self.data_y = data_amp
             else:
-                data_x = self.sweep_points[fit_window[0]:fit_window[1]]
-                data_y_temp = self.measured_values[0]
+                data_x = scan_freqs[fit_window[0]:fit_window[1]]
+                data_y_temp = data_amp
                 self.data_y = data_y_temp[fit_window[0]:fit_window[1]]
 
             # # make sure that frequencies are in Hz
@@ -5553,44 +5535,17 @@ class Homodyne_Analysis(MeasurementAnalysis):
         elif fitting_model == 'complex':
             # Implement slope fitting with Complex!! Xavi February 2018
             # this is the fit with a complex transmission curve WITHOUT slope
-            data_amp = self.measured_values[0]
-            data_angle = self.measured_values[1]
-            data_complex = data_amp * np.cos(data_angle) + 1j * data_amp * np.sin(data_angle)
             # np.add(self.measured_values[2], 1j*self.measured_values[3])
 
-            # Initial guesses
-            guess_A = max(data_amp)
-            # this has to been improved
-            guess_Q = f0 / abs(self.min_frequency - self.max_frequency)
-            guess_Qe = guess_Q / (1 - (max(data_amp) - min(data_amp)))
-            # phi_v
-            # number of 2*pi phase jumps
-            nbr_phase_jumps = (np.diff(data_angle) > 4).sum()
-            guess_phi_v = (2 * np.pi * nbr_phase_jumps + (data_angle[0] - data_angle[-1])) / (
-                    self.sweep_points[0] - self.sweep_points[-1])
-            # phi_0
-            angle_resonance = data_angle[int(len(self.sweep_points) / 2)]
-            phase_evolution_resonance = np.exp(1j * guess_phi_v * f0)
-            angle_phase_evolution = np.arctan2(
-                np.imag(phase_evolution_resonance), np.real(phase_evolution_resonance))
-            guess_phi_0 = angle_resonance - angle_phase_evolution
-
-            # prepare the parameter dictionary
-            P = lmfit.Parameters()
-            #           (Name,         Value, Vary,      Min,     Max,  Expr)
-            P.add_many(('f0', f0 / 1e9, True, None, None, None),
-                       ('Q', guess_Q, True, 1, 50e6, None),
-                       ('Qe', guess_Qe, True, 1, 50e6, None),
-                       ('A', guess_A, True, 0, None, None),
-                       ('theta', 0, True, -np.pi / 2, np.pi / 2, None),
-                       ('phi_v', guess_phi_v, True, None, None, None),
-                       ('phi_0', guess_phi_0, True, -np.pi, np.pi, None))
-            P.add('Qi', expr='1./(1./Q-1./Qe*cos(theta))', vary=False)
-            P.add('Qc', expr='Qe/cos(theta)', vary=False)
-
+            # Guess
+            P = a_tools.HangerComplexGuess(freq=scan_freqs,
+                                           data_amp=data_amp,
+                                           data_angle=data_angle)
+            # TODO: Why not add self.param = P? (Rene june 2018)
             # Fit
             fit_res = lmfit.minimize(fit_mods.residual_complex_fcn, P,
-                                     args=(fit_mods.HangerFuncComplex, self.sweep_points, data_complex))
+                                     args=(fit_mods.HangerFuncComplex,
+                                           scan_freqs, data_complex))
 
         elif fitting_model == 'lorentzian':
             Model = fit_mods.LorentzianModel
@@ -5601,8 +5556,8 @@ class Homodyne_Analysis(MeasurementAnalysis):
                 max(self.measured_powers) - min(self.measured_powers))
 
             Model.set_param_hint('f0', value=f0,
-                                 min=min(self.sweep_points),
-                                 max=max(self.sweep_points))
+                                 min=min(scan_freqs),
+                                 max=max(scan_freqs))
             Model.set_param_hint('A', value=amplitude_guess)
 
             # Fitting
@@ -5619,7 +5574,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             self.params = Model.make_params()
 
             fit_res = Model.fit(data=self.measured_powers,
-                                f=self.sweep_points,
+                                f=scan_freqs,
                                 params=self.params)
 
         else:
@@ -5628,6 +5583,9 @@ class Homodyne_Analysis(MeasurementAnalysis):
 
         self.fit_results = fit_res
         self.save_fitted_parameters(fit_res, var_name='HM')
+
+        # Set the main result easy to read in SI units.
+        self.fit_frequency = fit_res.params['f0'].value*1e9
 
         if print_fit_results is True:
             # print(fit_res.fit_report())
@@ -5638,7 +5596,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
         fig, ax = self.default_ax()
 
         if 'hanger' in fitting_model:
-            self.plot_results_vs_sweepparam(x=self.sweep_points,
+            self.plot_results_vs_sweepparam(x=scan_freqs,
                                             y=self.measured_values[0],
                                             fig=fig, ax=ax,
                                             xlabel=self.sweep_name,
@@ -5654,7 +5612,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
                 data_complex, fig=fig, ax=ax, show=False, save=False)
             # second figure with amplitude
             fig2, ax2 = self.default_ax()
-            self.plot_results_vs_sweepparam(x=self.sweep_points, y=data_amp,
+            self.plot_results_vs_sweepparam(x=scan_freqs, y=data_amp,
                                             fig=fig2, ax=ax2,
                                             show=False, xlabel=self.sweep_name,
                                             x_unit=self.sweep_unit[0],
@@ -5662,7 +5620,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
                                             y_unit=self.value_units[0])
 
         elif fitting_model == 'lorentzian':
-            self.plot_results_vs_sweepparam(x=self.sweep_points,
+            self.plot_results_vs_sweepparam(x=scan_freqs,
                                             y=self.measured_powers,
                                             fig=fig, ax=ax,
                                             xlabel=self.sweep_name,
@@ -5743,27 +5701,27 @@ class Homodyne_Analysis(MeasurementAnalysis):
                       bbox=self.box_props)
 
         if fit_window == None:
-            data_x = self.sweep_points
+            data_x = scan_freqs
         else:
-            data_x = self.sweep_points[fit_window[0]:fit_window[1]]
+            data_x = scan_freqs[fit_window[0]:fit_window[1]]
 
         if show_guess:
-            ax.plot(self.sweep_points, fit_res.init_fit, 'k--',
+            ax.plot(scan_freqs, fit_res.init_fit, 'k--',
                     linewidth=self.line_width)
 
         # this part is necessary to separate fit perfomed with lmfit.minimize
         if 'complex' in fitting_model:
             fit_values = fit_mods.HangerFuncComplex(
-                self.sweep_points, fit_res.params)
+                scan_freqs, fit_res.params)
             ax.plot(np.real(fit_values), np.imag(fit_values), 'r-')
 
-            ax2.plot(self.sweep_points, np.abs(fit_values), 'r-')
+            ax2.plot(scan_freqs, np.abs(fit_values), 'r-')
 
             # save both figures
             self.save_fig(fig, figname='complex', **kw)
             self.save_fig(fig2, xlabel='Mag', **kw)
         else:
-            ax.plot(self.sweep_points, fit_res.best_fit, 'r-',
+            ax.plot(scan_freqs, fit_res.best_fit, 'r-',
                     linewidth=self.line_width)
 
             f0 = fit_res.params['f0'].value
@@ -5784,6 +5742,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
         # self.save_fig(fig, xlabel=self.xlabel, ylabel='Mag', **kw)
         if close_file:
             self.data_file.close()
+
         return fit_res
 
 

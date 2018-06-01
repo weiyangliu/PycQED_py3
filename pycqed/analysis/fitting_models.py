@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.special import erfc
 import lmfit
 import logging
-
+from pycqed.analysis.tools import data_manipulation as dm_tools
 
 #################################
 #   Fitting Functions Library   #
@@ -365,7 +365,7 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-def DoubleHangerFuncS21Dist(x, A, phi, kappa, gamma, wrr, J, wpf):
+def DoubleHangerS21DistFunc(x, A, phi, kappa, gamma, wrr, J, wpf):
     if A < 0 or kappa < 0 or gamma <= 0 or wrr <= 0 or J <= 0 or wpf <= 0:
         return 0
     return A*abs(1-(np.exp(-1j*phi)*kappa*(gamma+2j*(x-wrr))/(4*J**2+(kappa+2j*(x-wpf))*(gamma+2j*(x-wrr)))))
@@ -704,6 +704,92 @@ def Qubit_dac_arch_guess(model, freq, dac_voltage):
     params = model.make_params()
     return params
 
+def HangerQGuess(freq, amp, f0):
+    measured_powers = amp ** 2
+    min_frequency = freq[np.argmin(measured_powers)]
+    max_frequency = freq[np.argmax(measured_powers)]
+    Q = f0 / abs(min_frequency - max_frequency)
+    return Q
+
+def DoubleHangerS21DistGuess(model, freq, s21dist):
+    f0 = freq[np.argmin(s21dist)]
+
+def HangerGuess(model, freq: list, amp: list, f0: float, Q: float=None):
+    '''
+    NB: This does not use SI units!
+
+    :param model:
+    :param freq: list of the scanned frequencies
+    :param amp: list of the measured amplitudes
+    :param f0: (mandatory): Frequency pre-guess
+    :param Q: (Optional): Quality factor pre-guess
+    :return:
+    '''
+    # added reject outliers to be robust against CBox data acq bug.
+    # this should have no effect on regular data acquisition and is
+    # only used in the guess.
+    amplitude_guess = max(dm_tools.reject_outliers(amp))
+
+    # Creating parameters and estimations
+    S21min = (min(dm_tools.reject_outliers(amp)) /
+              max(dm_tools.reject_outliers(amp)))
+
+    if Q is None:
+        Q = HangerQGuess(freq=freq, amp=amp, f0=f0)
+    Qe = abs(Q / abs(1 - S21min))
+
+    # Note: input to the fit function is in GHz for convenience
+    model.set_param_hint('f0', value=f0 * 1e-9,
+                         min=min(freq) * 1e-9,
+                         max=max(freq) * 1e-9)
+    model.set_param_hint('A', value=amplitude_guess)
+    model.set_param_hint('Q', value=Q, min=1, max=50e6)
+    model.set_param_hint('Qe', value=Qe, min=1, max=50e6)
+    # NB! Expressions are broken in lmfit for python 3.5 this has
+    # been fixed in the lmfit repository but is not yet released
+    # the newest upgrade to lmfit should fix this (MAR 18-2-2016)
+    model.set_param_hint('Qi', expr='abs(1./(1./Q-1./Qe*cos(theta)))',
+                         vary=False)
+    model.set_param_hint('Qc', expr='Qe/cos(theta)', vary=False)
+    model.set_param_hint('theta', value=0, min=-np.pi / 2,
+                         max=np.pi / 2)
+    model.set_param_hint('slope', value=0, vary=True)
+
+    params = model.make_params()
+    return params
+
+def HangerComplexGuess(model, freq: list, data_amp: list, data_angle: list,
+                       f0: float, Q: float=None):
+    # Initial guesses
+    guess_A = max(data_amp)
+    guess_Q = Q or HangerQGuess(freq=freq, amp=data_amp, f0=f0)
+    guess_Qe = guess_Q / (1 - (max(data_amp) - min(data_amp)))
+    # phi_v
+    # number of 2*pi phase jumps
+    nbr_phase_jumps = (np.diff(data_angle) > 4).sum()
+    guess_phi_v = (2 * np.pi * nbr_phase_jumps + (data_angle[0] - data_angle[-1])) / (
+            freq[0] - freq[-1])
+    # phi_0
+    angle_resonance = data_angle[int(len(freq) / 2)]
+    phase_evolution_resonance = np.exp(1j * guess_phi_v * f0)
+    angle_phase_evolution = np.arctan2(
+        np.imag(phase_evolution_resonance), np.real(phase_evolution_resonance))
+    guess_phi_0 = angle_resonance - angle_phase_evolution
+
+    # prepare the parameter dictionary
+    P = lmfit.Parameters()
+    #           (Name,         Value, Vary,      Min,     Max,  Expr)
+    P.add_many(('f0', f0 / 1e9, True, None, None, None),
+               ('Q', guess_Q, True, 1, 50e6, None),
+               ('Qe', guess_Qe, True, 1, 50e6, None),
+               ('A', guess_A, True, 0, None, None),
+               ('theta', 0, True, -np.pi / 2, np.pi / 2, None),
+               ('phi_v', guess_phi_v, True, None, None, None),
+               ('phi_0', guess_phi_0, True, -np.pi, np.pi, None))
+    P.add('Qi', expr='1./(1./Q-1./Qe*cos(theta))', vary=False)
+    P.add('Qc', expr='Qe/cos(theta)', vary=False)
+
+    return P
 
 def idle_err_rate_guess(model, data, N):
     '''
