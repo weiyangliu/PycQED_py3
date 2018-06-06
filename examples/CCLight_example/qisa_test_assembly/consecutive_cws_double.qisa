@@ -11,7 +11,7 @@ LDI  r4, 150
 LDI r3, 2
 SUB r3, r4, r3
 Loop:
-    qwait 100
+    #qwait 1
     bs 2 CW_01 s6
     bs 2 CW_01 s0 | CW_31 s2
     bs 2 CW_02 s0 | CW_30 s2
