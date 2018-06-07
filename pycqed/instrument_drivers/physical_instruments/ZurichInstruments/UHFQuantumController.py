@@ -33,7 +33,7 @@ class UHFQC(Instrument):
     """
 
     def __init__(self, name, device='auto', interface='USB',
-                 address='127.0.0.1', port=8004, DIO=True, 
+                 address='127.0.0.1', port=8004, DIO=True,
                  nr_integration_channels=9,**kw):
         '''
         Input arguments:
@@ -45,7 +45,7 @@ class UHFQC(Instrument):
         # #suggestion W vlothuizen
         t0 = time.time()
         super().__init__(name, **kw)
-        self.nr_integration_channels = nr_integration_channels  
+        self.nr_integration_channels = nr_integration_channels
         self.DIO=DIO
         self._daq = zi.ziDAQServer(address, int(port), 5)
         # self._daq.setDebugLevel(5)
@@ -711,6 +711,19 @@ class UHFQC(Instrument):
         self.set('quex_rot_{}_real'.format(weight_function_Q), 2.0)
         self.set('quex_rot_{}_imag'.format(weight_function_Q), 0.0)
 
+    def set_dio_delay(index, delay):
+        """
+        Args:
+            index : integer [0:31]
+            delay : integer [0:3] in 1/450 MHz = 2.222 ns steps (TBC)
+
+        NB: UHFQC.awgs_0_dio_delay_index() should not be used, the index is
+            encoded in the value. This is different from the AWG-8 mechanism,
+            and requires the maximum value for "awgs/0/dio/delay/value" in
+            s_node_pars.txt to be changed to 1024
+        """
+        UHFQC.awgs_0_dio_delay_value((delay << 8) + index)
+
     def _make_full_path(self, path):
         if path[0] == '/':
             return path
@@ -1007,7 +1020,7 @@ setTrigger(0);"""
             for j in range(np.shape(matrix)[1]):  # looping over the colums
                 matrix[i][j] = self.get('quex_trans_{}_col_{}_real'.format(j, i))
         return matrix
-    
+
     def spec_mode_on(self, acq_length=1/1500, IF=20e6, ro_amp=0.1):
         awg_code = """
 const TRIGGER1  = 0x000001;
@@ -1033,7 +1046,7 @@ setTrigger(0);
         self.oscs_0_freq(IF)
         #setting the integration path to use the oscillator instead of integration functions
         self.quex_wint_mode(1)
-        #just below the 
+        #just below the
         self.quex_wint_length(int(acq_length*0.99*1.8e9))
         #uploading the sequence
         self.awg_string(awg_code)
@@ -1051,7 +1064,7 @@ setTrigger(0);
         self.sigouts_0_enables_3(1)
         self.sigouts_1_enables_7(1)
         # setting
-        self.sigouts_1_amplitudes_7(ro_amp)#magic scale factor 
+        self.sigouts_1_amplitudes_7(ro_amp)#magic scale factor
         self.sigouts_0_amplitudes_3(ro_amp)
 
     def spec_mode_off(self):
