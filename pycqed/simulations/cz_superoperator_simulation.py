@@ -1,0 +1,477 @@
+"""
+April 2018
+Simulates the trajectory implementing a CZ gate.
+
+June 2018
+Including noise in the simulation.
+"""
+import time
+import numpy as np
+import qutip as qtp
+from pycqed.measurement import detector_functions as det
+from scipy.interpolate import interp1d
+from pycqed.measurement.waveform_control_CC import waveform as wf
+#np.set_printoptions(threshold=np.inf)
+
+
+alpha_q0 = -285e6 * 2*np.pi
+w_q0 = 5.42e9 * 2 * np.pi  # Higher frequency qubit (fluxing) qubit
+w_q1 = 4.11e9 * 2 * np.pi  # Lower frequency
+
+J = 2.9e6 * 2 * np.pi  # coupling strength
+
+
+# operators
+b = qtp.tensor(qtp.destroy(2), qtp.qeye(3))  # LSB is static qubit
+a = qtp.tensor(qtp.qeye(2), qtp.destroy(3))
+n_q0 = a.dag() * a
+n_q1 = b.dag() * b
+
+
+# caracteristic timescales for jump operators
+T1_q0=25e-6
+T1_q1=25e-6
+Tphi_q0_ket0toket0=81e-6
+Tphi_q0_ket1toket1=17e-6
+Tphi_q0_ket2toket2=12e-6
+Tphi_q1_ket0toket0=81e-6
+Tphi_q1_ket1toket1=17e-6
+
+
+
+# Hamiltonian
+def coupled_transmons_hamiltonian(w_q0, w_q1, alpha_q0, J):
+    """
+    Hamiltonian of two coupled anharmonic transmons.
+    Because the intention is to tune one qubit into resonance with the other,
+    the number of levels is limited.
+        q1 -> static qubit, 2-levels
+        q0 -> fluxing qubit, 3-levels
+
+    intended avoided crossing:
+        11 <-> 02     (q1 is the first qubit and q0 the second one)
+
+    N.B. the frequency of q0 is expected to be larger than that of q1
+        w_q0 > w_q1
+        and the anharmonicity alpha_q0 negative
+    """
+
+    H_0 = w_q0 * n_q0 + w_q1 * n_q1 +  \
+        1/2*alpha_q0*(a.dag()*a.dag()*a*a) +\
+        J * (a.dag() + a) * (b + b.dag())
+    return H_0
+
+
+H_0 = coupled_transmons_hamiltonian(w_q0=w_q0, w_q1=w_q1, alpha_q0=alpha_q0,J=J)
+
+
+# target in the case with no noise
+# note that the Hilbert space is H_q1 /otimes H_q0
+# so the ordering of basis states below is 00,01,02,10,11,12
+U_target = qtp.Qobj([[1, 0, 0, 0, 0, 0],
+                     [0, 1, 0, 0, 0, 0],
+                     [0, 0, -1, 0, 0, 0],
+                     [0, 0, 0, 1, 0, 0],
+                     [0, 0, 0, 0, -1, 0],
+                     [0, 0, 0, 0, 0, 1]],
+                    type='oper',
+                    dims=[[2, 3], [2, 3]])
+#U_target._type = 'oper'
+U_target_diffdims = qtp.Qobj([[1, 0, 0, 0, 0, 0],
+                     [0, 1, 0, 0, 0, 0],
+                     [0, 0, -1, 0, 0, 0],
+                     [0, 0, 0, 1, 0, 0],
+                     [0, 0, 0, 0, -1, 0],
+                     [0, 0, 0, 0, 0, 1]],
+                    type='oper',
+                    dims=[[6], [6]])     # otherwise average_gate_fidelity doesn't work
+
+# if there is noise the target is the corresponding superoperator
+U_super_target = qtp.to_super(U_target)
+
+'''
+remember that qutip uses the Liouville (matrix) representation for superoperators,
+with column stacking.
+This means that 
+rho_{xy,x'y'}=rho[3*x+y,3*x'+y']
+rho_{xy,x'y'}=operator_to_vector(rho)[3*x+y+18*x'+6*y']
+where xy is the row and x'y' is the column
+'''
+
+
+def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1):
+	c_ops=[]
+	if T1_q0 != 0:
+		c_ops.append(np.sqrt(1/T1_q0)*a)
+	if T1_q1 != 0:
+		c_ops.append(np.sqrt(1/T1_q1)*b)
+	if Tphi_q0_ket0toket0 != 0:
+		collapse=qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,0)))
+		c_ops.append(np.sqrt(1/Tphi_q0_ket0toket0)*collapse)
+	if Tphi_q0_ket1toket1 != 0:
+		collapse=qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,1)))
+		c_ops.append(np.sqrt(1/Tphi_q0_ket1toket1)*collapse)
+	if Tphi_q0_ket2toket2 != 0:
+		collapse=qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,2)))
+		c_ops.append(np.sqrt(1/Tphi_q0_ket2toket2)*collapse)
+	if Tphi_q1_ket0toket0 != 0:
+		collapse=qtp.tensor(qtp.ket2dm(qtp.basis(2,0)),qtp.qeye(3))
+		c_ops.append(np.sqrt(1/Tphi_q1_ket0toket0)*collapse)
+	if Tphi_q1_ket1toket1 != 0:
+		collapse=qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3))
+		c_ops.append(np.sqrt(1/Tphi_q1_ket1toket1)*collapse)
+	return c_ops
+
+
+#c_ops=jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1)
+
+
+
+def rotating_frame_transformation(U, t: float,
+                                  w_q0: float=0, w_q1: float =0):
+    """
+    Transforms the frame of the unitary according to
+        U' = U_{RF}*U*U_{RF}^dag
+    with
+        U_{RF} = e^{-i w_q0 a^dag a t } otimes e^{-i w_q1 b^dag b t }
+
+    Args:
+        U (QObj): Unitary to be transformed
+        t (float): time at which to transform
+        w_q0 (float): freq of frame for q0
+        w_q1 (float): freq of frame for q1
+
+    """
+    U_RF = (1j*w_q0*n_q0*t).expm() * (1j*w_q1*n_q1*t).expm()
+
+    U_prime = U_RF * U  
+    """ U_RF only on one side because that's the operator that
+    satisfies the Schroedinger equation in the interaction picture.
+    Anyway we won't use this function.
+    In case we would need to rotate in the new picture the jump operators as well !
+    """
+    return U_prime
+
+
+def phases_from_superoperator(U):
+    """
+    Returns the phases from the unitary or superoperator U
+    """
+    if U.type=='oper':
+        phi_00 = np.rad2deg(np.angle(U[0, 0]))  # expected to equal 0 because of our
+        # choice for the energy, not because of rotating frame
+        phi_01 = np.rad2deg(np.angle(U[1, 1]))
+        phi_10 = np.rad2deg(np.angle(U[3, 3]))
+        phi_11 = np.rad2deg(np.angle(U[4, 4]))
+
+        phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360
+        # notice the + even if it is irrelevant
+
+        return phi_00, phi_01, phi_10, phi_11, phi_cond
+    elif U.type=='super':
+        phi_00 = 0   # we set it to 0 arbitrarily but it is actually not knowable
+        phi_01 = np.rad2deg(np.angle(U[1, 1]))   # actually phi_01-phi_00
+        phi_10 = np.rad2deg(np.angle(U[3, 3]))
+        phi_11 = np.rad2deg(np.angle(U[4, 4]))
+
+        phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360  # still the right formula
+        # independently from phi_00
+
+        return phi_00, phi_01, phi_10, phi_11, phi_cond
+    # !!! check that this is a good formula for superoperators: there is a lot of redundancy
+    #     there if the evolution is unitary, but not necessarily if it's noisy!
+
+
+def pro_avfid_superoperator_compsubspace(U,L1):
+    """
+    Average process (gate) fidelity in the computational subspace for a qubit and qutrit
+    Leakage has to be taken into account, see Woods & Gambetta
+    """
+
+    if U.type=='oper':
+        inner = U.dag()*U_target
+        part_idx = [0, 1, 3, 4]  # only computational subspace
+        ptrace = 0
+        for i in part_idx:
+            ptrace += inner[i, i]
+        dim = 4  # 2 qubits comp subspace       
+
+        return np.real(((np.abs(ptrace))**2+dim*(1-L1))/(dim*(dim+1)))
+
+    elif U.type=='super':
+        kraus_form = qtp.to_kraus(U)
+        dim=4 # 2 qubits in the computational subspace
+        part_idx = [0, 1, 3, 4]  # only computational subspace
+        psum=0
+        for A_k in kraus_form:
+        	ptrace = 0
+        	inner = U_target_diffdims.dag()*A_k # otherwise dimension mismatch
+        	for i in part_idx:
+        		ptrace += inner[i, i]
+        	psum += (np.abs(ptrace))**2
+
+        return np.real((dim*(1-L1) + psum) / (dim*(dim + 1)))
+
+
+
+def leakage_from_superoperator(U):
+    if U.type=='oper':
+        """
+        Calculates leakage by summing over all in and output states in the
+        computational subspace.
+            L1 = 1- 1/2^{number computational qubits} sum_i sum_j abs(|<phi_i|U|phi_j>|)**2
+        """
+        sump = 0
+        for i in range(4):
+            for j in range(4):
+                bra_i = qtp.tensor(qtp.ket([i//2], dim=[2]),
+                                   qtp.ket([i % 2], dim=[3])).dag()
+                ket_j = qtp.tensor(qtp.ket([j//2], dim=[2]),
+                                   qtp.ket([j % 2], dim=[3]))
+                p = np.abs((bra_i*U*ket_j).data[0, 0])**2
+                sump += p
+        sump /= 4  # divide by dimension of comp subspace
+        L1 = 1-sump
+        return L1
+    elif U.type=='super':
+        """
+        Calculates leakage by summing over all in and output states in the
+        computational subspace.
+            L1 = 1- 1/2^{number computational qubits} sum_i sum_j Tr(rho_{x'y'}C_U(rho_{xy}))
+            where C is U in the channel representation
+        """
+        sump = 0
+        for i in range(4):
+            for j in range(4):
+                ket_i = qtp.tensor(qtp.ket([i//2], dim=[2]),
+                                   qtp.ket([i % 2], dim=[3])) #notice it's a ket
+                rho_i=qtp.operator_to_vector(qtp.ket2dm(ket_i))
+                ket_j = qtp.tensor(qtp.ket([j//2], dim=[2]),
+                                   qtp.ket([j % 2], dim=[3]))
+                rho_j=qtp.operator_to_vector(qtp.ket2dm(ket_j))
+                p = (rho_i.dag()*U*rho_j).data[0, 0]
+                sump += p
+        sump /= 4  # divide by dimension of comp subspace
+        sump=np.real(sump)
+        L1 = 1-sump       
+        return L1
+
+
+def seepage_from_superoperator(U):
+    """
+    Calculates seepage by summing over all in and output states outside the
+    computational subspace.
+        L1 = 1- 1/2^{number non-computational states} sum_i sum_j abs(|<phi_i|U|phi_j>|)**2
+    """
+    if U.type=='oper':
+        sump = 0
+        for i in range(2):
+            for j in range(2):
+                bra_i = qtp.tensor(qtp.ket([i], dim=[2]),
+                                   qtp.ket([2], dim=[3])).dag()
+                ket_j = qtp.tensor(qtp.ket([j], dim=[2]),
+                                   qtp.ket([2], dim=[3]))
+                p = np.abs((bra_i*U*ket_j).data[0, 0])**2  # could be sped up
+                sump += p
+        sump /= 2  # divide by number of non-computational states
+        L1 = 1-sump
+        return L1
+    elif U.type=='super':
+        sump = 0
+        for i in range(2):
+            for j in range(2):
+                ket_i = qtp.tensor(qtp.ket([i], dim=[2]),
+                                   qtp.ket([2], dim=[3]))
+                rho_i=qtp.operator_to_vector(qtp.ket2dm(ket_i))
+                ket_j = qtp.tensor(qtp.ket([j], dim=[2]),
+                                   qtp.ket([2], dim=[3]))
+                rho_j=qtp.operator_to_vector(qtp.ket2dm(ket_j))
+                p = (rho_i.dag()*U*rho_j).data[0, 0]
+                sump += p
+        sump /= 2  # divide by number of non-computational states
+        sump=np.real(sump)
+        L1 = 1-sump
+        return L1
+
+
+
+def pro_avfid_superoperator(U):
+    """
+    Average process (gate) fidelity in the whole space for a qubit and qutrit
+    """
+    if U.type=='oper':
+        ptrace = np.abs((U.dag()*U_target).tr())**2
+        dim = 6  # dimension of the whole space
+        return np.real((ptrace+dim)/(dim*(dim+1)))
+
+    elif U.type=='super':
+        return np.real(qtp.average_gate_fidelity(U,target=U_target_diffdims))
+
+
+
+tlist = np.arange(0, 240e-9, 1/2.4e9)
+
+
+def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
+                                    sim_step: float=0.1e-9,
+                                    verbose: bool=True):
+    """
+    Calculates the quantities of interest from the propagator U
+
+    Args:
+        H_0 (Qobj): static hamiltonian, see "coupled_transmons_hamiltonian"
+            for the expected form of the Hamiltonian.
+        tlist (array): times in s, describes the x component of the
+            trajectory to simulate
+        c-ops (list of Qobj): list of jump operators, time-independent at the momennt
+        eps_vec(array): detuning describes the y-component of the trajectory
+            to simulate.
+
+    Returns
+        phi_cond (float):   conditional phase (deg)
+        L1      (float):    leakage
+        L2      (float):    seepage
+        avgatefid (float):  average gate fidelity in full space
+        avgatefid_compsubspace (float):  average gate fidelity only in the computational subspace
+
+    TODO: implement case with c_ops time-dependent
+
+    """
+
+    scalefactor=1e6  # otherwise qtp.propagator in parallel mode doesn't work
+    # time is multiplied by scalefactor and frequency is divided by it
+    tlist=tlist*scalefactor
+    eps_vec=eps_vec/scalefactor
+    sim_step=sim_step*scalefactor
+    H_0=H_0/scalefactor
+    if c_ops!=[]:
+        c_ops=[c_ops[c]/np.sqrt(scalefactor) for c in range(len(c_ops))]
+
+    eps_interp = interp1d(tlist, eps_vec, fill_value='extrapolate')
+
+
+    # function only exists to wrap
+    def eps_t(t, args=None):
+        return eps_interp(t)
+
+    tlist_sim = (np.arange(0, np.max(tlist), sim_step))   # currently not used
+    eps_vec_new=eps_interp(tlist_sim)
+
+    H_c = n_q0
+    H_t = [H_0, [H_c, eps_vec]]
+
+
+    # TODO: try alternative strategy to ode solver
+
+
+    t0 = time.time()
+    if c_ops==[]:
+    	nstepsmax=1000
+    else:
+    	nstepsmax=1000
+    U_t = qtp.propagator(H_t, tlist, c_ops, parallel=True, options=qtp.Options(nsteps=nstepsmax))   # returns unitary 'oper' if c_ops=[], otherwise 'super'
+    t1 = time.time()
+    print('\n propagator',t1-t0)   
+    if verbose:
+        print('simulation took {:.2f}s'.format(t1-t0))
+
+    U_final = U_t[-1]
+    phases = phases_from_superoperator(U_final)
+    phi_cond = phases[-1]
+    L1 = leakage_from_superoperator(U_final)
+    L2 = seepage_from_superoperator(U_final)
+    avgatefid = pro_avfid_superoperator(U_final)
+    avgatefid_compsubspace = pro_avfid_superoperator_compsubspace(U_final,L1)     # leakage has to be taken into account, see Woods & Gambetta
+
+    return {'phi_cond': phi_cond, 'L1': L1, 'L2': L2, 'avgatefid': avgatefid, 'avgatefid_compsubspace': avgatefid_compsubspace}
+
+
+
+class CZ_trajectory_superoperator(det.Soft_Detector):
+    def __init__(self, H_0, c_ops, fluxlutman):
+        """
+        Detector for simulating a CZ trajectory.
+        Args:
+            fluxlutman (instr): an instrument that contains the parameters
+                required to generate the waveform for the trajectory.
+        """
+        super().__init__()
+        self.value_names = ['Cost func', 'Cond phase', 'L1', 'L2', 'avgatefid', 'avgatefid_compsubspace']
+        self.value_units = ['a.u.', 'deg', '%', '%', '%', '%']
+        self.fluxlutman = fluxlutman
+        self.H_0 = H_0
+        self.c_ops = c_ops
+
+    def acquire_data_point(self, **kw):
+        tlist = (np.arange(0, self.fluxlutman.cz_length(),
+                           1/self.fluxlutman.sampling_rate()))
+        if not self.fluxlutman.czd_double_sided():
+            f_pulse = wf.martinis_flux_pulse(
+                length=self.fluxlutman.cz_length(),
+                lambda_2=self.fluxlutman.cz_lambda_2(),
+                lambda_3=self.fluxlutman.cz_lambda_3(),
+                theta_f=self.fluxlutman.cz_theta_f(),
+                f_01_max=self.fluxlutman.cz_freq_01_max(),
+                J2=self.fluxlutman.cz_J2(),
+                f_interaction=self.fluxlutman.cz_freq_interaction(),
+                sampling_rate=self.fluxlutman.sampling_rate(),
+                return_unit='f01')
+        else:
+            f_pulse = self.get_f_pulse_double_sided()
+
+        # extract base frequency from the Hamiltonian
+        w_q0 = np.real(self.H_0[1,1])
+        eps_vec = f_pulse - w_q0      
+
+        qoi = simulate_quantities_of_interest_superoperator(
+            H_0=self.H_0,
+            tlist=tlist, c_ops=self.c_ops, eps_vec=eps_vec,
+            sim_step=1e-9, verbose=False)
+
+        cost_func_val = 1-qoi['avgatefid_compsubspace']   # new cost function: infidelity
+        #np.abs(qoi['phi_cond']-180) + qoi['L1']*100 * 5
+        return cost_func_val, qoi['phi_cond'], qoi['L1']*100, qoi['L2']*100, qoi['avgatefid']*100, qoi['avgatefid_compsubspace']*100
+
+    def get_f_pulse_double_sided(self):
+        half_CZ_A = wf.martinis_flux_pulse(
+            length=self.fluxlutman.cz_length()*self.fluxlutman.czd_length_ratio(),
+            lambda_2=self.fluxlutman.cz_lambda_2(),
+            lambda_3=self.fluxlutman.cz_lambda_3(),
+            theta_f=self.fluxlutman.cz_theta_f(),
+            f_01_max=self.fluxlutman.cz_freq_01_max(),
+            J2=self.fluxlutman.cz_J2(),
+            # E_c=self.fluxlutman.cz_E_c(),
+            f_interaction=self.fluxlutman.cz_freq_interaction(),
+            sampling_rate=self.fluxlutman.sampling_rate(),
+            return_unit='f01')
+
+        # Generate the second CZ pulse. If the params are np.nan, default
+        # to the main parameter
+        if not np.isnan(self.fluxlutman.czd_theta_f()):
+            d_theta_f = self.fluxlutman.czd_theta_f()
+        else:
+            d_theta_f = self.fluxlutman.cz_theta_f()
+
+        if not np.isnan(self.fluxlutman.czd_lambda_2()):
+            d_lambda_2 = self.fluxlutman.czd_lambda_2()
+        else:
+            d_lambda_2 = self.fluxlutman.cz_lambda_2()
+        if not np.isnan(self.fluxlutman.czd_lambda_3()):
+            d_lambda_3 = self.fluxlutman.czd_lambda_3()
+        else:
+            d_lambda_3 = self.fluxlutman.cz_lambda_3()
+
+        half_CZ_B = wf.martinis_flux_pulse(
+            length=self.fluxlutman.cz_length()*(1-self.fluxlutman.czd_length_ratio()),
+            lambda_2=d_lambda_2,
+            lambda_3=d_lambda_3,
+            theta_f=d_theta_f,
+            f_01_max=self.fluxlutman.cz_freq_01_max(),
+            J2=self.fluxlutman.cz_J2(),
+            f_interaction=self.fluxlutman.cz_freq_interaction(),
+            sampling_rate=self.fluxlutman.sampling_rate(),
+            return_unit='f01')
+
+        # N.B. No amp scaling and offset present
+        f_pulse = np.concatenate([half_CZ_A, half_CZ_B])
+        return f_pulse
