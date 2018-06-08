@@ -840,8 +840,8 @@ class ZI_HDAWG8(ZI_base_instrument):
             - dio/delay/index -> selects which delay to change next
             - dio/delay/value -> specifies an individual delay
 
-        Trun on device
-            The final step enablse the signal output of each AWG and sets
+        Turn on device
+            The final step enables the signal output of each AWG and sets
             it to the right mode.
 
         """
