@@ -15,8 +15,8 @@ from pycqed.measurement.waveform_control_CC import waveform as wf
 
 
 alpha_q0 = -285e6 * 2*np.pi
-w_q0 = 5.42e9 * 2 * np.pi  # Higher frequency qubit (fluxing) qubit
-w_q1 = 4.11e9 * 2 * np.pi  # Lower frequency
+w_q0 = 5.11e9 * 2*np.pi  # Higher frequency qubit (fluxing) qubit
+w_q1 = 4.10e9 * 2*np.pi  # Lower frequency
 
 J = 2.9e6 * 2 * np.pi  # coupling strength
 
@@ -29,13 +29,22 @@ n_q1 = b.dag() * b
 
 
 # caracteristic timescales for jump operators
-T1_q0=25e-6
-T1_q1=25e-6
-Tphi_q0_ket0toket0=81e-6
-Tphi_q0_ket1toket1=17e-6
-Tphi_q0_ket2toket2=12e-6
-Tphi_q1_ket0toket0=81e-6
-Tphi_q1_ket1toket1=17e-6
+T1_q0=34e-6
+T1_q1=42e-6
+Tphi_q0_ket0toket0=0
+Tphi_q0_ket1toket1=0
+Tphi_q0_ket2toket2=0
+Tphi_q1_ket0toket0=0
+Tphi_q1_ket1toket1=0
+T2_q0=23e-6   # these two are the coherence times for q0 and q1 as qubits
+T2_q1=23e-6
+Tphi_q0_sigmaZ_01=1/(-1/(2*T1_q0)+1/T2_q0)     # extracting Tphi which is not the Tphi above
+Tphi_q0_sigmaZ_12=Tphi_q0_sigmaZ_01           # we will assume for the moment that the pure decoherence
+                                              # is caused by wiggles in the frequency, which cause
+                                              # a fluctuation half as large for 02 wrt 01 and 12
+                                              # (ignoring the anharmonicity)
+Tphi_q0_sigmaZ_02=Tphi_q0_sigmaZ_01/2
+Tphi_q1_sigmaZ_01=1/(-1/(2*T1_q1)+1/T2_q1)
 
 
 
@@ -99,7 +108,8 @@ where xy is the row and x'y' is the column
 '''
 
 
-def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1):
+def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1,
+					Tphi_q0_sigmaZ_01,Tphi_q0_sigmaZ_12,Tphi_q0_sigmaZ_02,Tphi_q1_sigmaZ_01):
 	c_ops=[]
 	if T1_q0 != 0:
 		c_ops.append(np.sqrt(1/T1_q0)*a)
@@ -120,10 +130,33 @@ def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket
 	if Tphi_q1_ket1toket1 != 0:
 		collapse=qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3))
 		c_ops.append(np.sqrt(1/Tphi_q1_ket1toket1)*collapse)
+	if Tphi_q0_sigmaZ_01 != 0:
+		sigmaZinqutrit = qtp.Qobj([[1,0,0],
+									[0,-1,0],
+									[0,0,0]])
+		collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+		c_ops.append(np.sqrt(1/(2*Tphi_q0_sigmaZ_01))*collapse)
+	if Tphi_q0_sigmaZ_12 != 0:
+		sigmaZinqutrit = qtp.Qobj([[0,0,0],
+									[0,1,0],
+									[0,0,-1]])
+		collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+		c_ops.append(np.sqrt(1/(2*Tphi_q0_sigmaZ_12))*collapse)
+	if Tphi_q0_sigmaZ_02 != 0:
+		sigmaZinqutrit = qtp.Qobj([[1,0,0],
+									[0,0,0],
+									[0,0,-1]])
+		collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+		c_ops.append(np.sqrt(1/(2*Tphi_q0_sigmaZ_02))*collapse)
+	if Tphi_q1_sigmaZ_01 != 0:
+		sigmaZinqutrit = qtp.sigmaz()
+		collapse=qtp.tensor(sigmaZinqutrit,qtp.qeye(3))
+		c_ops.append(np.sqrt(1/(2*Tphi_q1_sigmaZ_01))*collapse)
 	return c_ops
 
 
-#c_ops=jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1)
+c_ops=jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1,
+					 Tphi_q0_sigmaZ_01,Tphi_q0_sigmaZ_12,Tphi_q0_sigmaZ_02,Tphi_q1_sigmaZ_01)
 
 
 
@@ -163,21 +196,23 @@ def phases_from_superoperator(U):
         phi_01 = np.rad2deg(np.angle(U[1, 1]))
         phi_10 = np.rad2deg(np.angle(U[3, 3]))
         phi_11 = np.rad2deg(np.angle(U[4, 4]))
+        phi_02 = np.rad2deg(np.angle(U[2, 2]))
 
         phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360
         # notice the + even if it is irrelevant
 
-        return phi_00, phi_01, phi_10, phi_11, phi_cond
+        return phi_00, phi_01, phi_10, phi_11, phi_02, phi_cond
     elif U.type=='super':
         phi_00 = 0   # we set it to 0 arbitrarily but it is actually not knowable
         phi_01 = np.rad2deg(np.angle(U[1, 1]))   # actually phi_01-phi_00
         phi_10 = np.rad2deg(np.angle(U[3, 3]))
         phi_11 = np.rad2deg(np.angle(U[4, 4]))
+        phi_02 = np.rad2deg(np.angle(U[14, 14]))
 
         phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360  # still the right formula
         # independently from phi_00
 
-        return phi_00, phi_01, phi_10, phi_11, phi_cond
+        return phi_00, phi_01, phi_10, phi_11, phi_02, phi_cond
     # !!! check that this is a good formula for superoperators: there is a lot of redundancy
     #     there if the evolution is unitary, but not necessarily if it's noisy!
 
@@ -212,6 +247,47 @@ def pro_avfid_superoperator_compsubspace(U,L1):
 
         return np.real((dim*(1-L1) + psum) / (dim*(dim + 1)))
 
+
+def pro_avfid_superoperator_compsubspace_phasecorrected(U,L1,phases):
+    """
+    Average process (gate) fidelity in the computational subspace for a qubit and qutrit
+    Leakage has to be taken into account, see Woods & Gambetta
+    """
+
+    corrections=[]
+    corrections.append(np.exp(-1j*np.deg2rad(phases[0]))*qtp.tensor(qtp.qeye(2),qtp.qeye(3)))   # this should be identity
+    corrections.append(np.exp(-1j*(np.deg2rad(phases[2]-phases[0])))*qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3)))
+    corrections.append(np.exp(-1j*(np.deg2rad(phases[1]-phases[0])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,1))))
+    #corrections.append(np.exp(-1j*(np.deg2rad(phases[4]-phases[0]-phases[-1])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,2))))
+
+    if U.type=='oper':
+        for V in corrections:
+            U=V*U
+        inner = U.dag()*U_target
+        part_idx = [0, 1, 3, 4]  # only computational subspace
+        ptrace = 0
+        for i in part_idx:
+            ptrace += inner[i, i]
+        dim = 4  # 2 qubits comp subspace       
+
+        return np.real(((np.abs(ptrace))**2+dim*(1-L1))/(dim*(dim+1)))
+
+    elif U.type=='super':
+        for V in corrections:
+            V_super=qtp.to_super(V)
+            U=V_super*U
+        kraus_form = qtp.to_kraus(U)
+        dim=4 # 2 qubits in the computational subspace
+        part_idx = [0, 1, 3, 4]  # only computational subspace
+        psum=0
+        for A_k in kraus_form:
+        	ptrace = 0
+        	inner = U_target_diffdims.dag()*A_k # otherwise dimension mismatch
+        	for i in part_idx:
+        		ptrace += inner[i, i]
+        	psum += (np.abs(ptrace))**2
+
+        return np.real((dim*(1-L1) + psum) / (dim*(dim + 1)))
 
 
 def leakage_from_superoperator(U):
@@ -308,6 +384,29 @@ def pro_avfid_superoperator(U):
         return np.real(qtp.average_gate_fidelity(U,target=U_target_diffdims))
 
 
+def pro_avfid_superoperator_phasecorrected(U,phases):
+    """
+    Average process (gate) fidelity in the whole space for a qubit and qutrit
+    """
+    corrections=[]
+    corrections.append(np.exp(-1j*np.deg2rad(phases[0]))*qtp.tensor(qtp.qeye(2),qtp.qeye(3)))   # this should be identity
+    corrections.append(np.exp(-1j*(np.deg2rad(phases[2]-phases[0])))*qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3)))
+    corrections.append(np.exp(-1j*(np.deg2rad(phases[1]-phases[0])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,1))))
+    corrections.append(np.exp(-1j*(np.deg2rad(phases[4]-phases[0]-phases[-1])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,2))))
+
+    if U.type=='oper':
+        for V in corrections:
+            U=V*U
+        ptrace = np.abs((U.dag()*U_target).tr())**2
+        dim = 6  # dimension of the whole space
+        return np.real((ptrace+dim)/(dim*(dim+1)))
+
+    elif U.type=='super':
+        for V in corrections:
+            V_super=qtp.to_super(V)
+            U=V_super*U
+        return np.real(qtp.average_gate_fidelity(U,target=U_target_diffdims))
+
 
 tlist = np.arange(0, 240e-9, 1/2.4e9)
 
@@ -368,7 +467,7 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
     if c_ops==[]:
     	nstepsmax=1000
     else:
-    	nstepsmax=1000
+    	nstepsmax=10000
     U_t = qtp.propagator(H_t, tlist, c_ops, parallel=True, options=qtp.Options(nsteps=nstepsmax))   # returns unitary 'oper' if c_ops=[], otherwise 'super'
     t1 = time.time()
     print('\n propagator',t1-t0)   
@@ -380,8 +479,8 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
     phi_cond = phases[-1]
     L1 = leakage_from_superoperator(U_final)
     L2 = seepage_from_superoperator(U_final)
-    avgatefid = pro_avfid_superoperator(U_final)
-    avgatefid_compsubspace = pro_avfid_superoperator_compsubspace(U_final,L1)     # leakage has to be taken into account, see Woods & Gambetta
+    avgatefid = pro_avfid_superoperator_phasecorrected(U_final,phases)
+    avgatefid_compsubspace = pro_avfid_superoperator_compsubspace_phasecorrected(U_final,L1,phases)     # leakage has to be taken into account, see Woods & Gambetta
 
     return {'phi_cond': phi_cond, 'L1': L1, 'L2': L2, 'avgatefid': avgatefid, 'avgatefid_compsubspace': avgatefid_compsubspace}
 
