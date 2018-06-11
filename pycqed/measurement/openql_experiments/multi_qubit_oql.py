@@ -9,17 +9,16 @@ from pycqed.measurement.openql_experiments import single_qubit_oql as sqo
 
 base_qasm_path = join(dirname(__file__), 'qasm_files')
 output_dir = join(dirname(__file__), 'output')
-ql.set_output_dir(output_dir)
-
+ql.set_option("output_dir", output_dir)
 
 def single_flux_pulse_seq(qubit_indices: tuple,
                           platf_cfg: str):
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="single_flux_pulse_seq",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
-    k = Kernel("main", p=platf)
+    k = Kernel("main", platform=platf)
     for idx in qubit_indices:
         k.prepz(idx)  # to ensure enough separation in timing
         k.prepz(idx)  # to ensure enough separation in timing
@@ -32,7 +31,7 @@ def single_flux_pulse_seq(qubit_indices: tuple,
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -41,9 +40,9 @@ def flux_staircase_seq(platf_cfg: str):
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="flux_staircase_seq",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
-    k = Kernel("main", p=platf)
+    k = Kernel("main", platform=platf)
     for i in range(1):
         k.prepz(i)  # to ensure enough separation in timing
     for i in range(1):
@@ -58,7 +57,7 @@ def flux_staircase_seq(platf_cfg: str):
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -94,10 +93,10 @@ def multi_qubit_off_on(qubits: list,  initialize: bool,
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="multi_qubit_off_on",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     for i, comb in enumerate(combinations):
-        k = Kernel('Prep_{}'.format(comb), p=platf)
+        k = Kernel('Prep_{}'.format(comb), platform=platf)
         # 1. Prepare qubits in 0
         for q in qubits:
             k.prepz(q)
@@ -128,7 +127,7 @@ def multi_qubit_off_on(qubits: list,  initialize: bool,
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -157,11 +156,11 @@ def Ramsey_msmt_induced_dephasing(qubits: list, angles: list, platf_cfg: str):
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Ramsey_msmt_induced_dephasing",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     for i, angle in enumerate(angles[:-4]):
         cw_idx = angle//20 + 9
-        k = Kernel("Ramsey_azi_"+str(angle), p=platf)
+        k = Kernel("Ramsey_azi_"+str(angle), platform=platf)
         for qubit in qubits:
             k.prepz(qubit)
         k.gate('rx90', qubits[-1])
@@ -176,7 +175,7 @@ def Ramsey_msmt_induced_dephasing(qubits: list, angles: list, platf_cfg: str):
     with suppress_stdout():
         p.compile(verbose=False)
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -207,11 +206,11 @@ def echo_msmt_induced_dephasing(qubits: list, angles: list, platf_cfg: str,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="echo_msmt_induced_dephasing",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     for i, angle in enumerate(angles[:-4]):
         cw_idx = angle//20 + 9
-        k = Kernel("echo_azi_"+str(angle), p=platf)
+        k = Kernel("echo_azi_"+str(angle), platform=platf)
         for qubit in qubits:
             k.prepz(qubit)
         k.gate('rx90', qubits[-1])
@@ -228,7 +227,7 @@ def echo_msmt_induced_dephasing(qubits: list, angles: list, platf_cfg: str,
     with suppress_stdout():
         p.compile(verbose=False)
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -244,12 +243,12 @@ def two_qubit_off_on(q0: int, q1: int, platf_cfg: str):
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="two_qubit_off_on", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
     p = add_two_q_cal_points(p, platf=platf, q0=q0, q1=q1)
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -274,7 +273,7 @@ def two_qubit_tomo_cardinal(q0: int, q1: int, cardinal: int,  platf_cfg: str):
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="two_qubit_tomo_cardinal",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     # Tomography pulses
     i = 0
@@ -282,7 +281,7 @@ def two_qubit_tomo_cardinal(q0: int, q1: int, cardinal: int,  platf_cfg: str):
         for p_q0 in tomo_list_q0:
             i += 1
             kernel_name = '{}_{}_{}'.format(i, p_q0, p_q1)
-            k = Kernel(kernel_name, p=platf)
+            k = Kernel(kernel_name, platform=platf)
             k.prepz(q0)
             k.prepz(q1)
             k.gate(prep_pulse_q0, q0)
@@ -299,7 +298,7 @@ def two_qubit_tomo_cardinal(q0: int, q1: int, cardinal: int,  platf_cfg: str):
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -325,7 +324,7 @@ def two_qubit_AllXY(q0: int, q1: int, platf_cfg: str,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="two_qubit_AllXY", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     pulse_combinations = [['i', 'i'], ['rx180', 'rx180'], ['ry180', 'ry180'],
                           ['rx180', 'ry180'], ['ry180', 'rx180'],
@@ -354,7 +353,7 @@ def two_qubit_AllXY(q0: int, q1: int, platf_cfg: str,
     for pulse_comb_q0, pulse_comb_q1 in zip(pulse_combinations_q0,
                                             pulse_combinations_q1):
         i += 1
-        k = Kernel('AllXY_{}'.format(i), p=platf)
+        k = Kernel('AllXY_{}'.format(i), platform=platf)
         k.prepz(q0)
         k.prepz(q1)
         # N.B. The identity gates are there to ensure proper timing
@@ -409,7 +408,7 @@ def two_qubit_AllXY(q0: int, q1: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -433,10 +432,10 @@ def residual_coupling_sequence(times, q0: int, q1: int, platf_cfg: str):
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="residual_coupling_sequence", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     for i, time in enumerate(times[:-4]):
-        k = Kernel("residual_coupling_seq_"+str(i), p=platf)
+        k = Kernel("residual_coupling_seq_"+str(i), platform=platf)
         k.prepz(q0)
         k.prepz(q1)
         wait_nanoseconds = int(round(time/1e-9/2))
@@ -458,7 +457,7 @@ def residual_coupling_sequence(times, q0: int, q1: int, platf_cfg: str):
     with suppress_stdout():
         p.compile(verbose=False)
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -480,12 +479,12 @@ def Cryoscope(qubit_idx: int, buffer_time1=0, buffer_time2=0,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Cryoscope", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     buffer_nanoseconds1 = int(round(buffer_time1/1e-9))
     buffer_nanoseconds2 = int(round(buffer_time2/1e-9))
 
-    k = Kernel("RamZ_X", p=platf)
+    k = Kernel("RamZ_X", platform=platf)
     k.prepz(qubit_idx)
     k.gate('rx90', qubit_idx)
     k.gate("wait", [qubit_idx], buffer_nanoseconds1)
@@ -495,7 +494,7 @@ def Cryoscope(qubit_idx: int, buffer_time1=0, buffer_time2=0,
     k.measure(qubit_idx)
     p.add_kernel(k)
 
-    k = Kernel("RamZ_Y", p=platf)
+    k = Kernel("RamZ_Y", platform=platf)
     k.prepz(qubit_idx)
     k.gate('rx90', qubit_idx)
     k.gate("wait", [qubit_idx], buffer_nanoseconds1)
@@ -511,7 +510,7 @@ def Cryoscope(qubit_idx: int, buffer_time1=0, buffer_time2=0,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -523,7 +522,7 @@ def CryoscopeGoogle(qubit_idx: int, buffer_time1, times, platf_cfg: str):
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="CryoscopeGoogle", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     buffer_nanoseconds1 = int(round(buffer_time1/1e-9))
 
@@ -531,7 +530,7 @@ def CryoscopeGoogle(qubit_idx: int, buffer_time1, times, platf_cfg: str):
 
         t_nanoseconds = int(round(t/1e-9))
 
-        k = Kernel("RamZ_X", p=platf)
+        k = Kernel("RamZ_X", platform=platf)
         k.prepz(qubit_idx)
         k.gate('rx90', qubit_idx)
         k.gate("wait", [qubit_idx], buffer_nanoseconds1)
@@ -540,7 +539,7 @@ def CryoscopeGoogle(qubit_idx: int, buffer_time1, times, platf_cfg: str):
         k.gate('rx90', qubit_idx)
         k.measure(qubit_idx)
         p.add_kernel(k)
-        k = Kernel("RamZ_Y", p=platf)
+        k = Kernel("RamZ_Y", platform=platf)
         k.prepz(qubit_idx)
         k.gate('rx90', qubit_idx)
         k.gate("wait", [qubit_idx], buffer_nanoseconds1)
@@ -553,7 +552,7 @@ def CryoscopeGoogle(qubit_idx: int, buffer_time1, times, platf_cfg: str):
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -576,12 +575,12 @@ def Chevron_hack(qubit_idx: int, qubit_idx_spec,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Chevron", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     buffer_nanoseconds = int(round(buffer_time/1e-9))
     buffer_nanoseconds2 = int(round(buffer_time/1e-9))
 
-    k = Kernel("Chevron", p=platf)
+    k = Kernel("Chevron", platform=platf)
     k.prepz(qubit_idx)
     k.gate('rx90', qubit_idx_spec)
     k.gate('rx180', qubit_idx)
@@ -599,7 +598,7 @@ def Chevron_hack(qubit_idx: int, qubit_idx_spec,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -628,14 +627,14 @@ def Chevron(qubit_idx: int, qubit_idx_spec: int,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Chevron", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     buffer_nanoseconds = int(round(buffer_time/1e-9))
     buffer_nanoseconds2 = int(round(buffer_time2/1e-9))
     if flux_cw is None:
         flux_cw = 2
 
-    k = Kernel("Chevron", p=platf)
+    k = Kernel("Chevron", platform=platf)
     k.prepz(qubit_idx)
     k.gate('rx90', qubit_idx_spec)
     k.gate('rx180', qubit_idx)
@@ -651,7 +650,7 @@ def Chevron(qubit_idx: int, qubit_idx_spec: int,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -696,12 +695,12 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="two_qubit_tomo_bell",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
     for p_q1 in tomo_gates:
         for p_q0 in tomo_gates:
             k = Kernel("BellTomo_{}{}_{}{}".format(
                        q1, p_q1, q0, p_q0
-                       ), p=platf)
+                       ), platform=platf)
             # next experiment
             k.prepz(q0)  # to ensure enough separation in timing
             k.prepz(q1)  # to ensure enough separation in timing
@@ -727,7 +726,7 @@ def two_qubit_tomo_bell(bell_state, q0, q1,
     p = add_two_q_cal_points(p, platf=platf, q0=q0, q1=q1, reps_per_cal_pt=7)
     with suppress_stdout():
         p.compile()
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -749,11 +748,11 @@ def two_qubit_DJ(q0, q1, platf_cfg):
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="two_qubit_DJ",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     # experiments
     # 1
-    k = Kernel("DJ1", p=platf)
+    k = Kernel("DJ1", platform=platf)
     k.prepz(q0)  # to ensure enough separation in timing
     k.prepz(q1)  # to ensure enough separation in timing
     # prerotations
@@ -768,7 +767,7 @@ def two_qubit_DJ(q0, q1, platf_cfg):
     p.add_kernel(k)
 
     # 2
-    k = Kernel("DJ2", p=platf)
+    k = Kernel("DJ2", platform=platf)
     k.prepz(q0)  # to ensure enough separation in timing
     k.prepz(q1)  # to ensure enough separation in timing
     # prerotations
@@ -785,7 +784,7 @@ def two_qubit_DJ(q0, q1, platf_cfg):
     p.add_kernel(k)
 
     # 3
-    k = Kernel("DJ3", p=platf)
+    k = Kernel("DJ3", platform=platf)
     k.prepz(q0)  # to ensure enough separation in timing
     k.prepz(q1)  # to ensure enough separation in timing
     # prerotations
@@ -814,7 +813,7 @@ def two_qubit_DJ(q0, q1, platf_cfg):
     p.add_kernel(k)
 
     # 4
-    k = Kernel("DJ4", p=platf)
+    k = Kernel("DJ4", platform=platf)
     k.prepz(q0)  # to ensure enough separation in timing
     k.prepz(q1)  # to ensure enough separation in timing
     # prerotations
@@ -843,7 +842,7 @@ def two_qubit_DJ(q0, q1, platf_cfg):
     #p = add_two_q_cal_points(p, platf=platf, q0=q0, q1=q1, reps_per_cal_pt=7)
     with suppress_stdout():
         p.compile()
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -875,10 +874,10 @@ def two_qubit_repeated_parity_check(qD: int, qA: int, platf_cfg: str,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="repeated_parity_check",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     for initial_state in initial_states:
-        k = Kernel('repeated_parity_check_{}'.format(initial_state), p=platf)
+        k = Kernel('repeated_parity_check_{}'.format(initial_state), platform=platf)
         k.prepz(qD)
         k.prepz(qA)
 
@@ -913,7 +912,7 @@ def two_qubit_repeated_parity_check(qD: int, qA: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -947,14 +946,14 @@ def conditional_oscillation_seq(q0: int, q1: int, platf_cfg: str,
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="conditional_oscillation_seq",
                 nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
     # These angles correspond to special pi/2 pulses in the lutman
     for i, angle in enumerate(angles):
         for case in cases:
             # cw_idx corresponds to special hardcoded angles in the lutman
             cw_idx = angle//20 + 9
 
-            k = Kernel("{}_{}".format(case, angle), p=platf)
+            k = Kernel("{}_{}".format(case, angle), platform=platf)
             k.prepz(q0)
             k.prepz(q1)
             if case == 'excitation':
@@ -989,7 +988,7 @@ def conditional_oscillation_seq(q0: int, q1: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
 
     if add_cal_points:
@@ -1042,11 +1041,11 @@ def grovers_two_qubit_all_inputs(q0: int, q1: int, platf_cfg: str,
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Grovers_two_qubit_all_inputs",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     for G0 in ['ry90', 'rym90']:
         for G1 in ['ry90', 'rym90']:
-            k = Kernel('Gr{}_{}'.format(G0, G1),  p=platf)
+            k = Kernel('Gr{}_{}'.format(G0, G1),  platform=platf)
             k.prepz(q0)
             k.prepz(q1)
             k.gate(G0, q0)
@@ -1078,7 +1077,7 @@ def grovers_two_qubit_all_inputs(q0: int, q1: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
 
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -1100,7 +1099,7 @@ def grovers_tomography(q0: int, q1: int, omega: int, platf_cfg: str,
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Grovers_tomo_two_qubit_all_inputs",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     tomo_gates = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
 
@@ -1122,7 +1121,7 @@ def grovers_tomography(q0: int, q1: int, omega: int, platf_cfg: str,
     for p_q1 in tomo_gates:
         for p_q0 in tomo_gates:
             k = Kernel('Gr{}_{}_tomo_{}_{}'.format(G0, G1, p_q0, p_q1),
-                       p=platf)
+                       platform=platf)
 
             k.prepz(q0)
             k.prepz(q1)
@@ -1161,7 +1160,7 @@ def grovers_tomography(q0: int, q1: int, omega: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
 
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -1173,11 +1172,11 @@ def CZ_poisoned_purity_seq(q0, q1, platf_cfg: str, cal_points: bool=True):
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="CZ_poisoned_purity_seq",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
     tomo_list = ['rxm90', 'rym90', 'i']
 
     for p_pulse in tomo_list:
-        k = Kernel("{}".format(p_pulse), p=platf)
+        k = Kernel("{}".format(p_pulse), platform=platf)
         k.prepz(q0)
         k.prepz(q1)
 
@@ -1200,14 +1199,14 @@ def CZ_poisoned_purity_seq(q0, q1, platf_cfg: str, cal_points: bool=True):
 
         p.add_kernel(k)
     if cal_points:
-        k = Kernel("Cal 00", p=platf)
+        k = Kernel("Cal 00", platform=platf)
         k.prepz(q0)
         k.prepz(q1)
         k.measure(q0)
         k.measure(q1)
         k.gate('wait', [2, 0], 0)
         p.add_kernel(k)
-        k = Kernel("Cal 11", p=platf)
+        k = Kernel("Cal 11", platform=platf)
         k.prepz(q0)
         k.prepz(q1)
         k.gate("rx180", q0)
@@ -1220,7 +1219,7 @@ def CZ_poisoned_purity_seq(q0, q1, platf_cfg: str, cal_points: bool=True):
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -1343,7 +1342,7 @@ def add_two_q_cal_points(p, platf, q0: int, q1: int,
                     ["10"]*reps_per_cal_pt +
                     ["11"]*reps_per_cal_pt)
     for i, comb in enumerate(combinations):
-        k = Kernel('cal{}_{}'.format(i, comb), p=platf)
+        k = Kernel('cal{}_{}'.format(i, comb), platform=platf)
         k.prepz(q0)
         k.prepz(q1)
         if comb[0] == '1':
@@ -1372,7 +1371,7 @@ def add_multi_q_cal_points(p, platf, qubits: list,
     """
     kernel_list = []
     for i, comb in enumerate(combinations):
-        k = Kernel('cal{}_{}'.format(i, comb), p=platf)
+        k = Kernel('cal{}_{}'.format(i, comb), platform=platf)
         for q in qubits:
             k.prepz(q)
 
@@ -1413,14 +1412,14 @@ def Chevron_first_manifold(qubit_idx: int, qubit_idx_spec: int,
     """
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="Chevron", nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     buffer_nanoseconds = int(round(buffer_time/1e-9))
     buffer_nanoseconds2 = int(round(buffer_time2/1e-9))
     if flux_cw is None:
         flux_cw = 2
 
-    k = Kernel("Chevron", p=platf)
+    k = Kernel("Chevron", platform=platf)
     k.prepz(qubit_idx)
     k.gate('rx180', qubit_idx)
     k.gate("wait", [qubit_idx], buffer_nanoseconds)
@@ -1434,7 +1433,7 @@ def Chevron_first_manifold(qubit_idx: int, qubit_idx_spec: int,
     with suppress_stdout():
         p.compile()
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -1456,7 +1455,7 @@ def partial_tomography_cardinal(q0: int, q1: int, cardinal: int, platf_cfg: str,
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="partial_tomography_cardinal_seq",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     cardinal_gates = ['i', 'rx180', 'ry90', 'rym90', 'rx90', 'rxm90']
 
@@ -1477,7 +1476,7 @@ def partial_tomography_cardinal(q0: int, q1: int, cardinal: int, platf_cfg: str,
         t_q0 = gates[1]
         t_q1 = gates[0]
         k = Kernel('PT_{}_tomo_{}_{}'.format(cardinal, idx_p0, idx_p1),
-                   p=platf)
+                   platform=platf)
 
         k.prepz(q0)
         k.prepz(q1)
@@ -1499,7 +1498,7 @@ def partial_tomography_cardinal(q0: int, q1: int, cardinal: int, platf_cfg: str,
     with suppress_stdout():
         p.compile()
 
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p
 
@@ -1517,7 +1516,7 @@ def two_qubit_VQE(q0: int, q1: int, platf_cfg: str):
 
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname="VQE_full_tomo",
-                nqubits=platf.get_qubit_number(), p=platf)
+                nqubits=platf.get_qubit_number(), platform=platf)
 
     # Tomography pulses
     i = 0
@@ -1525,7 +1524,7 @@ def two_qubit_VQE(q0: int, q1: int, platf_cfg: str):
         for p_q0 in tomo_list_q0:
             i += 1
             kernel_name = '{}_{}_{}'.format(i, p_q0, p_q1)
-            k = Kernel(kernel_name, p=platf)
+            k = Kernel(kernel_name, platform=platf)
             k.prepz(q0)
             k.prepz(q1)
             k.gate('ry180', q0)  # Y180 gate without compilation
@@ -1545,6 +1544,6 @@ def two_qubit_VQE(q0: int, q1: int, platf_cfg: str):
     with suppress_stdout():
         p.compile()
     # attribute is added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     return p

@@ -15,7 +15,7 @@ from pycqed.measurement.openql_experiments import openql_helpers as oqh
 
 base_qasm_path = join(dirname(__file__), 'qasm_files')
 output_dir = join(dirname(__file__), 'output')
-ql.set_output_dir(output_dir)
+ql.set_option("output_dir", output_dir)
 
 gst_exp_filepath = join(pq.__path__[0], 'measurement', 'gate_set_tomography')
 
@@ -60,8 +60,8 @@ def openql_program_from_pygsti_expList(pygsti_gateset, program_name: str,
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname=program_name,
                 nqubits=platf.get_qubit_number(),
-                p=platf)
-    p.output_dir = ql.get_output_dir()
+                platform=platf)
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
     if oqh.check_recompilation_needed(p.filename, platf_cfg, recompile):
 
@@ -85,7 +85,7 @@ def openql_kernel_from_gatestring(gatestring, qubits: list,
     """
     Generates an openQL kernel for a pygsti gatestring.
     """
-    k = Kernel(kernel_name, p=platf)
+    k = Kernel(kernel_name, platform=platf)
     for q in qubits:
         k.prepz(q)
 

@@ -18,7 +18,7 @@ from pycqed.measurement.randomized_benchmarking.two_qubit_clifford_group \
     import SingleQubitClifford, TwoQubitClifford
 base_qasm_path = join(dirname(__file__), 'qasm_files')
 output_dir = join(dirname(__file__), 'output')
-ql.set_output_dir(output_dir)
+ql.set_option("output_dir", output_dir)
 
 
 def randomized_benchmarking(qubits: list, platf_cfg: str,
@@ -103,10 +103,10 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
     '''
     platf = Platform('OpenQL_Platform', platf_cfg)
     p = Program(pname=program_name, nqubits=platf.get_qubit_number(),
-                p=platf)
+                platform=platf)
 
     # attribute get's added to program to help finding the output files
-    p.output_dir = ql.get_output_dir()
+    p.output_dir = ql.get_option("output_dir")
     p.filename = join(p.output_dir, p.name + '.qisa')
 
     if not oqh.check_recompilation_needed(
@@ -130,7 +130,7 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
             for interleaving_cl in interleaving_cliffords:
                 for net_clifford in net_cliffords:
                     k = Kernel('RB_{}Cl_s{}_net{}_inter{}'.format(
-                        n_cl, seed, net_clifford, interleaving_cl), p=platf)
+                        n_cl, seed, net_clifford, interleaving_cl), platform=platf)
                     if initialize:
                         for qubit_idx in qubit_map.values():
                             k.prepz(qubit_idx)
@@ -173,6 +173,6 @@ def randomized_benchmarking(qubits: list, platf_cfg: str,
 
 
     with suppress_stdout():
-        p.compile(verbose=False)
+        p.compile()
 
     return p
