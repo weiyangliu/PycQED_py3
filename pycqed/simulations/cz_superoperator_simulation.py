@@ -196,7 +196,7 @@ def phases_from_superoperator(U):
         phi_01 = np.rad2deg(np.angle(U[1, 1]))
         phi_10 = np.rad2deg(np.angle(U[3, 3]))
         phi_11 = np.rad2deg(np.angle(U[4, 4]))
-        phi_02 = np.rad2deg(np.angle(U[2, 2]))
+        phi_02 = np.rad2deg(np.angle(U[2, 2]))  # used only for avgatefid_superoperator_phasecorrected
 
         phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360
         # notice the + even if it is irrelevant
@@ -207,7 +207,7 @@ def phases_from_superoperator(U):
         phi_01 = np.rad2deg(np.angle(U[1, 1]))   # actually phi_01-phi_00
         phi_10 = np.rad2deg(np.angle(U[3, 3]))
         phi_11 = np.rad2deg(np.angle(U[4, 4]))
-        phi_02 = np.rad2deg(np.angle(U[14, 14]))
+        phi_02 = np.rad2deg(np.angle(U[2, 2]))
 
         phi_cond = (phi_11 - phi_01 - phi_10 + phi_00) % 360  # still the right formula
         # independently from phi_00
@@ -252,17 +252,20 @@ def pro_avfid_superoperator_compsubspace_phasecorrected(U,L1,phases):
     """
     Average process (gate) fidelity in the computational subspace for a qubit and qutrit
     Leakage has to be taken into account, see Woods & Gambetta
+    The phase is corrected with Z rotations considering both transmons as qubits
     """
 
-    corrections=[]
-    corrections.append(np.exp(-1j*np.deg2rad(phases[0]))*qtp.tensor(qtp.qeye(2),qtp.qeye(3)))   # this should be identity
-    corrections.append(np.exp(-1j*(np.deg2rad(phases[2]-phases[0])))*qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3)))
-    corrections.append(np.exp(-1j*(np.deg2rad(phases[1]-phases[0])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,1))))
-    #corrections.append(np.exp(-1j*(np.deg2rad(phases[4]-phases[0]-phases[-1])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,2))))
+    Ucorrection = qtp.Qobj([[np.exp(-1j*np.deg2rad(phases[0])), 0, 0, 0, 0, 0],
+                     [0, np.exp(-1j*np.deg2rad(phases[1])), 0, 0, 0, 0],
+                     [0, 0, np.exp(-1j*np.deg2rad(phases[0])), 0, 0, 0],
+                     [0, 0, 0, np.exp(-1j*np.deg2rad(phases[2])), 0, 0],
+                     [0, 0, 0, 0, np.exp(-1j*np.deg2rad(phases[3]-phases[-1])), 0],
+                     [0, 0, 0, 0, 0, np.exp(-1j*np.deg2rad(phases[2]))]],
+                    type='oper',
+                    dims=[[2, 3], [2, 3]])
 
     if U.type=='oper':
-        for V in corrections:
-            U=V*U
+        U=Ucorrection*U
         inner = U.dag()*U_target
         part_idx = [0, 1, 3, 4]  # only computational subspace
         ptrace = 0
@@ -273,9 +276,7 @@ def pro_avfid_superoperator_compsubspace_phasecorrected(U,L1,phases):
         return np.real(((np.abs(ptrace))**2+dim*(1-L1))/(dim*(dim+1)))
 
     elif U.type=='super':
-        for V in corrections:
-            V_super=qtp.to_super(V)
-            U=V_super*U
+        U=qtp.to_super(Ucorrection)*U
         kraus_form = qtp.to_kraus(U)
         dim=4 # 2 qubits in the computational subspace
         part_idx = [0, 1, 3, 4]  # only computational subspace
@@ -387,25 +388,51 @@ def pro_avfid_superoperator(U):
 def pro_avfid_superoperator_phasecorrected(U,phases):
     """
     Average process (gate) fidelity in the whole space for a qubit and qutrit
+    Qubit Z rotation and qutrit "Z" rotations are applied, taking into account the anharmonicity as well
     """
-    corrections=[]
-    corrections.append(np.exp(-1j*np.deg2rad(phases[0]))*qtp.tensor(qtp.qeye(2),qtp.qeye(3)))   # this should be identity
-    corrections.append(np.exp(-1j*(np.deg2rad(phases[2]-phases[0])))*qtp.tensor(qtp.ket2dm(qtp.basis(2,1)),qtp.qeye(3)))
-    corrections.append(np.exp(-1j*(np.deg2rad(phases[1]-phases[0])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,1))))
-    corrections.append(np.exp(-1j*(np.deg2rad(phases[4]-phases[0]-phases[-1])))*qtp.tensor(qtp.qeye(2),qtp.ket2dm(qtp.basis(3,2))))
+    Ucorrection = qtp.Qobj([[np.exp(-1j*np.deg2rad(phases[0])), 0, 0, 0, 0, 0],
+                     [0, np.exp(-1j*np.deg2rad(phases[1])), 0, 0, 0, 0],
+                     [0, 0, np.exp(-1j*np.deg2rad(phases[4]-phases[-1])), 0, 0, 0],
+                     [0, 0, 0, np.exp(-1j*np.deg2rad(phases[2])), 0, 0],
+                     [0, 0, 0, 0, np.exp(-1j*np.deg2rad(phases[3]-phases[-1])), 0],
+                     [0, 0, 0, 0, 0, np.exp(-1j*np.deg2rad(phases[4]-phases[-1]+phases[2]-phases[0]))]],
+                    type='oper',
+                    dims=[[2, 3], [2, 3]])
 
     if U.type=='oper':
-        for V in corrections:
-            U=V*U
+        U=Ucorrection*U
         ptrace = np.abs((U.dag()*U_target).tr())**2
         dim = 6  # dimension of the whole space
         return np.real((ptrace+dim)/(dim*(dim+1)))
 
     elif U.type=='super':
-        for V in corrections:
-            V_super=qtp.to_super(V)
-            U=V_super*U
+        U=qtp.to_super(Ucorrection)*U
         return np.real(qtp.average_gate_fidelity(U,target=U_target_diffdims))
+
+
+
+'''
+# benchmark for phase correction
+gamma=2j*np.pi/3
+alpha=2j*np.pi
+beta=2j*np.pi/2
+phi=2j*np.pi/4
+delta=2j*np.pi/7
+Uphases= qtp.Qobj([[np.exp(gamma), 0, 0, 0, 0, 0],
+                     [0, np.exp(gamma+beta), 0, 0, 0, 0],
+                     [0, 0, np.exp(gamma+delta+phi), 0, 0, 0],
+                     [0, 0, 0, np.exp(gamma+alpha), 0, 0],
+                     [0, 0, 0, 0, np.exp(gamma+alpha+beta+phi), 0],
+                     [0, 0, 0, 0, 0, np.exp(gamma+alpha+delta)]],
+                    type='oper',
+                    dims=[[2, 3], [2, 3]])
+print(Uphases)
+phases=phases_from_superoperator(Uphases)
+print(phases)
+print(pro_avfid_superoperator_phasecorrected(Uphases,phases))
+print(pro_avfid_superoperator_compsubspace_phasecorrected(Uphases,
+	  leakage_from_superoperator(Uphases),phases))
+'''
 
 
 tlist = np.arange(0, 240e-9, 1/2.4e9)
@@ -446,15 +473,16 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
     if c_ops!=[]:
         c_ops=[c_ops[c]/np.sqrt(scalefactor) for c in range(len(c_ops))]
 
+    '''    # currently not used
     eps_interp = interp1d(tlist, eps_vec, fill_value='extrapolate')
-
 
     # function only exists to wrap
     def eps_t(t, args=None):
         return eps_interp(t)
 
-    tlist_sim = (np.arange(0, np.max(tlist), sim_step))   # currently not used
+    tlist_sim = (np.arange(0, np.max(tlist), sim_step))   
     eps_vec_new=eps_interp(tlist_sim)
+    '''
 
     H_c = n_q0
     H_t = [H_0, [H_c, eps_vec]]
@@ -482,7 +510,7 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
     avgatefid = pro_avfid_superoperator_phasecorrected(U_final,phases)
     avgatefid_compsubspace = pro_avfid_superoperator_compsubspace_phasecorrected(U_final,L1,phases)     # leakage has to be taken into account, see Woods & Gambetta
 
-    return {'phi_cond': phi_cond, 'L1': L1, 'L2': L2, 'avgatefid': avgatefid, 'avgatefid_compsubspace': avgatefid_compsubspace}
+    return {'phi_cond': phi_cond, 'L1': L1, 'L2': L2, 'avgatefid_pc': avgatefid, 'avgatefid_compsubspace_pc': avgatefid_compsubspace}
 
 
 
@@ -495,7 +523,7 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
                 required to generate the waveform for the trajectory.
         """
         super().__init__()
-        self.value_names = ['Cost func', 'Cond phase', 'L1', 'L2', 'avgatefid', 'avgatefid_compsubspace']
+        self.value_names = ['Cost func', 'Cond phase', 'L1', 'L2', 'avgatefid_pc', 'avgatefid_compsubspace_pc']
         self.value_units = ['a.u.', 'deg', '%', '%', '%', '%']
         self.fluxlutman = fluxlutman
         self.H_0 = H_0
@@ -527,9 +555,9 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
             tlist=tlist, c_ops=self.c_ops, eps_vec=eps_vec,
             sim_step=1e-9, verbose=False)
 
-        cost_func_val = 1-qoi['avgatefid_compsubspace']   # new cost function: infidelity
+        cost_func_val = 1-qoi['avgatefid_compsubspace_pc']   # new cost function: infidelity
         #np.abs(qoi['phi_cond']-180) + qoi['L1']*100 * 5
-        return cost_func_val, qoi['phi_cond'], qoi['L1']*100, qoi['L2']*100, qoi['avgatefid']*100, qoi['avgatefid_compsubspace']*100
+        return cost_func_val, qoi['phi_cond'], qoi['L1']*100, qoi['L2']*100, qoi['avgatefid_pc']*100, qoi['avgatefid_compsubspace_pc']*100
 
     def get_f_pulse_double_sided(self):
         half_CZ_A = wf.martinis_flux_pulse(
