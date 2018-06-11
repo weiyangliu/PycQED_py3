@@ -5473,7 +5473,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
             #data_dist = s21distFunc(data_real=data_complex.real,
             #                        data_imag=data_complex.imag,
             #                        percentile=kw.get('s21_percentile', 70),
-            #                        normalize=kw.get('s21_normalize_per_dac', False))
+            #                        normalize=kw.get('s21_normalize', False))
 
         ########## Fit data ##########
 

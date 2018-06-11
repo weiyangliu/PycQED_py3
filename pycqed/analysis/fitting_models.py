@@ -365,37 +365,52 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-def DoubleHangerS21AbsFunc(f, A: float, phi: float, kappaa: float, kappab: float,
-                        J: float, gammaa: float, gammab: float,
-                        fa: float, fb: float, **kw):
-    return abs(DoubleHangerS21Func(f=f, A=A, phi=phi, kappaa=kappaa,
-                                   kappab=kappab, gammaa=gammaa, gammab=gammab,
-                                   fa=fa, fb=fb, J=J))**2
+def DoubleHangerS21AbsFunc(f, **kw):
+    return abs(DoubleHangerS21Func(f=f, **kw))
 
-def DoubleHangerS21Func(f, A: float, phi: float, kappaa: float, kappab: float,
-                        J: float, gammaa: float, gammab: float,
+def DoubleHangerS21Func(f, A: float, Cin: float, phi: float, kappaa: float, kappab: float,
+                        J: float, gammaa: float, gammab: float, linef: float, alpha: float,
                         fa: float, fb: float, **kw):
     '''
-    As in Heinsoo et al (2018)
+    Function modelling the transmission of a feedline with a pair of series
+    resonators coupled to it. The model includes the possiblity of an input
+    capacitor.
+    Source: Heinsoo et al. (https://arxiv.org/abs/1801.07904) Appendix C.
+
     :param f: (list of) frequency(-ies)
     :param A: Amplitude
     :param phi: Global Phase
-    :param kappaa:
-    :param kappab:
+    :param kappaa: Decay rate of resonator A
+    :param kappab: Decay rate of resonator B
     :param J: Coupling between the two resonators
-    :param gammaa: Decay rate of resonator A
-    :param gammab: Decay rate of resonator B
+    :param gammaa: Loss rate of resonator A
+    :param gammab: Loss rate of resonator B
     :param fa: Frequency of resonator A
     :param fb: Frequency of resonator B
-    :param kw:
-    :return:
+    :param kw: ignored
+    :return: (list of) complex transmission
+
+    Note, that this function cannot differentiate between kappab and gamma b,
+    so one of these should be fixed when using this for fitting!
     '''
     if A <=0 or kappaa < 0 or kappab < 0 or gammaa < 0 or gammab < 0 or fa <= 0 or fb <= 0:
         return None
+    f0 = (fa+fb)/2
+    #Gamma = 1/(1+2j*2*np.pi*f*50*Cin*1e-15)
     phase = np.exp(-1j*phi) #Induced by input-cap
+    #phase *= (1 + Gamma)/(1 + Gamma.real)
+    #phase_wrapping = np.exp(-1j*f/linef)
+    slope_corr = (1 + alpha * (f - f0) / f0)
+    #A *= (1-Gamma)
+    #A *= phase_wrapping
+    A *= slope_corr
     da = (f-fa)
     db = (f-fb)
-    return A*(1-(phase*kappaa*(gammab+2j*db+kappab)/(4*J**2+(gammaa+2j*da+kappaa)*(gammab+2j*db+kappab))))
+    terma = (gammaa + 2j*da + kappaa)
+    termb = (gammab + 2j*db + kappab)
+    top = phase * kappaa * termb
+    bottom = 4*(J**2) + terma*termb
+    return A*(1-top/bottom)
 
 def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
     # This is the function for a hanger (lambda/4 resonator) which takes into
@@ -742,10 +757,13 @@ def DoubleHangerS21Guess(model, freq: list, s21: list, f0: float):
     #TODO: Make some 'real' guesses. This is not very robust!
     s21abs = np.abs(s21)
     A = np.max(s21abs)
-    model.set_param_hint('A', value=A, min=0, vary=False)
-    model.set_param_hint('phi',min=-np.pi, max=+np.pi,
+    model.set_param_hint('A', value=A, min=0, vary=True)
+    model.set_param_hint('Cin', min=1, max=200, value=30, vary=True)
+    model.set_param_hint('phi', min=-np.pi, max=+np.pi,
                          value=0.01, #stimulate change by not choosing 0
                          vary=True)
+    model.set_param_hint('alpha', value=1, vary=False)
+    model.set_param_hint('linef', value=8998873, vary=False)
     J = 12e6#11e6
     model.set_param_hint('fb', value=f0,
                          min=min(freq), max=max(freq), vary=True)
