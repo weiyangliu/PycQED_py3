@@ -365,23 +365,37 @@ def hanger_func_complex_SI(f: float, f0: float, Ql: float, Qe: float,
 
     return S21
 
-def DoubleHangerS21Func(f, A: float, phi: float, kappa: float,
-                        gamma: float, wrr: float, J: float, wpf: float):
+def DoubleHangerS21AbsFunc(f, A: float, phi: float, kappaa: float, kappab: float,
+                        J: float, gammaa: float, gammab: float,
+                        fa: float, fb: float, **kw):
+    return abs(DoubleHangerS21Func(f=f, A=A, phi=phi, kappaa=kappaa,
+                                   kappab=kappab, gammaa=gammaa, gammab=gammab,
+                                   fa=fa, fb=fb, J=J))**2
+
+def DoubleHangerS21Func(f, A: float, phi: float, kappaa: float, kappab: float,
+                        J: float, gammaa: float, gammab: float,
+                        fa: float, fb: float, **kw):
     '''
-    As in the ETH paper
+    As in Heinsoo et al (2018)
     :param f: (list of) frequency(-ies)
     :param A: Amplitude
     :param phi: Global Phase
-    :param kappa: Decay rate of resonator1
-    :param gamma: Decay rate of resonator2
-    :param wrr: Frequency rate of resonator1
+    :param kappaa:
+    :param kappab:
     :param J: Coupling between the two resonators
-    :param wpf: Frequency rate of resonator2
+    :param gammaa: Decay rate of resonator A
+    :param gammab: Decay rate of resonator B
+    :param fa: Frequency of resonator A
+    :param fb: Frequency of resonator B
+    :param kw:
     :return:
     '''
-    if A < 0 or kappa < 0 or gamma <= 0 or wrr <= 0 or J <= 0 or wpf <= 0:
-        return 0
-    return A*(1-(np.exp(-1j*phi)*kappa*(gamma+2j*(f-wrr))/(4*J**2+(kappa+2j*(f-wpf))*(gamma+2j*(f-wrr)))))
+    if A <=0 or kappaa < 0 or kappab < 0 or gammaa < 0 or gammab < 0 or fa <= 0 or fb <= 0:
+        return None
+    phase = np.exp(-1j*phi) #Induced by input-cap
+    da = (f-fa)
+    db = (f-fb)
+    return A*(1-(phase*kappaa*(gammab+2j*db+kappab)/(4*J**2+(gammaa+2j*da+kappaa)*(gammab+2j*db+kappab))))
 
 def PolyBgHangerFuncAmplitude(f, f0, Q, Qe, A, theta, poly_coeffs):
     # This is the function for a hanger (lambda/4 resonator) which takes into
@@ -728,26 +742,30 @@ def DoubleHangerS21Guess(model, freq: list, s21: list, f0: float):
     #TODO: Make some 'real' guesses. This is not very robust!
     s21abs = np.abs(s21)
     A = np.max(s21abs)
-    model.set_param_hint('A', value=A, min=0, vary=True)
-    model.set_param_hint('phi',min=0, max=2 * np.pi,
-                         value=1e-3, #stimulate change but not choosing 0
+    model.set_param_hint('A', value=A, min=0, vary=False)
+    model.set_param_hint('phi',min=-np.pi, max=+np.pi,
+                         value=0.01, #stimulate change by not choosing 0
                          vary=True)
-    J = 10e6
-    model.set_param_hint('wrr', value=(f0 - J/2) * 2 * np.pi,
-                         min=min(freq) * 2 * np.pi,
-                         max=max(freq) * 2 * np.pi, vary=True)
-    model.set_param_hint('wpf', value=(f0 + J/2) * 2 * np.pi,
-                         min=min(freq) * 2 * np.pi,
-                         max=max(freq) * 2 * np.pi, vary=True)
-    model.set_param_hint('J', value=J * 2 * np.pi,
-                         min=0.1e6 * 2 * np.pi,
-                         max=200e6 * 2 * np.pi, vary=True)
-    model.set_param_hint('kappa', value=J * 2 * np.pi,
-                         min=0.1e6 * 2 * np.pi,
-                         max=200e6 * 2 * np.pi, vary=True)
-    model.set_param_hint('gamma', value=J * 2 * np.pi,
-                         min=0.1e6 * 2 * np.pi,
-                         max=200e6 * 2 * np.pi, vary=True)
+    J = 12e6#11e6
+    model.set_param_hint('fb', value=f0,
+                         min=min(freq), max=max(freq), vary=True)
+    model.set_param_hint('fa', value=f0,
+                         min=min(freq), max=max(freq), vary=True)
+    model.set_param_hint('fpf', expr='fa')
+    model.set_param_hint('frr', expr='fb')
+    model.set_param_hint('wpf', expr='fpf * 2 * pi')
+    model.set_param_hint('wrr', expr='frr * 2 * pi')
+    model.set_param_hint('J', value=J,
+                         min=0.1e6,
+                         max=100e6, vary=True)
+    model.set_param_hint('kappaa', value=10e6,
+                         min=0.5e6, max=50e6, vary=True)
+    model.set_param_hint('kappab', value=0,
+                         min=0, max=1e6, vary=False)
+    model.set_param_hint('gammaa', value=1e3,
+                         min=1, max=1e6, vary=True)
+    model.set_param_hint('gammab', value=1e5,
+                         min=1, max=1e6, vary=True)
     params = model.make_params()
     return params
 

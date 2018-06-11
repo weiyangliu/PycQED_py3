@@ -5450,7 +5450,7 @@ class Homodyne_Analysis(MeasurementAnalysis):
         :param show_guess:
         :param show:
         :param fit_window: allows to select the windows of data to fit.
-                            Example: fit_window=[100,-100]
+                            Example: fit_window=[100,-100] (given by indices)
         :param kw:
         :return:
         '''
@@ -5594,12 +5594,12 @@ class Homodyne_Analysis(MeasurementAnalysis):
             self.fit_frequency = fit_res.params['f0'].value*1e9
 
         elif fitting_model == 'double_resonator':
-            Model = lmfit.Model(fit_mods.DoubleHangerS21Func)
+            Model = lmfit.Model(fit_mods.DoubleHangerS21AbsFunc)
             self.params = fit_mods.DoubleHangerS21Guess(model=Model,
                                                        freq=scan_freqs, f0=f0,
                                                        s21=data_complex)
 
-            fit_res = Model.fit(data=data_complex, f=scan_freqs,
+            fit_res = Model.fit(data=abs(data_complex)**2, f=scan_freqs,
                                 verbose=self.verbose, **self.params)
             # Set the main result easy to read in SI units.
             self.fit_frequency = fit_res.params['wrr'].value/(2*np.pi)
@@ -5760,7 +5760,8 @@ class Homodyne_Analysis(MeasurementAnalysis):
             self.save_fig(fig2, xlabel='Mag', **kw)
         elif fitting_model == 'double_resonator':
             fit_values = fit_mods.DoubleHangerS21Func(scan_freqs,
-                                                      *fit_res.params)
+                                                      **fit_res.params)
+            print(fit_res.params)
             ax.plot(np.real(fit_values), np.imag(fit_values), 'r-')
 
             ax2.plot(scan_freqs, np.abs(fit_values), 'r-')
