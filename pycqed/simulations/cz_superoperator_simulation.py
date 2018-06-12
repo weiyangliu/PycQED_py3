@@ -31,7 +31,7 @@ n_q1 = b.dag() * b
 # caracteristic timescales for jump operators
 T1_q0=34e-6
 T1_q1=42e-6
-Tphi_q0_ket0toket0=0
+Tphi_q0_ket0toket0=0    # here useless parameters
 Tphi_q0_ket1toket1=0
 Tphi_q0_ket2toket2=0
 Tphi_q1_ket0toket0=0
@@ -110,6 +110,7 @@ where xy is the row and x'y' is the column
 
 def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1,
 					Tphi_q0_sigmaZ_01,Tphi_q0_sigmaZ_12,Tphi_q0_sigmaZ_02,Tphi_q1_sigmaZ_01):
+    # time independent case
 	c_ops=[]
 	if T1_q0 != 0:
 		c_ops.append(np.sqrt(1/T1_q0)*a)
@@ -155,8 +156,48 @@ def jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket
 	return c_ops
 
 
-c_ops=jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1,
-					 Tphi_q0_sigmaZ_01,Tphi_q0_sigmaZ_12,Tphi_q0_sigmaZ_02,Tphi_q1_sigmaZ_01)
+#c_ops=jump_operators(T1_q0,T1_q1,Tphi_q0_ket0toket0,Tphi_q0_ket1toket1,Tphi_q0_ket2toket2,Tphi_q1_ket0toket0,Tphi_q1_ket1toket1,
+#					 Tphi_q0_sigmaZ_01,Tphi_q0_sigmaZ_12,Tphi_q0_sigmaZ_02,Tphi_q1_sigmaZ_01)
+
+
+def c_ops_interpolating(T1_q0,T1_q1,Tphi01_q0_vec,Tphi01_q1):
+    # case where the pure decoherence for qubit q0 is time dependent, or better pulse-amplitude dependent
+    c_ops=[]
+
+    if T1_q0 != 0:
+        c_ops.append(np.sqrt(1/T1_q0)*a)
+
+    if T1_q1 != 0:
+        c_ops.append(np.sqrt(1/T1_q1)*b)
+
+    if Tphi01_q1 != 0:
+        sigmaZinqutrit = qtp.sigmaz()
+        collapse=qtp.tensor(sigmaZinqutrit,qtp.qeye(3))
+        c_ops.append(np.sqrt(1/(2*Tphi01_q1))*collapse)
+
+    if Tphi01_q0_vec != []:                                 # we automatically put also the decoherence for 12 and 02
+        sigmaZinqutrit = qtp.Qobj([[1,0,0],
+                                    [0,-1,0],
+                                    [0,0,0]])
+        collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+        c_ops.append([collapse,np.sqrt(1/(2*Tphi01_q0_vec))])
+
+        Tphi12_q0_vec=Tphi01_q0_vec
+        sigmaZinqutrit = qtp.Qobj([[0,0,0],
+                                    [0,1,0],
+                                    [0,0,-1]])
+        collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+        c_ops.append([collapse,np.sqrt(1/(2*Tphi12_q0_vec))])
+
+        Tphi02_q0_vec=Tphi01_q0_vec/2
+        sigmaZinqutrit = qtp.Qobj([[1,0,0],
+                                    [0,0,0],
+                                    [0,0,-1]])
+        collapse=qtp.tensor(qtp.qeye(2),sigmaZinqutrit)
+        c_ops.append([collapse,np.sqrt(1/(2*Tphi02_q0_vec))])
+
+    return c_ops
+
 
 
 
@@ -460,8 +501,6 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
         avgatefid (float):  average gate fidelity in full space
         avgatefid_compsubspace (float):  average gate fidelity only in the computational subspace
 
-    TODO: implement case with c_ops time-dependent
-
     """
 
     scalefactor=1e6  # otherwise qtp.propagator in parallel mode doesn't work
@@ -470,8 +509,14 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
     eps_vec=eps_vec/scalefactor
     sim_step=sim_step*scalefactor
     H_0=H_0/scalefactor
-    if c_ops!=[]:
-        c_ops=[c_ops[c]/np.sqrt(scalefactor) for c in range(len(c_ops))]
+    if c_ops!=[]:       # c_ops is a list of either operators or lists where the first element is
+                                    # an operator and the second one is a list of the (time-dependent) coefficients
+        for c in range(len(c_ops)):
+            if isinstance(c_ops[c],list):
+                c_ops[c][1]=c_ops[c][1]/np.sqrt(scalefactor)
+            else:
+                c_ops[c]=c_ops[c]/np.sqrt(scalefactor)
+
 
     '''    # currently not used
     eps_interp = interp1d(tlist, eps_vec, fill_value='extrapolate')
@@ -515,7 +560,7 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
 
 
 class CZ_trajectory_superoperator(det.Soft_Detector):
-    def __init__(self, H_0, c_ops, fluxlutman):
+    def __init__(self, H_0, fluxlutman, noise_parameters_CZ):
         """
         Detector for simulating a CZ trajectory.
         Args:
@@ -527,7 +572,7 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
         self.value_units = ['a.u.', 'deg', '%', '%', '%', '%']
         self.fluxlutman = fluxlutman
         self.H_0 = H_0
-        self.c_ops = c_ops
+        self.noise_parameters_CZ = noise_parameters_CZ
 
     def acquire_data_point(self, **kw):
         tlist = (np.arange(0, self.fluxlutman.cz_length(),
@@ -548,11 +593,62 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
 
         # extract base frequency from the Hamiltonian
         w_q0 = np.real(self.H_0[1,1])
-        eps_vec = f_pulse - w_q0      
+        eps_vec = f_pulse - w_q0
+
+
+        T1_q0 = self.noise_parameters_CZ.T1_q0()
+        T1_q1 = self.noise_parameters_CZ.T1_q1()
+        T2_q0_sweetspot = self.noise_parameters_CZ.T2_q0_sweetspot()
+        T2_q0_interaction_point = self.noise_parameters_CZ.T2_q0_interaction_point()
+        T2_q1 = self.noise_parameters_CZ.T2_q1()
+
+        def Tphi_from_T1andT2(T1,T2):
+            return 1/(-1/(2*T1)+1/T2)
+
+        if T2_q0_sweetspot != 0:
+            Tphi01_q0_sweetspot=Tphi_from_T1andT2(T1_q0,T2_q0_sweetspot)
+        else:
+            Tphi01_q0_sweetspot=0
+        if T2_q0_interaction_point != 0:
+            Tphi01_q0_interaction_point=Tphi_from_T1andT2(T1_q0,T2_q0_interaction_point)
+        else:
+            Tphi01_q0_interaction_point=0
+        # Tphi01=Tphi12=2*Tphi02
+        if T2_q1 != 0:
+            Tphi01_q1 = Tphi_from_T1andT2(T1_q1,T2_q1)
+        else:
+            Tphi01_q1=0
+
+
+
+        def omega_prime(omega):                                   # derivative of f_pulse
+            '''
+            frequency is w = w_0 * cos(phi_e/2)    where phi_e is the external flux through the SQUID.
+            So the derivative wrt phi_e is
+                 w_prime = - w_0/2 sin(phi_e/2) = - w_0/2 * sqrt(1-cos(phi_e/2)**2) = - w_0/2 * sqrt(1-(w/w_0)**2)
+            Note: no need to know what phi_e is.
+            '''
+            return np.abs((w_q0/2)*np.sqrt(1-(omega/w_q0)**2))    # we actually return the absolute value because it's the only one who matters later
+
+        if Tphi01_q0_interaction_point != 0:       # mode where the pure dephazing is amplitude-dependent
+            w_min = np.nanmin(f_pulse)        
+            omega_prime_min = omega_prime(w_min)
+
+            f_pulse_prime = omega_prime(f_pulse)
+            Tphi01_q0_vec = Tphi01_q0_sweetspot - f_pulse_prime/omega_prime_min*(Tphi01_q0_sweetspot-Tphi01_q0_interaction_point)
+                     # we interpolate Tphi from the sweetspot to the interaction point (=worst point in terms of Tphi)
+                     # by weighting depending on the derivative of f_pulse compared to the derivative at the interaction point
+            c_ops = c_ops_interpolating(T1_q0,T1_q1,Tphi01_q0_vec,Tphi01_q1)
+        else:                                       # mode where the collapse operators are time-independent, and possibly are 0
+            c_ops=jump_operators(T1_q0,T1_q1,0,0,0,0,0,
+                    Tphi01_q0_sweetspot,Tphi01_q0_sweetspot,Tphi01_q0_sweetspot/2,Tphi01_q1)
+
+
+
 
         qoi = simulate_quantities_of_interest_superoperator(
             H_0=self.H_0,
-            tlist=tlist, c_ops=self.c_ops, eps_vec=eps_vec,
+            tlist=tlist, c_ops=c_ops, eps_vec=eps_vec,
             sim_step=1e-9, verbose=False)
 
         cost_func_val = 1-qoi['avgatefid_compsubspace_pc']   # new cost function: infidelity
