@@ -26,7 +26,7 @@ class NoiseParametersCZ(Instrument):
                            parameter_class=ManualParameter,
                            vals=vals.Numbers(), initial_value=42e-6)
         self.add_parameter('T2_q0_sweetspot', unit='s',
-                           label='T2 fluxing qubit at sweetspot (maximal T2). T2 (or better Tphi) at intermediate points is interpolated based on the derivative of the cosine,'
+                           label='T2 fluxing qubit at sweetspot (maximal T2). T2 (or better Tphi) at intermediate points is interpolated based on the derivative of the cosine',
                            parameter_class=ManualParameter,
                            vals=vals.Numbers(), initial_value=23e-6)
         self.add_parameter('T2_q1', unit='s',

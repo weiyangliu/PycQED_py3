@@ -11,6 +11,7 @@ import qutip as qtp
 from pycqed.measurement import detector_functions as det
 from scipy.interpolate import interp1d
 from pycqed.measurement.waveform_control_CC import waveform as wf
+import scipy
 #np.set_printoptions(threshold=np.inf)
 
 
@@ -480,7 +481,7 @@ tlist = np.arange(0, 240e-9, 1/2.4e9)
 
 
 def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
-                                    sim_step: float=0.1e-9,
+                                    sim_step,
                                     verbose: bool=True):
     """
     Calculates the quantities of interest from the propagator U
@@ -516,44 +517,111 @@ def simulate_quantities_of_interest_superoperator(H_0, tlist, c_ops, eps_vec,
                 c_ops[c][1]=c_ops[c][1]/np.sqrt(scalefactor)
             else:
                 c_ops[c]=c_ops[c]/np.sqrt(scalefactor)
+    H_c = n_q0
 
 
-    '''    # currently not used
+    '''								# step of 1/sampling_rate=1/2.4e9=0.4 ns seems good by itself
+    sim_step_new=sim_step*2
+    
     eps_interp = interp1d(tlist, eps_vec, fill_value='extrapolate')
+    tlist_new = (np.linspace(0, np.max(tlist), 576/2)) 
+    eps_vec_new=eps_interp(tlist_new)
+    
+    c_ops_new=[]
+    for c in range(len(c_ops)):
+        if isinstance(c_ops[c],list):
+            c_ops_interp=interp1d(tlist,c_ops[c][1], fill_value='extrapolate')
+            c_ops_new.append([c_ops[c][0],c_ops_interp(tlist_new)])
+        else:
+            c_ops_new.append(c_ops[c])
 
     # function only exists to wrap
-    def eps_t(t, args=None):
-        return eps_interp(t)
+    #def eps_t(t, args=None):
+    #    return eps_interp(t)
+    print(len(eps_vec),len(eps_vec_new))
 
-    tlist_sim = (np.arange(0, np.max(tlist), sim_step))   
-    eps_vec_new=eps_interp(tlist_sim)
+
+  			
+    t0 = time.time()
+
+    exp_L_total_new=1
+    for i in range(len(tlist_new)):
+        H=H_0+eps_vec_new[i]*H_c
+        c_ops_temp=[]
+        for c in range(len(c_ops_new)):
+            if isinstance(c_ops_new[c],list):
+                c_ops_temp.append(c_ops_new[c][0]*c_ops_new[c][1][i])
+            else:
+                c_ops_temp.append(c_ops_new[c])
+        liouville_exp_t=(qtp.liouvillian(H,c_ops_temp)*sim_step_new).expm()
+        exp_L_total_new=liouville_exp_t*exp_L_total_new
+
+    #exp_L_oneway=(qtp.liouvillian(H_0,c_ops)*240e-3).expm()
+
+    t1 = time.time()
+    print('\n alternative propagator_new',t1-t0)
     '''
 
-    H_c = n_q0
-    H_t = [H_0, [H_c, eps_vec]]
 
+    t0 = time.time()
 
-    # TODO: try alternative strategy to ode solver
+    exp_L_total=1
+    for i in range(len(tlist)):
+        H=H_0+eps_vec[i]*H_c
+        c_ops_temp=[]
+        for c in range(len(c_ops)):
+            if isinstance(c_ops[c],list):
+                c_ops_temp.append(c_ops[c][0]*c_ops[c][1][i])
+            else:
+                c_ops_temp.append(c_ops[c])
+        liouville_exp_t=(qtp.liouvillian(H,c_ops_temp)*sim_step).expm()
+        exp_L_total=liouville_exp_t*exp_L_total
 
+    #exp_L_oneway=(qtp.liouvillian(H_0,c_ops)*240e-3).expm()
 
+    t1 = time.time()
+    print('\n alternative propagator',t1-t0)
+    
+    '''						# qutip propagator not used anymore because it takes too much time
     t0 = time.time()
     if c_ops==[]:
     	nstepsmax=1000
     else:
-    	nstepsmax=10000
+    	nstepsmax=100000
+    H_t = [H_0, [H_c, eps_vec]]
     U_t = qtp.propagator(H_t, tlist, c_ops, parallel=True, options=qtp.Options(nsteps=nstepsmax))   # returns unitary 'oper' if c_ops=[], otherwise 'super'
     t1 = time.time()
-    print('\n propagator',t1-t0)   
+    print('\n propagator',t1-t0)
     if verbose:
         print('simulation took {:.2f}s'.format(t1-t0))
+    '''
 
-    U_final = U_t[-1]
+    U_final = exp_L_total
     phases = phases_from_superoperator(U_final)
     phi_cond = phases[-1]
     L1 = leakage_from_superoperator(U_final)
     L2 = seepage_from_superoperator(U_final)
     avgatefid = pro_avfid_superoperator_phasecorrected(U_final,phases)
     avgatefid_compsubspace = pro_avfid_superoperator_compsubspace_phasecorrected(U_final,L1,phases)     # leakage has to be taken into account, see Woods & Gambetta
+    print('/n avgatefid_compsubspace',avgatefid_compsubspace)
+    
+    '''
+    U_final = exp_L_total_new
+    phases2 = phases_from_superoperator(U_final)
+    phi_cond2 = phases2[-1]
+    L12 = leakage_from_superoperator(U_final)
+    L22 = seepage_from_superoperator(U_final)
+    avgatefid2 = pro_avfid_superoperator_phasecorrected(U_final,phases2)
+    avgatefid_compsubspace2 = pro_avfid_superoperator_compsubspace_phasecorrected(U_final,L12,phases2)
+
+
+    print(phi_cond-phi_cond2,phi_cond)
+    print(L1-L12,L1)
+    print(L2-L22,L2)
+    print(avgatefid-avgatefid2,avgatefid)
+    print(avgatefid_compsubspace-avgatefid_compsubspace2,avgatefid_compsubspace)
+    '''  
+    
 
     return {'phi_cond': phi_cond, 'L1': L1, 'L2': L2, 'avgatefid_pc': avgatefid, 'avgatefid_compsubspace_pc': avgatefid_compsubspace}
 
@@ -634,6 +702,7 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
             w_min = np.nanmin(f_pulse)        
             omega_prime_min = omega_prime(w_min)
 
+            f_pulse=np.clip(f_pulse,0,w_q0)
             f_pulse_prime = omega_prime(f_pulse)
             Tphi01_q0_vec = Tphi01_q0_sweetspot - f_pulse_prime/omega_prime_min*(Tphi01_q0_sweetspot-Tphi01_q0_interaction_point)
                      # we interpolate Tphi from the sweetspot to the interaction point (=worst point in terms of Tphi)
@@ -649,9 +718,9 @@ class CZ_trajectory_superoperator(det.Soft_Detector):
         qoi = simulate_quantities_of_interest_superoperator(
             H_0=self.H_0,
             tlist=tlist, c_ops=c_ops, eps_vec=eps_vec,
-            sim_step=1e-9, verbose=False)
+            sim_step=1/self.fluxlutman.sampling_rate(), verbose=False)
 
-        cost_func_val = 1-qoi['avgatefid_compsubspace_pc']   # new cost function: infidelity
+        cost_func_val = -np.log10(1-qoi['avgatefid_compsubspace_pc'])   # new cost function: infidelity
         #np.abs(qoi['phi_cond']-180) + qoi['L1']*100 * 5
         return cost_func_val, qoi['phi_cond'], qoi['L1']*100, qoi['L2']*100, qoi['avgatefid_pc']*100, qoi['avgatefid_compsubspace_pc']*100
 
