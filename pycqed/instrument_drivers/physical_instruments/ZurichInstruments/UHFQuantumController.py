@@ -711,18 +711,18 @@ class UHFQC(Instrument):
         self.set('quex_rot_{}_real'.format(weight_function_Q), 2.0)
         self.set('quex_rot_{}_imag'.format(weight_function_Q), 0.0)
 
-    def set_dio_delay(index, delay):
+    def set_dio_delay(self, index, delay):
         """
         Args:
             index : integer [0:31]
             delay : integer [0:3] in 1/450 MHz = 2.222 ns steps (TBC)
 
-        NB: UHFQC.awgs_0_dio_delay_index() should not be used, the index is
+        NB: self.awgs_0_dio_delay_index() should not be used, the index is
             encoded in the value. This is different from the AWG-8 mechanism,
             and requires the maximum value for "awgs/0/dio/delay/value" in
             s_node_pars.txt to be changed to 1024
         """
-        UHFQC.awgs_0_dio_delay_value((delay << 8) + index)
+        self.awgs_0_dio_delay_value((delay << 8) + index)
 
     def _make_full_path(self, path):
         if path[0] == '/':
